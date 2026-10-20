@@ -4,6 +4,41 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
+ * The schema version the app is on. Used by the `@Database` annotation and read by
+ * the migration tests, so the two can never disagree.
+ */
+object DatabaseVersion {
+    const val CURRENT = 4
+}
+
+/**
+ * Every migration step, oldest first. Read by the migration tests so a forgotten
+ * or out-of-order migration fails the build rather than a user's upgrade.
+ */
+object MigrationSteps {
+    val ALL: List<Pair<Int, Int>> = listOf(1 to 2, 2 to 3, 3 to 4)
+}
+
+/**
+ * The SQL the migrations run, kept as data rather than inline strings so a test
+ * can check it against the entities it has to satisfy.
+ */
+object MigrationSql {
+    val MIGRATION_3_4_CREATE_RECOVERY_HISTORY = """
+        CREATE TABLE IF NOT EXISTS `recovery_history` (
+            `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            `displayName` TEXT NOT NULL,
+            `sourceLabel` TEXT NOT NULL,
+            `destinationLabel` TEXT NOT NULL,
+            `outcome` TEXT NOT NULL,
+            `detail` TEXT,
+            `sizeBytes` INTEGER NOT NULL,
+            `exportedAt` INTEGER NOT NULL
+        )
+    """.trimIndent()
+}
+
+/**
  * v1 keyed favourites, hidden items and custom-album membership by the numeric
  * MediaStore id. Photo and video ids come from different collections and
  * collide, so v2 re-keys them by the media content URI.
@@ -81,19 +116,6 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
  */
 val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL(
-            """
-            CREATE TABLE IF NOT EXISTS `recovery_history` (
-                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                `displayName` TEXT NOT NULL,
-                `sourceLabel` TEXT NOT NULL,
-                `destinationLabel` TEXT NOT NULL,
-                `outcome` TEXT NOT NULL,
-                `detail` TEXT,
-                `sizeBytes` INTEGER NOT NULL,
-                `exportedAt` INTEGER NOT NULL
-            )
-            """.trimIndent(),
-        )
+        db.execSQL(MigrationSql.MIGRATION_3_4_CREATE_RECOVERY_HISTORY)
     }
 }

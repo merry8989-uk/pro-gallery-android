@@ -7,7 +7,7 @@ checked against the current code, not remembered.
 
 **Current release:** v1.5.1 · `versionCode 20` · CI green · signed with the project key.
 
-**Phases 1, 2A and 2B complete.** The recovery engine is finished. Next: Phase 3 (settings completeness) or Phase 4 (performance & platform).
+**Phases 1, 2A, 2B and 4 complete.** Next: Phase 3 (settings completeness).
 
 ---
 
@@ -122,7 +122,20 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
-## 6. Pending — Phase 4: performance & platform
+## 6. Phase 4 — performance & platform — ✅ mostly DONE in v1.8.0
+
+Shipped: targetSdk 36 (AGP 8.9.3), MediaStore ContentObserver + quiet refresh on resume,
+incremental batch loading with a configurable batch size, signed release AAB in CI, Android
+lint in CI, Android 14 "Choose more" for limited access, and a device-free
+`MigrationCoverageTest` guarding the upgrade path.
+
+**Deliberately not done:** full Paging 3 — it would push sorting/search into SQL and decorate
+page by page, a rewrite of the core data path every screen depends on. The audit's own
+suggestion ("load from the cursor in batches") is what was implemented instead.
+
+**Still open:** instrumented tests need an emulator in CI.
+
+### Original Phase 4 list
 
 - **Paging 3** — declared in the version catalog but **not actually used**; the whole library loads at once.
 - **MediaStore `ContentObserver`** — no observer, so the index goes stale until a manual refresh (an ON_RESUME refresh exists).
@@ -164,8 +177,8 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 | ~~**v1.5.1**~~ | ✅ Phase 1 — the 13 correctness/safety items + the release-workflow tag fix (shipped) |
 | ~~**v1.6.0**~~ | ✅ Recovery engine A: Quick Scan, result browsing, `RecoveryThumbnail`, result cards, safe export, history (shipped) |
 | ~~**v1.7.0**~~ | ✅ Recovery engine B: thumbnail/cache mode, faster duplicates, cache limit + clear, progress throttling (shipped) |
-| **v1.8.0** | Phase 3 — settings completeness (export/import, resets, thumbnail cache, diagnostics, dependency registry) |
-| **v1.9.0** | Phase 4 — Paging 3, ContentObserver, migration tests, targetSdk 36, signed AAB, CI hardening |
+| **v1.8.0** | ✅ Phase 4 — API 36, ContentObserver, incremental loading, signed AAB, lint, migration guard (shipped) |
+| **v1.9.0** | Phase 3 — settings completeness (export/import, resets, per-kind thumbnail toggles, diagnostics, dependency registry) |
 
 Every release: feature branch → PR → CI green → merge → tagged release → APK
 verified by dex digest and signature, with an honest note on what was and was not

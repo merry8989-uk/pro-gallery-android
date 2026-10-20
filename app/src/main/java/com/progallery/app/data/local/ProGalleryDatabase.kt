@@ -29,7 +29,7 @@ import com.progallery.app.data.local.entity.TrashEntity
         ScanDirectoryEntity::class,
         RecoveryHistoryEntity::class,
     ],
-    version = 4,
+    version = DatabaseVersion.CURRENT,
     exportSchema = true,
 )
 abstract class ProGalleryDatabase : RoomDatabase() {

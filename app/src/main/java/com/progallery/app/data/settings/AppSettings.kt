@@ -91,6 +91,11 @@ data class AppSettings(
     // ---- E. Performance ------------------------------------------------
     val performanceMode: PerformanceMode = PerformanceMode.BALANCED,
     val maxConcurrentTasks: Int = 4,
+    /**
+     * How many index rows are read before the library is published again. A smaller
+     * number paints sooner; a larger one does fewer passes.
+     */
+    val scanBatchSize: Int = 500,
     val pauseWhenBackgrounded: Boolean = false,
 
     // ---- G. Root and experimental (OFF by default) ---------------------
@@ -203,6 +208,7 @@ data class AppSettings(
             signatureReadBytes = signatureReadBytes.coerceIn(64, 65_536),
             maxConcurrentTasks = maxConcurrentTasks.coerceIn(1, 16),
             thumbnailCacheLimitMb = thumbnailCacheLimitMb.coerceIn(32, 4096),
+            scanBatchSize = scanBatchSize.coerceIn(100, 5_000),
             // Experimental and root-related features stay off unless explicitly
             // enabled by the user; a sanitized copy never turns them on.
             experimentalMethodsEnabled = experimentalMethodsEnabled,

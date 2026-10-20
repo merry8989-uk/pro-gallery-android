@@ -12,6 +12,9 @@ import com.progallery.app.data.model.MediaSource
 import com.progallery.app.data.model.MediaType
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -60,10 +63,31 @@ class MediaStoreDataSource @Inject constructor(
         }
     }.toTypedArray()
 
-    /** Loads files of the enabled [kinds] only. */
+    /** Loads files of the enabled [kinds] only, in one go. */
     suspend fun loadMedia(kinds: Set<MediaType> = DEFAULT_KINDS): List<MediaItem> =
         withContext(Dispatchers.IO) {
-            val results = ArrayList<MediaItem>()
+            val all = ArrayList<MediaItem>()
+            loadMediaBatches(kinds, DEFAULT_BATCH_SIZE).collect { all += it }
+            all
+        }
+
+    /**
+     * Loads the index in batches, emitting after each one.
+     *
+     * A library with tens of thousands of files used to be built entirely before
+     * anything appeared. Emitting progressively lets the grid paint after the first
+     * batch while the rest arrives, and keeps peak allocations smaller.
+     *
+     * Each emission is a **batch**, not the whole list, so the caller decides how to
+     * accumulate. Cancellation propagates rather than returning a half-built index.
+     */
+    fun loadMediaBatches(
+        kinds: Set<MediaType> = DEFAULT_KINDS,
+        batchSize: Int = DEFAULT_BATCH_SIZE,
+    ): Flow<List<MediaItem>> = flow {
+        val effectiveBatch = batchSize.coerceAtLeast(1)
+        runCatchingCancellable {
+            val batch = ArrayList<MediaItem>(effectiveBatch)
             // Cancellable: a cancelled query must throw, not return a
             // half-populated library that looks like a complete one.
             runCatchingCancellable {
@@ -100,7 +124,7 @@ class MediaStoreDataSource @Inject constructor(
 
                         val volume = if (volumeCol >= 0) cursor.stringOrNull(volumeCol) else null
                         val contentUri = buildContentUri(id, resolvedKind, volume)
-                        results += MediaItem(
+                        val item = MediaItem(
                             id = id,
                             uri = contentUri,
                             displayName = displayName,
@@ -116,11 +140,17 @@ class MediaStoreDataSource @Inject constructor(
                             mediaType = resolvedKind,
                             source = MediaSource.MEDIA_STORE,
                         )
+                        batch += item
+                        if (batch.size >= effectiveBatch) {
+                            emit(batch.toList())
+                            batch.clear()
+                        }
                     }
                 }
             }
-            results
+            if (batch.isNotEmpty()) emit(batch.toList())
         }
+    }.flowOn(Dispatchers.IO)
 
     /**
      * MIME first, then the MediaStore media-type hint (useful when a provider
@@ -164,6 +194,9 @@ class MediaStoreDataSource @Inject constructor(
     }
 
     companion object {
+        /** Rows read before the index is published again. */
+        const val DEFAULT_BATCH_SIZE = 500
+
         /** Every real file kind; MediaType.ALL is the "no filter" value, not a kind. */
         val DEFAULT_KINDS: Set<MediaType> = MediaType.entries
             .filter { it != MediaType.ALL }

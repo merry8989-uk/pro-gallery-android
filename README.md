@@ -78,6 +78,16 @@ rooted (a read-only `su` check) but does not read raw storage — that bypasses
 Android's security model and cannot honestly promise recovery of TRIMmed or
 encrypted data.
 
+## Platform
+
+- **Android 8.0 – 16.** `minSdk 26`, `compileSdk`/`targetSdk` **36**.
+- **The index stays current** while the app runs: a `MediaStoreObserver` follows the system's
+  media index (debounced), and screens reload quietly on resume.
+- **The library loads incrementally** — the cursor is read in batches (default 500, configurable)
+  and published after each one, so the grid paints early on a large library.
+- The release workflow builds a **signed Play-ready AAB** as well as the debug APK. The AAB is
+  built and signed in CI but has not been run on a device.
+
 ## Recovery
 
 The **Recovery** screen runs a Quick Scan and shows what the app can actually

@@ -31,11 +31,30 @@ object FileSignatureDetector {
     fun sniff(openStream: () -> InputStream?, maxBytes: Int = DEFAULT_HEADER_BYTES): SignatureMatch? {
         val stream = openStream() ?: return null
         return try {
-            stream.use { detect(it.readNBytes(maxBytes)) }
+            stream.use { detect(readHeader(it, maxBytes)) }
         } catch (t: Throwable) {
             if (t is CancellationException) throw t
             null
         }
+    }
+
+    /**
+     * Reads at most [maxBytes] from the start of the stream.
+     *
+     * `InputStream.readNBytes` would be shorter, but it only exists from API 33
+     * while the app supports API 26 — calling it on Android 12 and below throws
+     * NoSuchMethodError, which silently disabled signature detection there. Lint
+     * caught it. This loop behaves the same on every supported version.
+     */
+    private fun readHeader(stream: InputStream, maxBytes: Int): ByteArray {
+        val buffer = ByteArray(maxBytes)
+        var total = 0
+        while (total < maxBytes) {
+            val read = stream.read(buffer, total, maxBytes - total)
+            if (read <= 0) break
+            total += read
+        }
+        return if (total == buffer.size) buffer else buffer.copyOf(total)
     }
 
     /** Identifies a file from its header bytes. Returns null when nothing matches. */

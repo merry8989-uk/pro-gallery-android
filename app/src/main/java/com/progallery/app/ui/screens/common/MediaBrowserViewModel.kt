@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import com.progallery.app.util.runCatchingCancellable
 
 data class BrowserUiState(
     val rawItems: List<MediaItem> = emptyList(),
@@ -178,6 +179,14 @@ class MediaBrowserViewModel @Inject constructor(
             }
         }
         restartCollection()
+    }
+
+    /**
+     * Reloads the index without showing the pull-to-refresh indicator — used when
+     * the screen comes back to the foreground, where a spinner would be noise.
+     */
+    fun refreshQuietly() {
+        viewModelScope.launch { runCatchingCancellable { repository.refresh() } }
     }
 
     private fun restartCollection() {

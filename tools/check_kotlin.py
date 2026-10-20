@@ -11,6 +11,9 @@ Checks
   1. Brace, parenthesis and bracket balance per file (comments and strings ignored).
   2. Every `Icons.Filled.*` / `Icons.AutoMirrored.Filled.*` use has its import.
   3. No duplicate imports.
+  3c. At most one `companion object` per file — Kotlin rejects a second one.
+  3b. Every `import` appears before any declaration — Kotlin rejects an import
+      that follows code ("imports are only allowed in the beginning of file").
   4. Every project type a file references is imported, declared locally, or in the
      same package — the check that catches a missing `import` the Kotlin compiler
      would only report after a long build.
@@ -84,12 +87,28 @@ def main() -> int:
             if not any(i.endswith("." + icon) for i in icon_imports):
                 problems.append(f"{name}: Icons.*.{icon} used but not imported")
 
+        companions = len(re.findall(r"\bcompanion object\b", code))
+        if companions > 1:
+            problems.append(
+                f"{name}: {companions} companion objects — Kotlin allows only one per class"
+            )
+
         seen = set()
+        seen_code = False
         for line in raw.split("\n"):
+            stripped = line.strip()
             if line.startswith("import "):
                 if line in seen:
                     problems.append(f"{name}: duplicate import {line.strip()}")
                 seen.add(line)
+                if seen_code:
+                    problems.append(
+                        f"{name}: import after code — Kotlin only allows imports at the top "
+                        f"({line.strip()})"
+                    )
+            elif stripped and not stripped.startswith("//") and not stripped.startswith("*") \
+                    and not stripped.startswith("/*") and not stripped.startswith("package "):
+                seen_code = True
 
     # 4. every referenced project type must be importable
     declarations = {}

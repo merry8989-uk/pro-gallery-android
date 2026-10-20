@@ -95,6 +95,7 @@ class SettingsRepository @Inject constructor(
         val minFileSize = longPreferencesKey("min_file_size_bytes")
         val maxFileSize = longPreferencesKey("max_file_size_bytes")
         val thumbnailCacheLimit = intPreferencesKey("thumbnail_cache_limit_mb")
+        val scanBatchSize = intPreferencesKey("scan_batch_size")
 
         val performanceMode = stringPreferencesKey("performance_mode")
         val maxConcurrentTasks = intPreferencesKey("max_concurrent_tasks")
@@ -137,6 +138,7 @@ class SettingsRepository @Inject constructor(
             minFileSizeBytes = p[Keys.minFileSize] ?: d.minFileSizeBytes,
             maxFileSizeBytes = p[Keys.maxFileSize] ?: d.maxFileSizeBytes,
             thumbnailCacheLimitMb = p[Keys.thumbnailCacheLimit] ?: d.thumbnailCacheLimitMb,
+            scanBatchSize = p[Keys.scanBatchSize] ?: d.scanBatchSize,
             performanceMode = enumOrDefault(p[Keys.performanceMode], PerformanceMode.entries, d.performanceMode),
             maxConcurrentTasks = p[Keys.maxConcurrentTasks] ?: d.maxConcurrentTasks,
             pauseWhenBackgrounded = p[Keys.pauseWhenBackgrounded] ?: d.pauseWhenBackgrounded,
@@ -174,6 +176,7 @@ class SettingsRepository @Inject constructor(
         p[Keys.minFileSize] = s.minFileSizeBytes
         p[Keys.maxFileSize] = s.maxFileSizeBytes
         p[Keys.thumbnailCacheLimit] = s.thumbnailCacheLimitMb
+        p[Keys.scanBatchSize] = s.scanBatchSize
         p[Keys.performanceMode] = s.performanceMode.name
         p[Keys.maxConcurrentTasks] = s.maxConcurrentTasks
         p[Keys.pauseWhenBackgrounded] = s.pauseWhenBackgrounded
