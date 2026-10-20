@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 
 /** What kind of media an export produces, which decides where it is published. */
 enum class TrimKind { VIDEO, AUDIO }
@@ -121,6 +122,7 @@ class MediaTrimmer @Inject constructor(
         try {
             transformer.start(editedMediaItem, outputFile.absolutePath)
         } catch (t: Throwable) {
+            if (t is CancellationException) throw t
             outputFile.delete()
             trySend(MediaExportState.Failure(t.message ?: "Could not start export"))
             close()

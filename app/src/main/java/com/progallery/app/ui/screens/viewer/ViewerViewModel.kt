@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.progallery.app.util.runCatchingCancellable
 
 /** A rename or move that may need the platform's write-consent before it applies. */
 sealed interface WriteAction {
@@ -68,7 +69,7 @@ class ViewerViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            runCatching { repository.refresh() }
+            runCatchingCancellable { repository.refresh() }
             refreshFolders()
         }
     }

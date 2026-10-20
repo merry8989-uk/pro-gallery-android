@@ -10,6 +10,7 @@ import com.progallery.app.data.model.MediaItem
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.util.runCatchingCancellable
 
 /**
  * Real, platform-correct media operations: sharing through the Sharesheet,
@@ -58,7 +59,7 @@ class MediaActions @Inject constructor(
 
     /** MIME to use when handing a file to another app. */
     private fun mimeFor(uri: Uri, mimeType: String): String = mimeType.ifBlank {
-        runCatching { context.contentResolver.getType(uri) }.getOrNull() ?: "*/*"
+        runCatchingCancellable { context.contentResolver.getType(uri) }.getOrNull() ?: "*/*"
     }
 
     private fun viewIntent(uri: Uri, mimeType: String): Intent =
@@ -81,12 +82,12 @@ class MediaActions @Inject constructor(
         }
 
     /** True when at least one installed app can handle this intent. */
-    private fun canHandle(intent: Intent): Boolean = runCatching {
+    private fun canHandle(intent: Intent): Boolean = runCatchingCancellable {
         context.packageManager.queryIntentActivities(intent, 0).isNotEmpty()
     }.getOrDefault(false)
 
     /** Shows a chooser. Returns false only if the chooser itself could not start. */
-    private fun launchChooser(intent: Intent, title: String): Boolean = runCatching {
+    private fun launchChooser(intent: Intent, title: String): Boolean = runCatchingCancellable {
         context.startActivity(
             Intent.createChooser(intent, title).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
@@ -151,7 +152,7 @@ class MediaActions @Inject constructor(
     fun deleteRequest(items: List<MediaItem>): PendingIntent? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
         if (items.isEmpty()) return null
-        return runCatching {
+        return runCatchingCancellable {
             MediaStore.createDeleteRequest(context.contentResolver, items.map { it.uri })
         }.getOrNull()
     }
@@ -160,7 +161,7 @@ class MediaActions @Inject constructor(
     fun deleteDirect(items: List<MediaItem>): Boolean {
         var ok = true
         items.forEach { item ->
-            val result = runCatching {
+            val result = runCatchingCancellable {
                 context.contentResolver.delete(item.uri, null, null)
             }.getOrDefault(0)
             if (result == 0) ok = false
@@ -175,7 +176,7 @@ class MediaActions @Inject constructor(
     }
 
     /** Applies a new display name to a MediaStore item. */
-    fun applyRename(uri: Uri, newName: String): Boolean = runCatching {
+    fun applyRename(uri: Uri, newName: String): Boolean = runCatchingCancellable {
         val values = android.content.ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, newName)
         }
@@ -192,7 +193,7 @@ class MediaActions @Inject constructor(
      */
     fun copyTo(item: MediaItem, targetRelativePath: String): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
-        return runCatching {
+        return runCatchingCancellable {
             val normalized = if (targetRelativePath.endsWith("/")) {
                 targetRelativePath
             } else {
@@ -250,7 +251,7 @@ class MediaActions @Inject constructor(
         // collections throws. Also throws for non-MediaStore URIs, such as a file
         // picked through the Storage Access Framework. Returning null lets the
         // caller report a clear failure instead of the exception escaping.
-        return runCatching {
+        return runCatchingCancellable {
             MediaStore.createWriteRequest(context.contentResolver, uris)
         }.getOrNull()
     }
@@ -263,7 +264,7 @@ class MediaActions @Inject constructor(
      */
     fun applyMove(item: MediaItem, targetRelativePath: String): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
-        return runCatching {
+        return runCatchingCancellable {
             val normalized = if (targetRelativePath.endsWith("/")) targetRelativePath else "$targetRelativePath/"
             val values = android.content.ContentValues().apply {
                 put(MediaStore.MediaColumns.RELATIVE_PATH, normalized)

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.progallery.app.util.runCatchingCancellable
 
 data class AlbumsUiState(
     val folders: List<Album> = emptyList(),
@@ -40,7 +41,7 @@ class AlbumsViewModel @Inject constructor(
     val uiState: StateFlow<AlbumsUiState> = _state.asStateFlow()
 
     init {
-        viewModelScope.launch { runCatching { repository.refresh() } }
+        viewModelScope.launch { runCatchingCancellable { repository.refresh() } }
         viewModelScope.launch {
             repository.observeAlbums().collect { albums ->
                 _state.update { it.copy(folders = albums, loading = false) }

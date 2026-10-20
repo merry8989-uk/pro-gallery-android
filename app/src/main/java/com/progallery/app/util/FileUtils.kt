@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import java.io.File
+import kotlinx.coroutines.CancellationException
 
 /** Low-level content-URI helpers. */
 object FileUtils {
@@ -44,6 +45,7 @@ object FileUtils {
             }
             if (destination.exists()) destination else null
         } catch (t: Throwable) {
+            if (t is CancellationException) throw t
             null
         }
     }

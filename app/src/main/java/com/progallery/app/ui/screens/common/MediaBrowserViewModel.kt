@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 
 data class BrowserUiState(
     val rawItems: List<MediaItem> = emptyList(),
@@ -158,6 +159,7 @@ class MediaBrowserViewModel @Inject constructor(
                 repository.refresh()
                 _state.update { it.copy(loading = false) }
             } catch (t: Throwable) {
+                if (t is CancellationException) throw t
                 _state.update { it.copy(loading = false, error = t.message ?: "Failed to load media") }
             }
         }

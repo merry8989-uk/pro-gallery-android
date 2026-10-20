@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.util.runCatchingCancellable
 
 /** Progress + result states emitted while a deep scan runs. */
 sealed interface ScanState {
@@ -69,7 +70,7 @@ class DeepScanRepository @Inject constructor(
      */
     suspend fun addAuthorisedDirectory(treeUri: Uri, displayName: String): Boolean =
         withContext(Dispatchers.IO) {
-            val persisted = runCatching {
+            val persisted = runCatchingCancellable {
                 context.contentResolver.takePersistableUriPermission(
                     treeUri,
                     android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
@@ -86,7 +87,7 @@ class DeepScanRepository @Inject constructor(
         }
 
     suspend fun removeAuthorisedDirectory(treeUri: String) = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingCancellable {
             context.contentResolver.releasePersistableUriPermission(
                 Uri.parse(treeUri),
                 android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
@@ -152,7 +153,7 @@ class DeepScanRepository @Inject constructor(
                 val (dir, path, depth) = stack.removeLast()
                 directoriesScanned++
 
-                val children = runCatching { dir.listFiles() }.getOrElse {
+                val children = runCatchingCancellable { dir.listFiles() }.getOrElse {
                     errors += "Failed to list $path"
                     emptyArray()
                 }
@@ -203,7 +204,7 @@ class DeepScanRepository @Inject constructor(
                         (kind == MediaType.OTHER || extension.isEmpty() || mime.isEmpty())
                     ) {
                         val sniffed = FileSignatureDetector.sniff(
-                            openStream = { runCatching { context.contentResolver.openInputStream(uri) }.getOrNull() },
+                            openStream = { runCatchingCancellable { context.contentResolver.openInputStream(uri) }.getOrNull() },
                             maxBytes = settings.signatureReadBytes,
                         )
                         if (sniffed != null) {

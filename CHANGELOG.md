@@ -27,6 +27,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.3.5]
+### Fixed
+- **Cancellation was being swallowed.** `runCatching` and `catch (Throwable)` catch
+  `CancellationException`, so a cancelled operation was reported as an ordinary
+  failure. Consequences: cancelling a copy returned `null`, which the delete flow
+  read as "copy failed" and used to **roll back a trash entry that should have
+  been kept**; and a cancelled MediaStore query returned a **half-populated
+  library** that looked complete. New `runCatchingCancellable` /
+  `ignoreUnlessCancelled` helpers rethrow cancellation, and they are now used by
+  the scanner, hasher, signature detector, MediaStore load, trash, exporter,
+  bitmap editor and the Media3 trimmer.
+- **Removed dead code**: `VideoTrimmer` (superseded by `MediaTrimmer` in 1.2.0)
+  was still in the tree — an earlier delete was undone by a later full-tree push.
+
 ## [1.3.4]
 ### Added
 - **File size range: 1 byte to unlimited.** Every file the app can see is shown regardless of size — APKs, images, videos, documents, archives, anything.

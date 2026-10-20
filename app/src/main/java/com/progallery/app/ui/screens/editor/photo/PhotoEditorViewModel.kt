@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.progallery.app.util.runCatchingCancellable
 
 data class PhotoEditorUiState(
     val source: Bitmap? = null,
@@ -79,7 +80,7 @@ class PhotoEditorViewModel @Inject constructor(
                 _state.update { it.copy(loading = false, error = "Could not open this image") }
                 return@launch
             }
-            val originalMime = runCatching { context.contentResolver.getType(uri) }.getOrNull()
+            val originalMime = runCatchingCancellable { context.contentResolver.getType(uri) }.getOrNull()
             // Default the export format to the original's, so the safe path is
             // also the default path.
             val defaultFormat = ExportFormat.entries.firstOrNull { it.mimeType == originalMime }

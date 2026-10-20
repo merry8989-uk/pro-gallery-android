@@ -63,6 +63,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import com.progallery.app.util.runCatchingCancellable
 
 data class AudioEditorUiState(
     val uri: Uri? = null,
@@ -94,7 +95,7 @@ class AudioEditorViewModel @Inject constructor(
         viewModelScope.launch {
             val uri = Uri.parse(java.net.URLDecoder.decode(uriString, "UTF-8"))
             val duration = withContext(Dispatchers.IO) {
-                runCatching {
+                runCatchingCancellable {
                     val retriever = MediaMetadataRetriever()
                     try {
                         retriever.setDataSource(context, uri)

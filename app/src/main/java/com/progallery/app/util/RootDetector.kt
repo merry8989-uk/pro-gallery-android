@@ -29,7 +29,7 @@ object RootDetector {
     )
 
     suspend fun isProbablyRooted(): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingCancellable {
             SU_PATHS.any { File(it).exists() } ||
                 Build.TAGS?.contains("test-keys") == true
         }.getOrDefault(false)

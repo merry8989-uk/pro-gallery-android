@@ -2,6 +2,7 @@ package com.progallery.app.data.recovery
 
 import com.progallery.app.data.model.MediaType
 import java.io.InputStream
+import kotlinx.coroutines.CancellationException
 
 /** How sure the detector is about an identification. */
 enum class Confidence { HIGH, MEDIUM, LOW }
@@ -32,6 +33,7 @@ object FileSignatureDetector {
         return try {
             stream.use { detect(it.readNBytes(maxBytes)) }
         } catch (t: Throwable) {
+            if (t is CancellationException) throw t
             null
         }
     }
