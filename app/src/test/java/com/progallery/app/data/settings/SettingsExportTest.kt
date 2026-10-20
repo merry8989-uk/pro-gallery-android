@@ -166,16 +166,31 @@ class SettingsExportTest {
 
     @Test
     fun theExportCarriesNothingPrivate() {
-        // An export is shared or kept, so it must not leak where the user's files are,
-        // nor any access grant.
-        val text = SettingsExport.encode(nonDefault)
-        listOf("content://", "file://", "/storage", "/sdcard", "uri", "path", "token", "grant")
-            .forEach { forbidden ->
-                assertFalse(
-                    "the export mentions \"$forbidden\"",
-                    text.contains(forbidden, ignoreCase = true),
-                )
-            }
+        // Checked against the *values*, not the raw text: a setting may legitimately be
+        // named "includePathsInLogs" — the name says what the switch does, not where any
+        // file is. What must never appear is a path, a content URI or a grant.
+        val decoded = FlatJson.decode(SettingsExport.encode(nonDefault))
+        decoded.forEach { (key, value) ->
+            val text = value?.toString() ?: return@forEach
+            listOf("content://", "file://", "/storage", "/sdcard", "tree/", "token", "grant")
+                .forEach { forbidden ->
+                    assertFalse(
+                        "the value of \"$key\" mentions \"$forbidden\": $text",
+                        text.contains(forbidden, ignoreCase = true),
+                    )
+                }
+        }
+    }
+
+    @Test
+    fun theExportCarriesNothingButTheSettingsItDeclares() {
+        // Nothing extra may be smuggled into the file, whatever it is called.
+        val keys = FlatJson.decode(SettingsExport.encode(nonDefault)).keys
+        assertEquals(
+            "the file has keys that are not settings",
+            SettingsExport.FIELD_NAMES.toSet() + "formatVersion",
+            keys,
+        )
     }
 
     @Test
