@@ -53,6 +53,14 @@ object PermissionUtils {
             granted(context, Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
+    /**
+     * Read access to where a photo was taken.
+     *
+     * Optional: without it the app simply does not read the location stored in a photo.
+     */
+    fun hasLocationAccess(context: Context): Boolean =
+        granted(context, Manifest.permission.ACCESS_MEDIA_LOCATION)
+
     /** Android 14+ partial ("selected photos") access. */
     fun hasPartialAccess(context: Context): Boolean =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&

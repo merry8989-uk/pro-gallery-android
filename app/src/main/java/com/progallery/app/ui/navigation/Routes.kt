@@ -9,6 +9,7 @@ object Routes {
     const val DOCUMENTS = "documents"
     const val ALL_FILES = "all_files"
     const val SETTINGS = "settings"
+    const val PERMISSION_DIAGNOSTICS = "permission_diagnostics"
     const val ANDROID_FOLDERS = "android_folders"
     const val RECOVERY = "recovery"
     const val PDF_VIEWER = "pdf_viewer"
