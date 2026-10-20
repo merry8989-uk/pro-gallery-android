@@ -18,6 +18,21 @@ import org.junit.Test
  */
 class MigrationCoverageTest {
 
+
+    /**
+     * The entity's real columns.
+     *
+     * `declaredFields` also reports fields the compiler adds — the Compose compiler
+     * puts a `$stable` marker on classes in a Compose module — so those are filtered
+     * out rather than being mistaken for a missing column.
+     */
+    private fun columnsOf(clazz: Class<*>): Set<String> =
+        clazz.declaredFields
+            .filterNot { it.isSynthetic }
+            .map { it.name }
+            .filterNot { it.startsWith("$") || it == "Companion" }
+            .toSet()
+
     @Test
     fun theDatabaseVersionIsTheLastMigrationTarget() {
         val lastTarget = MigrationSteps.ALL.last().second
@@ -49,7 +64,7 @@ class MigrationCoverageTest {
     @Test
     fun theNewestMigrationCreatesEveryColumnItsEntityDeclares() {
         val sql = MigrationSql.MIGRATION_3_4_CREATE_RECOVERY_HISTORY
-        val columns = RecoveryHistoryEntity::class.java.declaredFields.map { it.name }
+        val columns = columnsOf(RecoveryHistoryEntity::class.java)
 
         assertTrue("the table name is missing from the migration", sql.contains("`recovery_history`"))
         columns.forEach { column ->
@@ -63,7 +78,7 @@ class MigrationCoverageTest {
     @Test
     fun theNewestMigrationDoesNotCreateColumnsTheEntityLacks() {
         val sql = MigrationSql.MIGRATION_3_4_CREATE_RECOVERY_HISTORY
-        val declared = RecoveryHistoryEntity::class.java.declaredFields.map { it.name }.toSet()
+        val declared = columnsOf(RecoveryHistoryEntity::class.java)
         // Every backticked identifier in the CREATE TABLE must be a real column.
         val created = Regex("`([A-Za-z_][A-Za-z0-9_]*)`").findAll(sql)
             .map { it.groupValues[1] }
