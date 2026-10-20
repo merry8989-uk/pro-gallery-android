@@ -55,6 +55,23 @@ class SettingsRepository @Inject constructor(
     }
 
     /** Restores defaults, keeping the first-run flag so the prompt doesn't return. */
+    /**
+     * The user's settings as versioned JSON, ready to write to a file the user
+     * chooses. Contains no paths, URIs or tokens.
+     */
+    suspend fun exportJson(): String = SettingsExport.encode(current())
+
+    /**
+     * Applies an exported file.
+     *
+     * Nothing is written until the file has parsed and its format version is
+     * understood, so a bad file cannot leave the settings half-applied.
+     */
+    suspend fun importJson(json: String): Result<AppSettings> =
+        SettingsExport.decode(json).onSuccess { imported ->
+            update { imported }
+        }
+
     suspend fun resetToDefaults() {
         context.settingsStore.edit { preferences ->
             write(preferences, AppSettings.Defaults.copy(hasSeenDefaultGalleryPrompt = true))

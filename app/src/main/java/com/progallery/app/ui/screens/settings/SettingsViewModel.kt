@@ -15,9 +15,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.content.Context
+import android.net.Uri
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val thumbnailCache: ThumbnailCacheManager,
 ) : ViewModel() {
@@ -45,6 +51,65 @@ class SettingsViewModel @Inject constructor(
 
     fun consumeCacheMessage() {
         _cacheMessage.value = null
+    }
+
+    private val _settingsMessage = MutableStateFlow<String?>(null)
+    val settingsMessage: StateFlow<String?> = _settingsMessage.asStateFlow()
+
+    fun consumeSettingsMessage() {
+        _settingsMessage.value = null
+    }
+
+    /** Restores one section to its defaults, leaving every other section alone. */
+    fun resetSection(section: String) {
+        viewModelScope.launch {
+            settingsRepository.update { it.resetSection(section) }
+            _settingsMessage.value = "\"$section\" reset to defaults"
+        }
+    }
+
+    /** Writes the settings to the file the user chose. */
+    fun exportTo(uri: Uri) {
+        viewModelScope.launch {
+            val json = settingsRepository.exportJson()
+            val outcome = withContext(Dispatchers.IO) {
+                runCatching {
+                    val out = context.contentResolver.openOutputStream(uri)
+                        ?: error("the chosen file could not be opened")
+                    out.use { it.write(json.toByteArray()) }
+                }
+            }
+            _settingsMessage.value = outcome.fold(
+                onSuccess = { "Settings exported" },
+                onFailure = { "Export failed: ${it.message ?: "unknown reason"}" },
+            )
+        }
+    }
+
+    /**
+     * Applies a settings file the user chose.
+     *
+     * The file is read and validated before anything is written, so a bad file leaves
+     * the current settings untouched.
+     */
+    fun importFrom(uri: Uri) {
+        viewModelScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                runCatching {
+                    val input = context.contentResolver.openInputStream(uri)
+                        ?: error("the chosen file could not be opened")
+                    input.use { it.readBytes().decodeToString() }
+                }
+            }
+            val outcome = text.fold(
+                onSuccess = { json -> settingsRepository.importJson(json).map { } },
+                onFailure = { Result.failure(it) },
+            )
+            _settingsMessage.value = outcome.fold(
+                onSuccess = { "Settings imported" },
+                onFailure = { it.message ?: "Import failed" },
+            )
+        }
     }
 
     val settings: StateFlow<AppSettings> = settingsRepository.settings

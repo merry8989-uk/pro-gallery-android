@@ -27,6 +27,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.10.0]
+Phase 3 begins: settings you can take with you.
+
+### Added
+- **Export and import settings.** Every choice is written to a versioned JSON file you
+  choose through the system picker, and can be read back on another install.
+  - The file holds **only your choices** — no file paths, no content URIs, no SAF
+    grants, no tokens. A test asserts exactly that, because an export is a file you
+    will keep or share.
+  - **Import is strict about the format and tolerant about everything else.** A file
+    from a newer format is refused with a readable reason rather than half-applied;
+    unknown keys are ignored so a file from a later build still loads; a missing key
+    falls back to the current default; an unrecognised enum value falls back instead of
+    crashing. Nothing is written until the whole file has parsed, so a bad file leaves
+    your settings untouched.
+  - The format is read and written by a small hand-rolled codec (`FlatJson`) rather
+    than `org.json`, which is stubbed out in unit tests — this way the format itself is
+    covered without a device and without a new dependency.
+- **Reset a single section.** Every heading in Settings now has a **Reset** that
+  restores only the rows under it, so the control does exactly what the heading
+  promises. `advancedMode` is deliberately never reset: it is the switch that reveals
+  the section, and flipping it while you are looking at it would be disorienting.
+
+### Tests
+- `FlatJsonTest` — round trips of every supported value type, escaping, unicode escapes,
+  tolerance of whitespace and key order, and rejection of trailing content,
+  unterminated strings, a missing colon, an unknown escape and a non-object root.
+- `SettingsExportTest` — every one of the 34 settings round-trips; defaults round-trip;
+  a newer format, a missing version and malformed input are each refused with a message;
+  unknown keys ignored; missing keys defaulted; unknown enums defaulted; and the export
+  contains no path, URI, token or grant.
+- `AppSettingsTest` — per-section reset touches only its own section, handles every
+  section name the screen shows (so a renamed heading cannot silently do nothing), and
+  an unknown section changes nothing.
+
+### Still to come in Phase 3
+Per-kind thumbnail toggles, the recovery/export settings block, a permission
+diagnostics screen, privacy and log settings, and a central feature-dependency registry.
+
 ## [1.9.0]
 Paging 3 in the grid, and the migration finally proved on a real device.
 

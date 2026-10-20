@@ -215,6 +215,65 @@ data class AppSettings(
         )
     }
 
+    /**
+     * Restores one section to its defaults, leaving everything else untouched.
+     *
+     * The sections are the ones the Settings screen groups its rows under, so
+     * "Reset" on a heading does exactly what that heading promises. `advancedMode` is
+     * deliberately never reset: it is the switch that reveals the section, and
+     * flipping it while the user is looking at it would be disorienting. Unknown
+     * section names change nothing.
+     */
+    fun resetSection(section: String): AppSettings = when (section) {
+        "Scanning" -> copy(
+            quickScanEnabled = Defaults.quickScanEnabled,
+            deepScanEnabled = Defaults.deepScanEnabled,
+            safScanEnabled = Defaults.safScanEnabled,
+            signatureDetectionEnabled = Defaults.signatureDetectionEnabled,
+            duplicateDetectionEnabled = Defaults.duplicateDetectionEnabled,
+        )
+        "File types" -> copy(
+            scanImages = Defaults.scanImages,
+            scanVideos = Defaults.scanVideos,
+            scanAudio = Defaults.scanAudio,
+            scanDocuments = Defaults.scanDocuments,
+            scanArchives = Defaults.scanArchives,
+            scanOtherFiles = Defaults.scanOtherFiles,
+        )
+        "Thumbnails & result cards" -> copy(
+            generateThumbnails = Defaults.generateThumbnails,
+            thumbnailCacheLimitMb = Defaults.thumbnailCacheLimitMb,
+            showFileNames = Defaults.showFileNames,
+            showFileSize = Defaults.showFileSize,
+        )
+        "Appearance" -> copy(
+            themeMode = Defaults.themeMode,
+            defaultLayout = Defaults.defaultLayout,
+            gridSize = Defaults.gridSize,
+            defaultSort = Defaults.defaultSort,
+        )
+        "Detection" -> copy(
+            includeHiddenFiles = Defaults.includeHiddenFiles,
+            includeExtensionlessFiles = Defaults.includeExtensionlessFiles,
+            experimentalMethodsEnabled = Defaults.experimentalMethodsEnabled,
+        )
+        "Scan limits" -> copy(
+            maxRecursionDepth = Defaults.maxRecursionDepth,
+            maxScanResults = Defaults.maxScanResults,
+            signatureReadBytes = Defaults.signatureReadBytes,
+            minFileSizeBytes = Defaults.minFileSizeBytes,
+            maxFileSizeBytes = Defaults.maxFileSizeBytes,
+        )
+        "Performance" -> copy(
+            performanceMode = Defaults.performanceMode,
+            maxConcurrentTasks = Defaults.maxConcurrentTasks,
+            scanBatchSize = Defaults.scanBatchSize,
+            pauseWhenBackgrounded = Defaults.pauseWhenBackgrounded,
+        )
+        "Diagnostics & experimental" -> copy(showRootStatus = Defaults.showRootStatus)
+        else -> this
+    }
+
     companion object {
         /** Safe defaults, used by "Reset to defaults". */
         val Defaults = AppSettings()

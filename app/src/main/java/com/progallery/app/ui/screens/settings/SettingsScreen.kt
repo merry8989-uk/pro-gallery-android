@@ -48,6 +48,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import com.progallery.app.util.MediaFormatUtils
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 /** One renderable settings row. */
 private sealed interface SettingsRow {
@@ -141,11 +143,24 @@ fun SettingsScreen(
     val rootStatus by viewModel.rootStatus.collectAsStateWithLifecycle()
     val cacheSizeBytes by viewModel.cacheSizeBytes.collectAsStateWithLifecycle()
     val cacheMessage by viewModel.cacheMessage.collectAsStateWithLifecycle()
+    val settingsMessage by viewModel.settingsMessage.collectAsStateWithLifecycle()
+
+    // The destination and the source are always chosen by the user, through the
+    // official pickers — the app never picks a path on its own.
+    val exportPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri -> uri?.let { viewModel.exportTo(it) } }
+    val importPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let { viewModel.importFrom(it) } }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.refreshCacheSize() }
     LaunchedEffect(cacheMessage) {
         cacheMessage?.let { snackbarHostState.showSnackbar(it); viewModel.consumeCacheMessage() }
+    }
+    LaunchedEffect(settingsMessage) {
+        settingsMessage?.let { snackbarHostState.showSnackbar(it); viewModel.consumeSettingsMessage() }
     }
 
     /** Shown under the cache row, so the user sees what clearing would free. */
@@ -162,6 +177,9 @@ fun SettingsScreen(
         update = viewModel::update,
         onCheckRoot = viewModel::checkRootStatus,
         onClearThumbnailCache = viewModel::clearThumbnailCache,
+        onResetSection = viewModel::resetSection,
+        onExportSettings = { exportPicker.launch("progallery-settings.json") },
+        onImportSettings = { importPicker.launch(arrayOf("application/json")) },
         onOpenDefaultApps = { DefaultApps.openDefaultAppsSettings(context) },
     )
 
@@ -219,12 +237,22 @@ fun SettingsScreen(
                 val sectionRows = visible.filter { it.section == section }
                 if (sectionRows.isNotEmpty()) {
                     item(key = "header-$section") {
-                        Text(
-                            text = section.uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 8.dp, start = 4.dp),
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = section.uppercase(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.weight(1f).padding(start = 4.dp),
+                            )
+                            // Restores this heading's rows only, so the control does
+                            // exactly what the heading promises.
+                            TextButton(onClick = { viewModel.resetSection(section) }) {
+                                Text("Reset")
+                            }
+                        }
                     }
                     items(sectionRows, key = { "$section-${it.title}" }) { row ->
                         RowCard(row)
@@ -260,6 +288,9 @@ private fun buildRows(
     update: ((AppSettings) -> AppSettings) -> Unit,
     onCheckRoot: () -> Unit,
     onClearThumbnailCache: () -> Unit,
+    onResetSection: (String) -> Unit,
+    onExportSettings: () -> Unit,
+    onImportSettings: () -> Unit,
     onOpenDefaultApps: () -> Unit,
 ): List<SettingsRow> = buildList {
     // ---- Scanning -----------------------------------------------------
@@ -636,6 +667,26 @@ private fun buildRows(
     )
 
     // ---- Diagnostics & experimental -----------------------------------
+    add(
+        SettingsRow.Action(
+            title = "Export settings",
+            subtitle = "Writes every choice above to a file you choose. The file holds only your " +
+                "choices — no file paths and no access grants.",
+            section = "Diagnostics & experimental",
+            label = "Export",
+            onClick = onExportSettings,
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Import settings",
+            subtitle = "Applies a settings file. Nothing changes until the file has been read " +
+                "and understood, so a bad file leaves your settings alone.",
+            section = "Diagnostics & experimental",
+            label = "Import",
+            onClick = onImportSettings,
+        ),
+    )
     add(
         SettingsRow.Switch(
             title = "Show root status",
