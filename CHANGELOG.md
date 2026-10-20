@@ -22,7 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - GitHub Actions workflow to run unit tests and build the debug APK.
 
 ### Known limitations
-- Source was not compiled in the authoring environment (no Android SDK available); first local build is the verification step.
+- The published APK is a debug build (Android debug key) — sideload/testing only, not Play-ready.
+- Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
 ## [1.0.0] - TBD

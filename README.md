@@ -2,7 +2,7 @@
 
 A native Android gallery: a fast, Material 3 photo and video browser with **deep scanning** of user-authorised storage and a working **photo and video editor**. Built with Kotlin, Jetpack Compose and a clean MVVM + repository architecture.
 
-> **Status:** source-complete and structured to build, but the APK in this repository has **not been compiled by the author** — the build environment used to write it had no Android SDK. See [Build & verify](#build--verify) for the exact commands to compile and test it. Everything below labelled *Implemented* is real code, not a stub; nothing is labelled working unless the logic is complete.
+> **Status:** builds green on GitHub Actions. The `Android CI` workflow runs the JVM unit tests and `assembleDebug`; the `Release APK` workflow builds the debug APK and attaches it to [Releases](../../releases). Download the latest APK from the Releases page, or see [Build & verify](#build--verify) to compile it yourself. Everything below labelled *Implemented* is real code, not a stub.
 
 ---
 
@@ -195,7 +195,9 @@ The UI never touches MediaStore directly: screens talk to a ViewModel, ViewModel
 
 ## Known limitations
 
-- **Not compiled here.** The authoring environment had no Android SDK, so `assembleDebug` and the test suites were not run against this source. Treat the first local build as the real verification step.
+- The published APK is a **debug build**, signed with the Android debug key — fine for sideloading and testing, not for Play Store distribution. See [Release build](#release-build) for signing.
+- **Instrumented tests are not run in CI** (they need a connected device or emulator). Run `./gradlew connectedDebugAndroidTest` locally to exercise them.
+- The JVM unit tests and `assembleDebug` are verified by CI; runtime behaviour on a physical device (permissions across OEMs, codec support, editing output) still deserves a manual pass.
 - `Android/data` and `Android/obb` are often inaccessible on Android 11+ by design.
 - HEIC/HEVC support depends on the device decoder.
 - Trash moves a **copy** of the bytes into app storage and then removes the original through the platform consent flow; it is not a filesystem-level move, because that is not possible under scoped storage.
