@@ -3,6 +3,7 @@ package com.progallery.app.di
 import android.content.Context
 import androidx.room.Room
 import com.progallery.app.data.local.MIGRATION_1_2
+import com.progallery.app.data.local.MIGRATION_2_3
 import com.progallery.app.data.local.ProGalleryDatabase
 import com.progallery.app.data.local.dao.AlbumCoverDao
 import com.progallery.app.data.local.dao.CustomAlbumDao
