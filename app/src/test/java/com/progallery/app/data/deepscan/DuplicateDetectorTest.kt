@@ -2,6 +2,7 @@ package com.progallery.app.data.deepscan
 
 import com.progallery.app.TestMedia
 import com.progallery.app.data.model.MediaType
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -32,7 +33,7 @@ class DuplicateDetectorTest {
         TestMedia.item(id = name.hashCode().toLong(), name = name, size = size, type = MediaType.IMAGE)
 
     @Test
-    fun uniqueSizesAreNeverHashedAtAll() {
+    fun uniqueSizesAreNeverHashedAtAll() = runTest {
         val items = listOf(item("a.jpg", 100), item("b.jpg", 200), item("c.jpg", 300))
         val report = detector(emptyMap(), emptyMap()).findDuplicates(items)
 
@@ -44,7 +45,7 @@ class DuplicateDetectorTest {
     }
 
     @Test
-    fun sameSizeButDifferentSampleIsNotFullyHashed() {
+    fun sameSizeButDifferentSampleIsNotFullyHashed() = runTest {
         val items = listOf(item("a.jpg", 500), item("b.jpg", 500))
         val report = detector(
             samples = mapOf("a.jpg" to "sample-a", "b.jpg" to "sample-b"),
@@ -59,7 +60,7 @@ class DuplicateDetectorTest {
     }
 
     @Test
-    fun sameSampleButDifferentBytesIsNotADuplicate() {
+    fun sameSampleButDifferentBytesIsNotADuplicate() = runTest {
         val items = listOf(item("a.jpg", 500), item("b.jpg", 500))
         val report = detector(
             samples = mapOf("a.jpg" to "same", "b.jpg" to "same"),
@@ -72,7 +73,7 @@ class DuplicateDetectorTest {
     }
 
     @Test
-    fun identicalFilesAreReportedAsDuplicates() {
+    fun identicalFilesAreReportedAsDuplicates() = runTest {
         val items = listOf(item("a.jpg", 500), item("b.jpg", 500), item("c.jpg", 500))
         val report = detector(
             samples = mapOf("a.jpg" to "same", "b.jpg" to "same", "c.jpg" to "same"),
@@ -86,7 +87,7 @@ class DuplicateDetectorTest {
     }
 
     @Test
-    fun aMixedLibraryOnlyFullyHashesWhatStillCollides() {
+    fun aMixedLibraryOnlyFullyHashesWhatStillCollides() = runTest {
         val items = listOf(
             item("unique.jpg", 111),
             item("pairA.jpg", 999),
@@ -110,14 +111,14 @@ class DuplicateDetectorTest {
     }
 
     @Test
-    fun unreadableFilesAreSkippedRatherThanCrashing() {
+    fun unreadableFilesAreSkippedRatherThanCrashing() = runTest {
         val items = listOf(item("a.jpg", 500), item("b.jpg", 500))
         val report = detector(samples = emptyMap(), fulls = emptyMap()).findDuplicates(items)
         assertTrue(report.groups.isEmpty())
     }
 
     @Test
-    fun zeroSizeFilesAreNotCandidates() {
+    fun zeroSizeFilesAreNotCandidates() = runTest {
         val items = listOf(item("a.jpg", 0), item("b.jpg", 0))
         val report = detector(emptyMap(), emptyMap()).findDuplicates(items)
         assertTrue(report.groups.isEmpty())
