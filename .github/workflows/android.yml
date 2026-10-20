@@ -108,6 +108,26 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Install the emulator and system image (with retries)
+        run: |
+          # The runner image occasionally caches a truncated package, which fails as
+          # "Error on ZipFile unknown archive". Clearing the SDK temp directory and
+          # retrying is what gets past it; the emulator-runner action then finds the
+          # packages already present.
+          packages='platforms;android-36 build-tools;36.0.0 emulator system-images;android-35;google_apis;x86_64'
+          for attempt in 1 2 3; do
+            yes | sdkmanager --licenses > /dev/null 2>&1 || true
+            if sdkmanager --install $packages > /dev/null 2>&1; then
+              echo "SDK packages ready (attempt $attempt)"
+              exit 0
+            fi
+            echo "attempt $attempt failed; clearing partial downloads and retrying"
+            rm -rf "${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}/.temp" 2>/dev/null || true
+            sleep 15
+          done
+          echo "::error::could not install the emulator and system image after 3 attempts"
+          exit 1
+
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
