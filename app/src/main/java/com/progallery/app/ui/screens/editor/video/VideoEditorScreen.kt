@@ -41,12 +41,14 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.progallery.app.edit.video.ResolutionPreset
 import com.progallery.app.util.MediaFormatUtils
-import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 
-// PlayerView is marked @UnstableApi by Media3, so the opt-in is listed alongside
-// the Material 3 one (a declaration may carry only one @OptIn).
-@OptIn(ExperimentalMaterial3Api::class, UnstableApi::class)
+// Two different opt-in mechanisms are at work here: Material 3 uses Kotlin's
+// @RequiresOptIn, Media3's UnstableApi uses the AndroidX one. Both annotations are
+// named OptIn, so they are written fully qualified — importing one would shadow the
+// other and silently disable it.
+@kotlin.OptIn(ExperimentalMaterial3Api::class)
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun VideoEditorScreen(
     uri: String,
