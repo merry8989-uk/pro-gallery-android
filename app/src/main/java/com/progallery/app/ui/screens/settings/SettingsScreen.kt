@@ -139,6 +139,7 @@ private val MAX_SIZE_OPTIONS = listOf(
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onOpenPermissionDiagnostics: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -186,6 +187,7 @@ fun SettingsScreen(
         onExportSettings = { exportPicker.launch("progallery-settings.json") },
         onImportSettings = { importPicker.launch(arrayOf("application/json")) },
         onSaveDiagnostics = { diagnosticsPicker.launch("progallery-diagnostics.txt") },
+        onOpenPermissionDiagnostics = onOpenPermissionDiagnostics,
         onClearDiagnostics = viewModel::clearDiagnostics,
         onOpenDefaultApps = { DefaultApps.openDefaultAppsSettings(context) },
     )
@@ -300,6 +302,7 @@ private fun buildRows(
     onImportSettings: () -> Unit,
     onSaveDiagnostics: () -> Unit,
     onClearDiagnostics: () -> Unit,
+    onOpenPermissionDiagnostics: () -> Unit,
     onOpenDefaultApps: () -> Unit,
 ): List<SettingsRow> = buildList {
     // ---- Scanning -----------------------------------------------------
@@ -844,6 +847,16 @@ private fun buildRows(
             advanced = true,
             checked = settings.includePathsInLogs,
             onCheckedChange = { value -> update { it.copy(includePathsInLogs = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Access diagnostics",
+            subtitle = "What the app can reach, what each access is for, and how to change it. " +
+                "Every fix goes through the system dialog or the system settings screen.",
+            section = "Diagnostics & experimental",
+            label = "Open",
+            onClick = onOpenPermissionDiagnostics,
         ),
     )
     add(

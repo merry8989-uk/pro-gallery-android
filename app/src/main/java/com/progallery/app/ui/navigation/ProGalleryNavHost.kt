@@ -31,6 +31,7 @@ import com.progallery.app.ui.screens.trash.TrashScreen
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.ui.screens.viewer.ViewerScreen
 import com.progallery.app.ui.screens.videos.VideosScreen
+import com.progallery.app.ui.screens.diagnostics.PermissionDiagnosticsScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -155,7 +156,20 @@ fun ProGalleryNavHost(
             )
         }
         composable(Routes.SETTINGS) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenPermissionDiagnostics = {
+                    navController.navigate(Routes.PERMISSION_DIAGNOSTICS)
+                },
+            )
+        }
+        composable(Routes.PERMISSION_DIAGNOSTICS) {
+            PermissionDiagnosticsScreen(
+                onBack = { navController.popBackStack() },
+                // Adding a folder is where the folder picker already lives, so the fix
+                // takes the user to the real thing rather than a second copy of it.
+                onPickFolder = { navController.navigate(Routes.DEEP_SCAN) },
+            )
         }
         composable(Routes.SEARCH) {
             SearchScreen(

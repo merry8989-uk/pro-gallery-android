@@ -97,6 +97,14 @@ rather than left claiming to be active, and the screen explains what changed. Se
 can be exported and imported as versioned JSON that holds **only your choices** — no
 paths, no URIs, no grants — and each section can be reset on its own.
 
+## Access
+
+Settings → Diagnostics & experimental → **Access diagnostics** explains every access the
+app uses: what state it is in, what it enables, what being without it costs, and what to
+do about it. Optional accesses say they are optional and name the alternative, and every
+fix uses the official route — the system dialog, the system settings screen, or the
+system folder picker.
+
 ## Platform
 
 - **Android 8.0 – 16.** `minSdk 26`, `compileSdk`/`targetSdk` **36**.
