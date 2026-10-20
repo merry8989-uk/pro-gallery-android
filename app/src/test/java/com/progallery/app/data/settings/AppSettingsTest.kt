@@ -4,6 +4,7 @@ import com.progallery.app.data.model.MediaType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 /**
@@ -171,5 +172,60 @@ class AppSettingsTest {
                 scanDocuments = false, scanArchives = false, scanOtherFiles = false,
             ).summary(),
         )
+    }
+
+    // ---- Per-section reset -------------------------------------------------
+
+    @Test
+    fun resetSection_restoresOnlyItsOwnSection() {
+        val changed = AppSettings.Defaults.copy(
+            quickScanEnabled = false,   // Scanning
+            scanImages = false,         // File types
+            generateThumbnails = false, // Thumbnails & result cards
+            themeMode = ThemeMode.DARK, // Appearance
+            maxRecursionDepth = 2,      // Scan limits
+            maxConcurrentTasks = 1,     // Performance
+            showRootStatus = true,      // Diagnostics
+            advancedMode = true,
+        )
+
+        val after = changed.resetSection("Scanning")
+        assertEquals(AppSettings.Defaults.quickScanEnabled, after.quickScanEnabled)
+        assertFalse("another section must be left alone", after.scanImages)
+        assertEquals(ThemeMode.DARK, after.themeMode)
+        assertTrue("advancedMode must survive: it is the switch that reveals the section", after.advancedMode)
+    }
+
+    @Test
+    fun resetSection_handlesEverySectionTheScreenShows() {
+        // If a section name drifts from the screen's, its Reset would silently do
+        // nothing — so every name the screen uses is exercised here.
+        val sections = listOf(
+            "Scanning", "File types", "Thumbnails & result cards", "Appearance",
+            "Detection", "Scan limits", "Performance", "Diagnostics & experimental",
+        )
+        val changed = AppSettings.Defaults.copy(
+            quickScanEnabled = false,
+            scanImages = false,
+            generateThumbnails = false,
+            themeMode = ThemeMode.DARK,
+            includeHiddenFiles = true,
+            maxRecursionDepth = 2,
+            maxConcurrentTasks = 1,
+            showRootStatus = true,
+        )
+        sections.forEach { section ->
+            assertNotEquals(
+                "\"$section\" reset changed nothing",
+                changed,
+                changed.resetSection(section),
+            )
+        }
+    }
+
+    @Test
+    fun anUnknownSectionChangesNothing() {
+        val settings = AppSettings.Defaults.copy(quickScanEnabled = false)
+        assertEquals(settings, settings.resetSection("Not A Section"))
     }
 }
