@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -30,11 +32,11 @@ import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Share
@@ -298,44 +300,103 @@ fun SelectionToolbar(
     onHide: () -> Unit,
 ) {
     Surface(tonalElevation = 3.dp) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                // Without this the actions sit underneath the system navigation
+                // bar and cannot be tapped on gesture- and button-nav devices.
+                .navigationBarsPadding(),
         ) {
-            IconButton(onClick = onClose) {
-                Icon(Icons.Filled.MoreVert, contentDescription = "Close selection")
-            }
-            Text(
-                text = "$count selected",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
-            )
-            if (count == 1) {
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Edit")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 4.dp, end = 12.dp, top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Filled.Close, contentDescription = "Clear selection")
                 }
-            }
-            IconButton(onClick = onFavourite) {
-                Icon(
-                    imageVector = if (allFavourite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    contentDescription = "Favourite",
+                Text(
+                    text = "$count selected",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
                 )
             }
-            IconButton(onClick = onAddToAlbum) {
-                Icon(Icons.Filled.PlaylistAdd, contentDescription = "Add to album")
-            }
-            IconButton(onClick = onHide) {
-                Icon(Icons.Filled.VisibilityOff, contentDescription = "Hide")
-            }
-            IconButton(onClick = onShare) {
-                Icon(Icons.Filled.Share, contentDescription = "Share")
-            }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete")
+            // Same icon-and-label treatment as the full-screen viewer's action bar.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (count == 1) {
+                    SelectionAction(
+                        icon = Icons.Filled.Edit,
+                        label = "Edit",
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                SelectionAction(
+                    icon = Icons.Filled.Share,
+                    label = "Share",
+                    onClick = onShare,
+                    modifier = Modifier.weight(1f),
+                )
+                SelectionAction(
+                    icon = if (allFavourite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    label = "Fav",
+                    onClick = onFavourite,
+                    modifier = Modifier.weight(1f),
+                )
+                SelectionAction(
+                    icon = Icons.Filled.PlaylistAdd,
+                    label = "Album",
+                    onClick = onAddToAlbum,
+                    modifier = Modifier.weight(1f),
+                )
+                SelectionAction(
+                    icon = Icons.Filled.VisibilityOff,
+                    label = "Hide",
+                    onClick = onHide,
+                    modifier = Modifier.weight(1f),
+                )
+                SelectionAction(
+                    icon = Icons.Filled.Delete,
+                    label = "Delete",
+                    onClick = onDelete,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
+    }
+}
+
+/** One labelled action, sized so the tap target is comfortable on a phone. */
+@Composable
+private fun SelectionAction(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.widthIn(min = 52.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(26.dp),
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }
 

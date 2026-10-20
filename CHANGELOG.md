@@ -27,6 +27,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.1.1]
+### Fixed
+- **The selection bar no longer hides under the system navigation bar.** It now clears the navigation-bar inset, so its actions are actually tappable on gesture- and button-navigation devices.
+
+### Changed
+- The selection bar now matches the full-screen viewer's action bar: larger icons with a label under each, and a proper ✕ to clear the selection instead of an ambiguous "more" icon.
+- The viewer's snackbar also clears the navigation bar.
+
 ## [1.1.0]
 ### Added
 - **Every file type is now scannable**, not just photos and videos. A pure-Kotlin `FileTypeRegistry` classifies by MIME then extension across images (including camera raw, PSD, AI, EPS, INDD, HEIF, TIFF, WebP), video, audio, documents (office, PDF, ebooks, subtitles, source, CAD/DWG) and archives — hundreds of extensions. Unknown files are browsable as **Other** instead of being dropped.
