@@ -27,6 +27,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.12.0]
+Phase 3 complete: a screen that tells the truth about what the app can reach.
+
+### Added
+- **Access diagnostics** (Settings → Diagnostics & experimental → Access diagnostics).
+  One card per access — photos and videos, music and audio, photo locations, all files
+  access, the folders you granted, and the read-only root check — each saying what it is
+  in state terms, **what it enables**, what being without it costs, and what to do.
+  - The wording is deliberate. An optional access is described as optional and its
+    alternative is named: all files access says that Deep Scan over a granted folder
+    needs no extra permission. Missing audio says photos and videos still work. Partial
+    photo access says the app sees only what you picked, and offers the system picker to
+    widen it.
+  - **Every fix goes through the official route** — the system permission dialog, the
+    system settings screen, or the system folder picker. Nothing is worked around, and
+    "Add a folder" goes to the real folder picker rather than a second copy of it.
+  - The decision is pure (`AccessDiagnostics`) and unit tested; only the reading of the
+    device state touches Android. A general invariant is asserted: **a fix is offered
+    exactly when something is missing**, and never for an access that is present.
+  - The screen says plainly that it only reports what the app can reach, and that
+    nothing is sent anywhere.
+
+### Tests
+- `AccessDiagnosticsTest` — a fully-granted device has nothing blocking; denied media
+  access is blocking and says so; partial access is not blocking and offers more photos;
+  missing audio is explained as partial loss; all files access is presented as optional
+  with its alternative; granted folders are counted; the root row appears only when the
+  check was run and never offers a fix; and the fix/state invariant across every
+  combination.
+
 ## [1.11.0]
 Phase 3 continues: switches that cannot lie, previews that are really produced, and
 diagnostics that are actually useful.

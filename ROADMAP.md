@@ -156,7 +156,7 @@ Base exists (~45 settings). Missing from the Settings master prompt:
   embedded audio artwork, PDF first pages), resolution/duration on tiles, the
   recovery/export settings block wired into the exporter, and the privacy and
   diagnostics settings backed by a real, redacting, bounded log.
-- Outstanding: the permission diagnostics screen.
+- ✅ Done in v1.12.0: the access diagnostics screen. **Phase 3 is complete.**
 
 ## 6. Phase 4 — performance & platform — ✅ mostly DONE in v1.8.0
 
