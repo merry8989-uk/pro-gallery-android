@@ -178,11 +178,11 @@ The UI never touches MediaStore directly: screens talk to a ViewModel, ViewModel
 - Video editor: trim, mute, rotate, resolution, Media3 export with progress/cancel.
 - Room persistence for favourites, custom albums, album covers, hidden items, trash, scan dirs.
 - App-managed Recently Deleted trash with restore and 30-day purge.
+- Custom albums: create a collection, add items from the gallery selection toolbar, remove items, choose a cover, and delete the album without touching the media.
 
 **Partially supported**
 - Photo **crop** uses centred aspect presets rather than a free-form draggable crop box.
 - Video rotation/resolution use Media3 effects that some hardware encoders may not honour for every codec.
-- Custom albums have DB support and DAOs; the create/manage UI is not yet wired to a screen.
 
 **Planned**
 - Free-form crop UI, curves/levels, text and sticker overlays.

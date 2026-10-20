@@ -48,6 +48,12 @@ interface CustomAlbumDao {
     @Query("SELECT * FROM custom_album_items WHERE albumId = :albumId")
     suspend fun itemsIn(albumId: Long): List<CustomAlbumItemEntity>
 
+    @Query("SELECT * FROM custom_album_items WHERE albumId = :albumId")
+    fun observeItems(albumId: Long): Flow<List<CustomAlbumItemEntity>>
+
+    @Query("SELECT * FROM custom_album_items")
+    fun observeAllItems(): Flow<List<CustomAlbumItemEntity>>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun addItem(item: CustomAlbumItemEntity)
 

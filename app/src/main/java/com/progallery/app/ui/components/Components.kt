@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
@@ -247,6 +248,7 @@ fun SelectionToolbar(
     onShare: () -> Unit,
     onFavourite: () -> Unit,
     onEdit: () -> Unit,
+    onAddToAlbum: () -> Unit,
     onDelete: () -> Unit,
     onHide: () -> Unit,
 ) {
@@ -275,6 +277,9 @@ fun SelectionToolbar(
                     imageVector = if (allFavourite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     contentDescription = "Favourite",
                 )
+            }
+            IconButton(onClick = onAddToAlbum) {
+                Icon(Icons.Filled.PlaylistAdd, contentDescription = "Add to album")
             }
             IconButton(onClick = onHide) {
                 Icon(Icons.Filled.VisibilityOff, contentDescription = "Hide")
