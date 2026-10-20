@@ -27,6 +27,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.9.0]
+Paging 3 in the grid, and the migration finally proved on a real device.
+
+### Added
+- **The instrumented suite runs in CI on an emulator** (API 35), alongside the unit
+  tests and lint. The job needed a retry step: the runner intermittently caches a
+  truncated SDK package ("Error on ZipFile unknown archive"), which clearing the SDK
+  temp directory and retrying gets past.
+- **`MigrationInstrumentedTest`** migrates a real v3 SQLite database holding a row in
+  every user-facing table, runs `MIGRATION_3_4`, and asserts that favourites, hidden
+  items, custom albums, album covers, album membership, trash and granted folders all
+  survive and that `recovery_history` starts empty. A second test proves re-running the
+  migration is harmless.
+  It builds the v3 database from explicit DDL rather than Room's exported schema,
+  because Room only exports the schema of the version being compiled — `3.json` does
+  not exist. The exported schemas are now uploaded as a CI artifact so a future
+  migration can also validate against Room's expected schema.
+
+### Changed
+- **The media grid is paged.** `MediaStorePagingSource` reads the cursor in windows
+  and fills each page by continuing until it has enough items, so a page is never
+  nearly empty just because a window held other kinds. The sort and the search are
+  expressed in SQL (`MediaQuery`, unit tested, with `%`/`_`/`\` escaped and `ESCAPE`
+  declared), and all three read paths share one row reader, so a paged list can never
+  disagree with the full list about what a file is.
+- **The viewer's playlist is now loaded on demand.** It used to reuse the grid's list;
+  with paging that list only holds the pages you have scrolled to, so the full ordered
+  set is fetched when the viewer is opened. That is the trade paging makes.
+- **Selection records the items, not just their keys**, so share, delete, hide and
+  "add to album" still work on something selected on a page you have since scrolled
+  away from. "Select all" is now **"Select all" of what is loaded**, which is what the
+  control can honestly promise.
+- **Toggling a favourite no longer resets the grid.** Favourites are applied while
+  rendering instead of keying the pager. On the Favourites screen the set *does* key
+  the pager, because there the item genuinely has to leave the list.
+- Album screens still use the in-memory list: an album is small and its full contents
+  are what it shows.
+
 ## [1.8.0]
 Phase 4: platform and performance.
 
