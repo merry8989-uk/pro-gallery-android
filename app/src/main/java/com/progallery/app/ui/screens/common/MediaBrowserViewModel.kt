@@ -3,10 +3,12 @@ package com.progallery.app.ui.screens.common
 import android.app.PendingIntent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.progallery.app.data.model.Album
 import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.SortOrder
 import com.progallery.app.data.model.ViewMode
+import com.progallery.app.data.repository.AlbumRepository
 import com.progallery.app.data.repository.MediaRepository
 import com.progallery.app.domain.MediaFilters
 import com.progallery.app.util.MediaActions
@@ -53,16 +55,51 @@ data class BrowserUiState(
 @HiltViewModel
 class MediaBrowserViewModel @Inject constructor(
     private val repository: MediaRepository,
+    private val albumRepository: AlbumRepository,
     private val mediaActions: MediaActions,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BrowserUiState())
     val uiState: StateFlow<BrowserUiState> = _state.asStateFlow()
 
+    /** User-created albums, for the "add to album" picker. */
+    private val _customAlbums = MutableStateFlow<List<Album>>(emptyList())
+    val customAlbums: StateFlow<List<Album>> = _customAlbums.asStateFlow()
+
     private var collectionJob: Job? = null
 
     init {
         refresh()
+        viewModelScope.launch {
+            albumRepository.observeCustomAlbums().collect { _customAlbums.value = it }
+        }
+    }
+
+    /** Adds the current selection to an existing custom album. */
+    fun addSelectedToAlbum(albumId: Long) {
+        val items = _state.value.selectedItems
+        if (items.isEmpty()) return
+        viewModelScope.launch {
+            val added = albumRepository.addToAlbum(albumId, items)
+            _state.update {
+                it.copy(
+                    message = if (added > 0) "Added $added item(s) to album"
+                    else "Already in that album",
+                )
+            }
+        }
+        clearSelection()
+    }
+
+    /** Creates a new custom album and adds the current selection to it. */
+    fun createAlbumAndAdd(name: String) {
+        val items = _state.value.selectedItems
+        viewModelScope.launch {
+            val albumId = albumRepository.createAlbum(name)
+            val added = if (items.isEmpty()) 0 else albumRepository.addToAlbum(albumId, items)
+            _state.update { it.copy(message = "Created \"$name\" with $added item(s)") }
+        }
+        clearSelection()
     }
 
     fun configure(

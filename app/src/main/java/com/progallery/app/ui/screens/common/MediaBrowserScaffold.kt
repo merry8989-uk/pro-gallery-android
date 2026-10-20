@@ -37,6 +37,7 @@ import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.SortOrder
 import com.progallery.app.data.model.ViewMode
+import com.progallery.app.ui.components.AddToAlbumDialog
 import com.progallery.app.ui.components.EmptyState
 import com.progallery.app.ui.components.ErrorBanner
 import com.progallery.app.ui.components.LoadingState
@@ -84,6 +85,8 @@ fun MediaBrowserScaffold(
     }
 
     var sortMenuOpen by remember { mutableStateOf(false) }
+    var albumPickerOpen by remember { mutableStateOf(false) }
+    val customAlbums by viewModel.customAlbums.collectAsStateWithLifecycle()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -135,12 +138,27 @@ fun MediaBrowserScaffold(
                         state.selectedItems.firstOrNull()?.let { onEditItem?.invoke(it) }
                         viewModel.clearSelection()
                     },
+                    onAddToAlbum = { albumPickerOpen = true },
                     onDelete = { viewModel.deleteSelected() },
                     onHide = { viewModel.hideSelected() },
                 )
             }
         },
     ) { padding ->
+        if (albumPickerOpen) {
+            AddToAlbumDialog(
+                albums = customAlbums,
+                onDismiss = { albumPickerOpen = false },
+                onPickAlbum = { albumId ->
+                    viewModel.addSelectedToAlbum(albumId)
+                    albumPickerOpen = false
+                },
+                onCreateAndAdd = { name ->
+                    viewModel.createAlbumAndAdd(name)
+                    albumPickerOpen = false
+                },
+            )
+        }
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (showSearch) {
                 androidx.compose.material3.OutlinedTextField(

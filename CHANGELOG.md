@@ -16,13 +16,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Video editor: trim, mute, rotate, resolution presets, Media3 Transformer export with progress and cancellation.
 - Room persistence: favourites, custom albums, album covers, hidden items, trash, scan directories.
 - App-managed Recently Deleted trash with restore and 30-day purge.
+- Custom albums: create, add items from the selection toolbar, remove items, set a cover, delete the album (media untouched).
 - Unit tests for sorting, filtering, duplicate detection, edit-state history, and formatting.
 - Instrumented tests for a UI component, the permission matrix, and MediaStore access.
 - GitHub Actions workflow to run unit tests and build the debug APK.
 
 ### Known limitations
 - Source was not compiled in the authoring environment (no Android SDK available); first local build is the verification step.
-- Free-form crop, custom-album management UI, and Paging 3 for very large libraries are planned.
+- Free-form crop and Paging 3 for very large libraries are planned.
 
 ## [1.0.0] - TBD
 Initial release.

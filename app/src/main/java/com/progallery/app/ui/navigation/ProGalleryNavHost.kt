@@ -8,6 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.progallery.app.ui.screens.albums.AlbumDetailScreen
 import com.progallery.app.ui.screens.albums.AlbumsScreen
+import com.progallery.app.ui.screens.albums.CustomAlbumDetailScreen
 import com.progallery.app.ui.screens.deepscan.DeepScanScreen
 import com.progallery.app.ui.screens.editor.photo.PhotoEditorScreen
 import com.progallery.app.ui.screens.editor.video.VideoEditorScreen
@@ -42,6 +43,7 @@ fun ProGalleryNavHost() {
             AlbumsScreen(
                 onBack = { navController.popBackStack() },
                 onOpenAlbum = { id, name -> navController.navigate(Routes.albumDetail(id, name)) },
+                onOpenCustomAlbum = { id, name -> navController.navigate(Routes.customAlbumDetail(id, name)) },
             )
         }
         composable(
@@ -53,6 +55,20 @@ fun ProGalleryNavHost() {
         ) { entry ->
             AlbumDetailScreen(
                 bucketId = entry.arguments?.getLong("bucketId") ?: 0L,
+                albumName = entry.arguments?.getString("name") ?: "",
+                onBack = { navController.popBackStack() },
+                onOpenViewer = { uri, type -> navController.navigate(Routes.viewer(uri, type)) },
+            )
+        }
+        composable(
+            route = "${Routes.CUSTOM_ALBUM_DETAIL}/{albumId}/{name}",
+            arguments = listOf(
+                navArgument("albumId") { type = NavType.LongType },
+                navArgument("name") { type = NavType.StringType },
+            ),
+        ) { entry ->
+            CustomAlbumDetailScreen(
+                albumId = entry.arguments?.getLong("albumId") ?: 0L,
                 albumName = entry.arguments?.getString("name") ?: "",
                 onBack = { navController.popBackStack() },
                 onOpenViewer = { uri, type -> navController.navigate(Routes.viewer(uri, type)) },
