@@ -73,6 +73,16 @@ data class AppSettings(
     /** How many leading bytes the signature detector reads. */
     val signatureReadBytes: Int = 4096,
 
+    /**
+     * Smallest file to show. Defaults to 1 byte, so nothing real is dropped for
+     * being tiny — APKs, images, documents, all of it.
+     */
+    val minFileSizeBytes: Long = 1L,
+    /**
+     * Largest file to show. [Long.MAX_VALUE] means **no limit at all**.
+     */
+    val maxFileSizeBytes: Long = Long.MAX_VALUE,
+
     // ---- E. Performance ------------------------------------------------
     val performanceMode: PerformanceMode = PerformanceMode.BALANCED,
     val maxConcurrentTasks: Int = 4,
@@ -122,6 +132,36 @@ data class AppSettings(
     /** Whether a scan can meaningfully start at all. */
     val scanCanStart: Boolean get() = anyScanModeEnabled && anyCategoryEnabled
 
+    /** True when there is no upper size limit. */
+    val isMaxSizeUnlimited: Boolean
+        get() = maxFileSizeBytes <= 0L || maxFileSizeBytes == Long.MAX_VALUE
+
+    /**
+     * Whether a file of [sizeBytes] is inside the configured range.
+     *
+     * A size of 0 or less means the provider did not report one — SAF reports 0
+     * for "unknown" as well as for "empty" — so it is never treated as "too
+     * small". Dropping a real file because its size was unreadable would be far
+     * worse than showing an empty one.
+     */
+    fun acceptsSize(sizeBytes: Long): Boolean {
+        if (sizeBytes <= 0L) return true
+        if (sizeBytes < minFileSizeBytes) return false
+        return isMaxSizeUnlimited || sizeBytes <= maxFileSizeBytes
+    }
+
+    /** Human-readable form of the range, for the settings summary. */
+    val sizeRangeLabel: String
+        get() = "${describeSize(minFileSizeBytes)} – " +
+            if (isMaxSizeUnlimited) "unlimited" else describeSize(maxFileSizeBytes)
+
+    private fun describeSize(bytes: Long): String = when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+        bytes < 1024L * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
+        else -> "${bytes / (1024L * 1024 * 1024)} GB"
+    }
+
     /** Video discovery and video thumbnail jobs both depend on this. */
     val videoScanningEnabled: Boolean get() = scanVideos
 
@@ -143,15 +183,25 @@ data class AppSettings(
      * Clamps every numeric value into a safe range. Imported or corrupted
      * values therefore cannot crash or hang the scanner.
      */
-    fun sanitized(): AppSettings = copy(
-        maxRecursionDepth = maxRecursionDepth.coerceIn(1, 32),
-        maxScanResults = maxScanResults.coerceIn(50, 50_000),
-        signatureReadBytes = signatureReadBytes.coerceIn(64, 65_536),
-        maxConcurrentTasks = maxConcurrentTasks.coerceIn(1, 16),
-        // Experimental and root-related features stay off unless explicitly
-        // enabled by the user; a sanitized copy never turns them on.
-        experimentalMethodsEnabled = experimentalMethodsEnabled,
-    )
+    fun sanitized(): AppSettings {
+        val minSize = minFileSizeBytes.coerceIn(1L, 1_073_741_824L)
+        val maxSize = if (maxFileSizeBytes <= 0L) {
+            Long.MAX_VALUE
+        } else {
+            maxFileSizeBytes.coerceAtLeast(minSize)
+        }
+        return copy(
+            minFileSizeBytes = minSize,
+            maxFileSizeBytes = maxSize,
+            maxRecursionDepth = maxRecursionDepth.coerceIn(1, 32),
+            maxScanResults = maxScanResults.coerceIn(50, 50_000),
+            signatureReadBytes = signatureReadBytes.coerceIn(64, 65_536),
+            maxConcurrentTasks = maxConcurrentTasks.coerceIn(1, 16),
+            // Experimental and root-related features stay off unless explicitly
+            // enabled by the user; a sanitized copy never turns them on.
+            experimentalMethodsEnabled = experimentalMethodsEnabled,
+        )
+    }
 
     companion object {
         /** Safe defaults, used by "Reset to defaults". */

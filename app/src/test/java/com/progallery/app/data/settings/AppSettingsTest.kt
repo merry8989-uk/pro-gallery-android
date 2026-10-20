@@ -104,6 +104,57 @@ class AppSettingsTest {
     }
 
     @Test
+    fun sizeRange_defaultsToOneByteWithNoUpperLimit() {
+        val d = AppSettings.Defaults
+        assertEquals(1L, d.minFileSizeBytes)
+        assertTrue("no maximum by default", d.isMaxSizeUnlimited)
+        assertTrue(d.sizeRangeLabel.startsWith("1 B"))
+        assertTrue(d.sizeRangeLabel.endsWith("unlimited"))
+    }
+
+    @Test
+    fun acceptsSize_coversOneByteToInfinite() {
+        val d = AppSettings.Defaults
+        // An unreadable size is never treated as too small, or real files would
+        // be dropped because SAF reports 0 for "unknown".
+        assertTrue("unknown size", d.acceptsSize(0L))
+        assertTrue("unknown size", d.acceptsSize(-1L))
+        // Everything from a single byte upward is in range.
+        assertTrue("1 byte", d.acceptsSize(1L))
+        assertTrue("1 KB", d.acceptsSize(1_024L))
+        assertTrue("100 MB", d.acceptsSize(104_857_600L))
+        assertTrue("1 TB", d.acceptsSize(1_099_511_627_776L))
+        assertTrue("Long.MAX_VALUE", d.acceptsSize(Long.MAX_VALUE))
+    }
+
+    @Test
+    fun acceptsSize_honoursANarrowedRange() {
+        val raised = AppSettings.Defaults.copy(minFileSizeBytes = 1_000L)
+        assertFalse(raised.acceptsSize(999L))
+        assertTrue(raised.acceptsSize(1_000L))
+
+        val capped = AppSettings.Defaults.copy(maxFileSizeBytes = 1_000L)
+        assertFalse(capped.isMaxSizeUnlimited)
+        assertTrue(capped.acceptsSize(1_000L))
+        assertFalse(capped.acceptsSize(1_001L))
+    }
+
+    @Test
+    fun sanitized_repairsAnImpossibleSizeRange() {
+        val zeroed = AppSettings.Defaults.copy(minFileSizeBytes = 0L, maxFileSizeBytes = 0L).sanitized()
+        assertEquals(1L, zeroed.minFileSizeBytes)
+        assertTrue("zero max becomes unlimited", zeroed.isMaxSizeUnlimited)
+
+        val inverted = AppSettings.Defaults
+            .copy(minFileSizeBytes = 10_000L, maxFileSizeBytes = 100L)
+            .sanitized()
+        assertTrue(
+            "max is raised to the minimum",
+            inverted.maxFileSizeBytes >= inverted.minFileSizeBytes,
+        )
+    }
+
+    @Test
     fun summary_describesWhatWouldBeScanned() {
         assertTrue(AppSettings.Defaults.summary().contains("Quick"))
         assertTrue(AppSettings.Defaults.summary().contains("image"))

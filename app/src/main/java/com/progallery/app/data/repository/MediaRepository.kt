@@ -83,6 +83,9 @@ class MediaRepository @Inject constructor(
         val decorated = items.asSequence()
             // A disabled category disappears from every list, not just its own tab.
             .filter { it.mediaType in enabledKinds }
+            // Size range (1 byte to unlimited by default). Unreadable sizes are
+            // never treated as too small, so nothing real is hidden.
+            .filter { settings.acceptsSize(it.sizeBytes) }
             .filter { type == MediaType.ALL || it.mediaType == type }
             .filter { includeHidden || it.mediaKey !in hiddenSet }
             .map { it.copy(isFavourite = it.mediaKey in favouriteKeys) }

@@ -112,6 +112,21 @@ private val SECTION_ORDER = listOf(
     "Diagnostics & experimental",
 )
 
+/** Bounded choices, so the size range can never be set to something absurd. */
+private val MIN_SIZE_OPTIONS = listOf(
+    "1 B" to 1L,
+    "1 KB" to 1_024L,
+    "100 KB" to 102_400L,
+    "1 MB" to 1_048_576L,
+)
+
+private val MAX_SIZE_OPTIONS = listOf(
+    "Unlimited" to Long.MAX_VALUE,
+    "100 MB" to 104_857_600L,
+    "1 GB" to 1_073_741_824L,
+    "10 GB" to 10_737_418_240L,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -473,6 +488,52 @@ private fun buildRows(
             value = settings.maxScanResults,
             range = 50..50_000,
             onChange = { value -> update { it.copy(maxScanResults = value) } },
+        ),
+    )
+
+    // ---- File size range (advanced) ------------------------------------
+    add(
+        SettingsRow.Info(
+            title = "File size range",
+            subtitle = "Every file from 1 byte upward is shown, with no upper limit — APKs, images, " +
+                "documents, videos. Size never hides a file. Current range: ${settings.sizeRangeLabel}.",
+            section = "Scan limits",
+            advanced = true,
+        ),
+    )
+    add(
+        SettingsRow.Choice(
+            title = "Minimum file size",
+            subtitle = "Only applies when a file's size can be read; an unreadable size is never " +
+                "treated as too small.",
+            section = "Scan limits",
+            advanced = true,
+            options = MIN_SIZE_OPTIONS.map { it.first },
+            selected = MIN_SIZE_OPTIONS.firstOrNull { it.second == settings.minFileSizeBytes }?.first
+                ?: MIN_SIZE_OPTIONS.first().first,
+            onSelect = { label ->
+                MIN_SIZE_OPTIONS.firstOrNull { it.first == label }?.let { option ->
+                    update { it.copy(minFileSizeBytes = option.second) }
+                }
+            },
+        ),
+    )
+    add(
+        SettingsRow.Choice(
+            title = "Maximum file size",
+            subtitle = "Unlimited by default.",
+            section = "Scan limits",
+            advanced = true,
+            options = MAX_SIZE_OPTIONS.map { it.first },
+            selected = MAX_SIZE_OPTIONS.firstOrNull { option ->
+                settings.isMaxSizeUnlimited && option.second == Long.MAX_VALUE ||
+                    option.second == settings.maxFileSizeBytes
+            }?.first ?: MAX_SIZE_OPTIONS.first().first,
+            onSelect = { label ->
+                MAX_SIZE_OPTIONS.firstOrNull { it.first == label }?.let { option ->
+                    update { it.copy(maxFileSizeBytes = option.second) }
+                }
+            },
         ),
     )
 
