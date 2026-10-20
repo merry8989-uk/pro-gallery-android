@@ -110,6 +110,7 @@ class AndroidFolderScanner @Inject constructor(
         var signatureIdentified = 0
         var skippedBySize = 0
         var truncated = false
+        val progressThrottle = ScanProgressThrottle()
 
         for (target in requested) {
             currentCoroutineContext().ensureActive()

@@ -158,8 +158,10 @@ fun SettingsScreen(
     val rows = buildRows(
         settings = settings,
         rootStatus = rootStatus,
+        cacheSizeLabel = cacheSizeLabel,
         update = viewModel::update,
         onCheckRoot = viewModel::checkRootStatus,
+        onClearThumbnailCache = viewModel::clearThumbnailCache,
         onOpenDefaultApps = { DefaultApps.openDefaultAppsSettings(context) },
     )
 
@@ -254,8 +256,10 @@ fun SettingsScreen(
 private fun buildRows(
     settings: AppSettings,
     rootStatus: String?,
+    cacheSizeLabel: String,
     update: ((AppSettings) -> AppSettings) -> Unit,
     onCheckRoot: () -> Unit,
+    onClearThumbnailCache: () -> Unit,
     onOpenDefaultApps: () -> Unit,
 ): List<SettingsRow> = buildList {
     // ---- Scanning -----------------------------------------------------
@@ -377,7 +381,7 @@ private fun buildRows(
             subtitle = cacheSizeLabel,
             section = "Thumbnails & result cards",
             label = "Clear",
-            onClick = { viewModel.clearThumbnailCache() },
+            onClick = onClearThumbnailCache,
         ),
     )
     add(

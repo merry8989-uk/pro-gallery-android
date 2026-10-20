@@ -155,6 +155,7 @@ class RecoveryScanner @Inject constructor(
         val directories = scanDirectoryDao.all()
         var foldersScanned = 0
         var unindexedFound = 0
+        var filesExamined = 0
         val progressThrottle = ScanProgressThrottle()
         val visited = HashSet<String>()
 
@@ -212,6 +213,7 @@ class RecoveryScanner @Inject constructor(
                     val extension = FileTypeRegistry.extensionOf(name)
                     if (!settings.includeExtensionlessFiles && extension.isEmpty()) continue
 
+                    filesExamined++
                     val size = child.length()
                     if (!settings.acceptsSize(size)) continue
 
