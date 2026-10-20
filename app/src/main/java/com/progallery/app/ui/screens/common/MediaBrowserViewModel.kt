@@ -193,11 +193,16 @@ class MediaBrowserViewModel @Inject constructor(
         current.copy(selection = selection)
     }
 
-    /** Hands a non-previewable file (audio, document, archive…) to the system. */
+    /**
+     * Hands a document, archive or other non-previewable file to another app
+     * (the phone's own PDF reader, office suite, and so on).
+     */
     fun openWith(item: MediaItem) {
         val opened = mediaActions.launchOpen(item)
         if (!opened) {
-            _state.update { it.copy(message = "No app on this device can open ${item.displayName}") }
+            _state.update {
+                it.copy(message = "No installed app can open ${item.displayName}")
+            }
         }
     }
 

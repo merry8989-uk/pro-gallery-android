@@ -104,8 +104,11 @@ this honestly rather than pretending otherwise:
   formats. This is the way to make arbitrary files scannable.
 
 Images and videos get thumbnails and an in-app viewer/editor. Audio plays in the
-in-app player. Documents, archives and unknown types show a type icon and open
-with whatever app on the device handles them.
+in-app player. Documents, archives and unknown types show a type icon, and open
+with whichever app on the device handles them — tapping the file opens the system
+chooser, a single selection offers **Open in** in the action bar, and the PDF
+viewer has its own **Open with** action. The chooser is only shown when an
+installed app can actually handle the file; otherwise the app says so.
 
 ---
 

@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -330,6 +331,8 @@ fun SelectionToolbar(
     allFavourite: Boolean,
     onClose: () -> Unit,
     onSelectAll: () -> Unit,
+    showOpenWith: Boolean,
+    onOpenWith: () -> Unit,
     onShare: () -> Unit,
     onFavourite: () -> Unit,
     onEdit: () -> Unit,
@@ -370,6 +373,14 @@ fun SelectionToolbar(
                     .padding(bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                if (showOpenWith) {
+                    SelectionAction(
+                        icon = Icons.Filled.OpenInNew,
+                        label = "Open in",
+                        onClick = onOpenWith,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 if (count == 1) {
                     SelectionAction(
                         icon = Icons.Filled.Edit,

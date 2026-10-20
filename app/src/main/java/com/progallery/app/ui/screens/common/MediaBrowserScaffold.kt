@@ -148,6 +148,14 @@ fun MediaBrowserScaffold(
                     allFavourite = state.selectedItems.all { it.isFavourite },
                     onClose = { viewModel.clearSelection() },
                     onSelectAll = { viewModel.selectAll() },
+                    // Only offered for a single file that has no in-app preview —
+                    // documents, archives, audio — where another app is the way to view it.
+                    showOpenWith = state.selectedItems.size == 1 &&
+                        !state.selectedItems.first().isPreviewable,
+                    onOpenWith = {
+                        state.selectedItems.firstOrNull()?.let { viewModel.openWith(it) }
+                        viewModel.clearSelection()
+                    },
                     onShare = { viewModel.shareSelected() },
                     onFavourite = { viewModel.favouriteSelected() },
                     onEdit = {

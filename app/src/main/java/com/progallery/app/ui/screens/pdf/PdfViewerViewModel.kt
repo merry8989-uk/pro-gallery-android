@@ -138,8 +138,16 @@ class PdfViewerViewModel @Inject constructor(
 
     fun share(item: MediaItem) = mediaActions.launchShare(listOf(item))
 
+    /** Hands the PDF to another app on the device (its own reader, office suite…). */
+    fun openWithOtherApp(item: MediaItem): Boolean = mediaActions.launchOpen(item)
+
+    /** Says so plainly when nothing installed can open the file. */
+    fun reportNoApp(item: MediaItem) {
+        _state.update { it.copy(message = "No installed app can open ${item.displayName}") }
+    }
+
     /** No backend: hands the file to an app that can upload it. */
-    fun upload(item: MediaItem): Boolean = mediaActions.launchOpenWithChooser(item, "Upload with")
+    fun upload(item: MediaItem): Boolean = mediaActions.launchOpen(item, "Upload with")
 
     fun requestCopy(item: MediaItem, target: String) {
         viewModelScope.launch {
