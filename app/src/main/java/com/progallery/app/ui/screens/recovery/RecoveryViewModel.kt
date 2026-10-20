@@ -13,9 +13,9 @@ import com.progallery.app.data.recovery.RecoveryExporter
 import com.progallery.app.data.recovery.RecoveryQuery
 import com.progallery.app.data.recovery.RecoveryRepository
 import com.progallery.app.data.recovery.RecoveryResult
+import com.progallery.app.data.recovery.RecoveryScanMode
 import com.progallery.app.data.recovery.RecoveryScanState
 import com.progallery.app.data.recovery.RecoverySort
-import com.progallery.app.data.recovery.RecoveryStatus
 import com.progallery.app.data.recovery.RecoveryTab
 import com.progallery.app.data.settings.SettingsRepository
 import com.progallery.app.util.MediaActions
@@ -40,6 +40,7 @@ data class RecoveryUiState(
     val query: String = "",
     val selection: Set<String> = emptySet(),
     val generateThumbnails: Boolean = true,
+    val mode: RecoveryScanMode = RecoveryScanMode.QUICK,
     val previewing: RecoveryResult? = null,
     val exporting: Boolean = false,
     val message: String? = null,
@@ -55,9 +56,11 @@ data class RecoveryUiState(
     val selectionMode: Boolean get() = selection.isNotEmpty()
     val selectedResults: List<RecoveryResult> get() = results.filter { it.id in selection }
 
-    /** Exportable: everything selected except preview-only artefacts. */
-    val exportableSelection: List<RecoveryResult>
-        get() = selectedResults.filter { it.status != RecoveryStatus.PREVIEW_ONLY }
+    /**
+     * Exportable: available files, plus thumbnails — which are real files, just not
+     * the original. A preview-only result that could not be read is not exportable.
+     */
+    val exportableSelection: List<RecoveryResult> get() = selectedResults.filter { it.canExport }
 }
 
 @HiltViewModel
@@ -87,13 +90,16 @@ class RecoveryViewModel @Inject constructor(
         }
     }
 
+    fun setMode(mode: RecoveryScanMode) = _uiState.update { it.copy(mode = mode) }
+
     fun startScan() {
         if (scanJob?.isActive == true) return
         _uiState.update {
             it.copy(scanState = RecoveryScanState.Scanning("Starting", 0), selection = emptySet())
         }
+        val mode = _uiState.value.mode
         scanJob = viewModelScope.launch {
-            repository.quickScan()
+            repository.scan(mode)
                 // Belt and braces: the screen must always reach a terminal state.
                 .catch { t ->
                     _uiState.update {

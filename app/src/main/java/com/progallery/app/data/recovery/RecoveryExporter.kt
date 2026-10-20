@@ -41,10 +41,9 @@ class RecoveryExporter @Inject constructor(
         result: RecoveryResult,
         destinationTree: Uri,
     ): RecoveryExportOutcome = withContext(Dispatchers.IO) {
-        if (result.status == RecoveryStatus.PREVIEW_ONLY) {
-            val what = if (result.isThumbnail) "a thumbnail" else "a preview"
+        if (!result.canExport) {
             return@withContext RecoveryExportOutcome.Failed(
-                "This result is $what, not the original file, so there is nothing to export.",
+                "This file could not be read, so there is nothing to copy.",
             )
         }
 
@@ -66,9 +65,12 @@ class RecoveryExporter @Inject constructor(
 
     private fun copyInto(tree: DocumentFile, result: RecoveryResult): RecoveryExportOutcome {
         val wanted = result.item.displayName.ifBlank { "recovered_${System.currentTimeMillis()}" }
+        // A thumbnail is a real file, so it is exported — but under a name that
+        // says so, because it is not the original picture.
+        val exportName = if (result.isThumbnail) markAsThumbnail(wanted) else wanted
         val mime = result.item.mimeType.ifBlank { "*/*" }
 
-        val temp = tree.createFile(mime, "$wanted.partial")
+        val temp = tree.createFile(mime, "$exportName.partial")
             ?: return RecoveryExportOutcome.Failed("A file could not be created in the chosen folder.")
 
         return try {
@@ -90,7 +92,7 @@ class RecoveryExporter @Inject constructor(
                 error("the copy is $onDisk bytes but the source is $expected — it was not written completely")
             }
 
-            val finalName = uniqueName(tree, wanted)
+            val finalName = uniqueName(tree, exportName)
             if (!temp.renameTo(finalName)) {
                 error("the copy was written but could not be given the name \"$finalName\"")
             }
@@ -100,6 +102,16 @@ class RecoveryExporter @Inject constructor(
             runCatchingCancellable { temp.delete() }
             if (t is CancellationException) throw t
             RecoveryExportOutcome.Failed(t.message?.takeIf { it.isNotBlank() } ?: "The export failed.")
+        }
+    }
+
+    /** "photo.jpg" -> "photo-thumbnail.jpg", so the file never masquerades as the original. */
+    private fun markAsThumbnail(name: String): String {
+        val dot = name.lastIndexOf('.')
+        return if (dot > 0) {
+            name.substring(0, dot) + "-thumbnail" + name.substring(dot)
+        } else {
+            "$name-thumbnail"
         }
     }
 

@@ -116,6 +116,13 @@ fun DeepScanScreen(
                             Text("Files examined: ${scan.summary.filesExamined}")
                             Text("Media found: ${scan.summary.mediaFound}")
                             Text("Duplicates: ${scan.summary.duplicatesFound}")
+                            if (scan.summary.fullHashesRun > 0) {
+                                Text(
+                                    "Full hashes run: ${scan.summary.fullHashesRun} — the rest were " +
+                                        "ruled out by size and a sampled hash.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
                             if (scan.summary.signatureIdentified > 0) {
                                 Text("Identified by file signature: ${scan.summary.signatureIdentified}")
                             }

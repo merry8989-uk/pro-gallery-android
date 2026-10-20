@@ -70,6 +70,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.progallery.app.data.model.ViewMode
 import com.progallery.app.data.recovery.RecoveryResult
+import com.progallery.app.data.recovery.RecoveryScanMode
 import com.progallery.app.data.recovery.RecoveryScanState
 import com.progallery.app.data.recovery.RecoverySort
 import com.progallery.app.data.recovery.RecoveryStatus
@@ -133,6 +134,8 @@ fun RecoveryScreen(
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
                 when (val scan = state.scanState) {
                     RecoveryScanState.Idle -> IdlePane(
+                        selectedMode = state.mode,
+                        onMode = { viewModel.setMode(it) },
                         onScan = { viewModel.startScan() },
                         onAddFolder = { folderPicker.launch(null) },
                     )
@@ -193,7 +196,12 @@ fun RecoveryScreen(
 }
 
 @Composable
-private fun IdlePane(onScan: () -> Unit, onAddFolder: () -> Unit) {
+private fun IdlePane(
+    selectedMode: RecoveryScanMode,
+    onMode: (RecoveryScanMode) -> Unit,
+    onScan: () -> Unit,
+    onAddFolder: () -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -202,14 +210,19 @@ private fun IdlePane(onScan: () -> Unit, onAddFolder: () -> Unit) {
         item {
             Surface(tonalElevation = 1.dp) {
                 Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                    Text("What Quick Scan looks for", style = MaterialTheme.typography.titleSmall)
+                    Text("Pick a scan", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        text = "1. Media the system's index already lists.\n" +
+                        text = "Quick Scan:\n" +
+                            "1. Media the system's index already lists.\n" +
                             "2. Files this app is holding in Recently Deleted.\n" +
                             "3. Files inside folders you granted that the index does not list.\n\n" +
-                            "It does not read raw storage or other apps' private folders — Android " +
-                            "refuses that to every app without root. A file the system already " +
-                            "indexes is shown as indexed, not as a deleted file.",
+                            "Thumbnail & cache:\n" +
+                            "Only thumbnails and cached previews in folders you granted. These are " +
+                            "small preview files — never the full-resolution original — and they are " +
+                            "exported under a \"-thumbnail\" name so they can never be mistaken for it.\n\n" +
+                            "Neither mode reads raw storage or other apps' private folders: Android " +
+                            "refuses that to every app without root. A file the system already indexes " +
+                            "is shown as indexed, not as a deleted file.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
@@ -218,10 +231,21 @@ private fun IdlePane(onScan: () -> Unit, onAddFolder: () -> Unit) {
             }
         }
         item {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                RecoveryScanMode.entries.forEach { mode ->
+                    FilterChip(
+                        onClick = { onMode(mode) },
+                        selected = selectedMode == mode,
+                        label = { Text(mode.label) },
+                    )
+                }
+            }
+        }
+        item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = onScan) {
                     Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                    Text("  Quick Scan")
+                    Text("  Scan")
                 }
                 OutlinedButton(onClick = onAddFolder) {
                     Icon(Icons.Filled.FolderOpen, contentDescription = null)
@@ -248,6 +272,7 @@ private fun CompletedPane(
         if (summary != null) {
             Surface(tonalElevation = 1.dp) {
                 Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                    Text(state.mode.label, style = MaterialTheme.typography.titleSmall)
                     Text(
                         text = "${state.results.size} result(s) · ${summary.indexedFound} indexed · " +
                             "${summary.trashFound} in Recently Deleted · ${summary.unindexedFound} unindexed · " +
@@ -423,7 +448,7 @@ private fun SelectionBar(
             }
             if (exportable < count) {
                 Text(
-                    text = "${count - exportable} selected item(s) are preview-only and cannot be exported.",
+                    text = "${count - exportable} selected item(s) could not be read, so they cannot be exported.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -493,6 +518,14 @@ private fun PreviewDialog(
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Text("Status: ${result.status.label}", style = MaterialTheme.typography.bodySmall)
+                if (result.isThumbnail) {
+                    Text(
+                        text = "This is a thumbnail, not the original image. Exporting saves the " +
+                            "thumbnail itself, named \"...-thumbnail\".",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 Text("Type: ${item.mediaType.name} · ${item.mimeType}", style = MaterialTheme.typography.bodySmall)
                 Text("Size: ${MediaFormatUtils.formatBytes(item.sizeBytes)}", style = MaterialTheme.typography.bodySmall)
                 if (item.dimensionLabel != "—") {
@@ -511,10 +544,7 @@ private fun PreviewDialog(
             }
         },
         confirmButton = {
-            Button(
-                onClick = onExport,
-                enabled = result.status != RecoveryStatus.PREVIEW_ONLY,
-            ) { Text("Export") }
+            Button(onClick = onExport, enabled = result.canExport) { Text("Export") }
         },
         dismissButton = {
             Row {

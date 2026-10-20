@@ -5,8 +5,8 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.progallery.app.data.local.dao.ScanDirectoryDao
 import com.progallery.app.data.local.entity.ScanDirectoryEntity
-import com.progallery.app.data.model.DuplicateGroup
 import com.progallery.app.data.model.FileTypeRegistry
+import com.progallery.app.data.model.DuplicateGroup
 import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaSource
 import com.progallery.app.data.model.MediaType
@@ -60,7 +60,10 @@ class DeepScanRepository @Inject constructor(
     private val settingsRepository: SettingsRepository,
 ) {
 
-    private val detector = DuplicateDetector { item -> hasher.sha256(item.uri) }
+    private val detector = DuplicateDetector(
+        sampledHasher = { item -> hasher.sampledHash(item.uri) },
+        fullHasher = { item -> hasher.sha256(item.uri) },
+    )
 
     fun observeAuthorisedDirectories(): Flow<List<ScanDirectoryEntity>> =
         scanDirectoryDao.observeAll()
@@ -155,7 +158,7 @@ class DeepScanRepository @Inject constructor(
         var signatureIdentified = 0
         var truncated = false
         var skippedBySize = 0
-        var lastProgressAt = 0
+        val progressThrottle = ScanProgressThrottle()
 
         for (entity in directories) {
             val root = DocumentFile.fromTreeUri(context, Uri.parse(entity.treeUri))
@@ -258,8 +261,9 @@ class DeepScanRepository @Inject constructor(
                 if (truncated) break
 
                 // Throttle progress so a huge folder doesn't flood the UI.
-                if (filesExamined - lastProgressAt >= 25) {
-                    lastProgressAt = filesExamined
+                // Publish on every 25 files, or every 250 ms for a folder of a few
+                // very large files, so the screen never looks frozen.
+                if (progressThrottle.shouldPublish(filesExamined)) {
                     emit(ScanState.Scanning(directoriesScanned, filesExamined, found.size, path))
                 }
             }
@@ -278,10 +282,10 @@ class DeepScanRepository @Inject constructor(
                 "(${settings.sizeRangeLabel})."
         }
 
-        val duplicates = if (settings.duplicateDetectionEnabled) {
+        val duplicateReport = if (settings.duplicateDetectionEnabled) {
             detector.findDuplicates(found)
         } else {
-            emptyList()
+            DuplicateReport()
         }
 
         emit(
@@ -290,13 +294,14 @@ class DeepScanRepository @Inject constructor(
                     directoriesScanned = directoriesScanned,
                     filesExamined = filesExamined,
                     mediaFound = found.size,
-                    duplicatesFound = duplicates.sumOf { it.items.size - 1 },
+                    duplicatesFound = duplicateReport.duplicateFiles,
+                    fullHashesRun = duplicateReport.fullHashes,
                     errors = errors.take(50),
                     signatureIdentified = signatureIdentified,
                     truncated = truncated,
                 ),
                 media = found,
-                duplicates = duplicates,
+                duplicates = duplicateReport.groups,
             ),
         )
     }

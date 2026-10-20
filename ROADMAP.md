@@ -7,7 +7,7 @@ checked against the current code, not remembered.
 
 **Current release:** v1.5.1 · `versionCode 20` · CI green · signed with the project key.
 
-**Phase 1 complete. Phase 2A (recovery engine) complete.** Next: Phase 2B — thumbnail/cache discovery.
+**Phases 1, 2A and 2B complete.** The recovery engine is finished. Next: Phase 3 (settings completeness) or Phase 4 (performance & platform).
 
 ---
 
@@ -75,9 +75,9 @@ Shipped: Quick Scan (index + Recently Deleted + granted folders), `RecoveryThumb
 result cards with source/confidence/evidence/status, preview with metadata, safe SAF
 export with verification, and export history (Room 3→4).
 
-**Still to do in Phase 2B:** thumbnail/cache discovery as its own mode, faster
-duplicate detection (size grouping → sampled hash → full hash), and thumbnail cache
-size limits / clearing.
+**Phase 2B — also DONE in v1.7.0:** thumbnail/cache discovery as its own scan mode,
+faster duplicate detection (size → sampled hash → full hash), thumbnail cache limit
+and clearing, clock-based progress, and recovery de-duplication.
 
 From the Recovery master prompt. Priority order it specifies: fix scan → real
 discovery → icons/thumbnails → preview → safe export → performance → tests.
@@ -163,7 +163,7 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 | --- | --- |
 | ~~**v1.5.1**~~ | ✅ Phase 1 — the 13 correctness/safety items + the release-workflow tag fix (shipped) |
 | ~~**v1.6.0**~~ | ✅ Recovery engine A: Quick Scan, result browsing, `RecoveryThumbnail`, result cards, safe export, history (shipped) |
-| **v1.7.0** | Recovery engine B: safe export workflow, recovery history, thumbnail/cache discovery |
+| ~~**v1.7.0**~~ | ✅ Recovery engine B: thumbnail/cache mode, faster duplicates, cache limit + clear, progress throttling (shipped) |
 | **v1.8.0** | Phase 3 — settings completeness (export/import, resets, thumbnail cache, diagnostics, dependency registry) |
 | **v1.9.0** | Phase 4 — Paging 3, ContentObserver, migration tests, targetSdk 36, signed AAB, CI hardening |
 

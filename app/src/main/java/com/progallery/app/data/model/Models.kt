@@ -98,6 +98,11 @@ data class ScanSummary(
     val signatureIdentified: Int = 0,
     /** True when a configured limit stopped the scan early. */
     val truncated: Boolean = false,
+    /**
+     * How many files were fully hashed while looking for duplicates. The rest were
+     * ruled out by size and a cheap sampled hash.
+     */
+    val fullHashesRun: Int = 0,
 )
 
 /** A set of files that are byte-identical (or same-size candidates). */

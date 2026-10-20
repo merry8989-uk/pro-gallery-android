@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.progallery.app.data.deepscan.FileClassifier
+import com.progallery.app.data.deepscan.ScanProgressThrottle
 import com.progallery.app.data.local.dao.ScanDirectoryDao
 import com.progallery.app.data.model.FileTypeRegistry
 import com.progallery.app.data.model.MediaItem
@@ -47,11 +48,14 @@ class RecoveryScanner @Inject constructor(
     private val classifier: FileClassifier,
     private val settingsRepository: SettingsRepository,
     private val scanDirectoryDao: ScanDirectoryDao,
+    private val boundsReader: ImageBoundsReader,
 ) {
 
-    fun quickScan(): Flow<RecoveryScanState> = flow {
+    fun quickScan(): Flow<RecoveryScanState> = scan(RecoveryScanMode.QUICK)
+
+    fun scan(mode: RecoveryScanMode): Flow<RecoveryScanState> = flow {
         try {
-            emitAll(scanInternal())
+            emitAll(scanInternal(mode))
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (t: Throwable) {
@@ -64,7 +68,7 @@ class RecoveryScanner @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
-    private fun scanInternal(): Flow<RecoveryScanState> = flow {
+    private fun scanInternal(mode: RecoveryScanMode): Flow<RecoveryScanState> = flow {
         val settings = settingsRepository.current()
         if (!settings.anyCategoryEnabled) {
             emit(
@@ -79,10 +83,18 @@ class RecoveryScanner @Inject constructor(
         val errors = ArrayList<String>()
         var skippedAlreadyIndexed = 0
 
+        // The thumbnail/cache mode is about artefacts only, so it does not list
+        // the index or the trash at all.
+        val includeIndexAndTrash = mode == RecoveryScanMode.QUICK
+
         // ---- 1. the system's own index ------------------------------------
         emit(RecoveryScanState.Scanning("Reading the system index", 0))
         mediaRepository.refresh()
-        val indexed = mediaRepository.currentSnapshot().filter { it.mediaType in settings.enabledKinds }
+        val indexed = if (includeIndexAndTrash) {
+            mediaRepository.currentSnapshot().filter { it.mediaType in settings.enabledKinds }
+        } else {
+            emptyList()
+        }
 
         indexed.forEach { item ->
             results += RecoveryResult(
@@ -97,8 +109,13 @@ class RecoveryScanner @Inject constructor(
         }
 
         // ---- 2. our own Recently Deleted ----------------------------------
-        emit(RecoveryScanState.Scanning("Reading Recently Deleted", results.size))
-        val trashed = trashRepository.list()
+        emit(
+            RecoveryScanState.Scanning(
+                if (includeIndexAndTrash) "Reading Recently Deleted" else "Looking for thumbnails and cached previews",
+                results.size,
+            ),
+        )
+        val trashed = if (includeIndexAndTrash) trashRepository.list() else emptyList()
         trashed.forEach { entity ->
             val kind = entity.mediaType
                 ?.let { name -> MediaType.entries.firstOrNull { it.name == name } }
@@ -138,6 +155,8 @@ class RecoveryScanner @Inject constructor(
         val directories = scanDirectoryDao.all()
         var foldersScanned = 0
         var unindexedFound = 0
+        val progressThrottle = ScanProgressThrottle()
+        val visited = HashSet<String>()
 
         // The index and a granted folder use different URI schemes, so they can
         // never be matched by URI. Name plus size is used instead - a heuristic,
@@ -163,6 +182,21 @@ class RecoveryScanner @Inject constructor(
                     break
                 }
                 val (dir, depth) = stack.removeLast()
+
+                // Keep the screen alive during a long walk.
+                if (progressThrottle.shouldPublish(filesExamined)) {
+                    emit(
+                        RecoveryScanState.Scanning(
+                            if (mode == RecoveryScanMode.THUMBNAIL_CACHE) {
+                                "Looking for thumbnails and cached previews"
+                            } else {
+                                "Looking inside ${entity.displayName}"
+                            },
+                            results.size,
+                        ),
+                    )
+                }
+
                 val children = dir.listFiles()
                 if (children.isEmpty()) continue
 
@@ -181,7 +215,15 @@ class RecoveryScanner @Inject constructor(
                     val size = child.length()
                     if (!settings.acceptsSize(size)) continue
 
-                    if (indexedKey(name, size) in indexKeys) {
+                    // The same file can be reachable through more than one granted
+                    // tree, and a folder can be nested inside another grant. Keyed by
+                    // the canonical document URI, so nothing is reported twice.
+                    if (!visited.add(child.uri.toString())) continue
+
+                    // In quick mode a file the index already lists is not a
+                    // discovery. In thumbnail mode the user asked for artefacts,
+                    // indexed or not, so nothing is skipped on that basis.
+                    if (includeIndexAndTrash && indexedKey(name, size) in indexKeys) {
                         skippedAlreadyIndexed++
                         continue
                     }
@@ -204,12 +246,38 @@ class RecoveryScanner @Inject constructor(
                     val kind = classified?.kind ?: MediaType.OTHER
                     if (kind !in settings.enabledKinds) continue
 
-                    val judgement = RecoveryConfidencePolicy.evaluate(
-                        identifiedBySignature = classified?.identifiedBySignature == true,
-                        hasExtension = extension.isNotEmpty(),
-                        hasDeclaredMime = !child.type.isNullOrBlank(),
-                        isReadable = readable,
+                    // Read the pixel size from the header only, so a thumbnail can
+                    // show an estimated resolution.
+                    val bounds = if (classified?.kind == MediaType.IMAGE) {
+                        boundsReader.read {
+                            runCatching { context.contentResolver.openInputStream(child.uri) }.getOrNull()
+                        }
+                    } else {
+                        null
+                    }
+
+                    val verdict = ThumbnailHeuristics.evaluate(
+                        name = name,
+                        relativePath = child.uri.toString(),
+                        width = bounds?.width ?: 0,
+                        height = bounds?.height ?: 0,
                     )
+
+                    // The thumbnail mode returns artefacts and nothing else.
+                    if (mode == RecoveryScanMode.THUMBNAIL_CACHE && !verdict.isThumbnail) continue
+
+                    val judgement = if (verdict.isThumbnail) {
+                        RecoveryConfidencePolicy.forThumbnailArtifact(
+                            identifiedBySignature = classified?.identifiedBySignature == true,
+                        )
+                    } else {
+                        RecoveryConfidencePolicy.evaluate(
+                            identifiedBySignature = classified?.identifiedBySignature == true,
+                            hasExtension = extension.isNotEmpty(),
+                            hasDeclaredMime = !child.type.isNullOrBlank(),
+                            isReadable = readable,
+                        )
+                    }
 
                     unindexedFound++
                     val item = MediaItem(
@@ -219,8 +287,8 @@ class RecoveryScanner @Inject constructor(
                         mimeType = classified?.mimeType?.ifBlank { child.type ?: "" } ?: (child.type ?: ""),
                         sizeBytes = size,
                         dateModifiedSeconds = child.lastModified() / 1000,
-                        width = 0,
-                        height = 0,
+                        width = bounds?.width ?: 0,
+                        height = bounds?.height ?: 0,
                         durationMs = 0,
                         bucketId = entity.displayName.hashCode().toLong(),
                         bucketName = entity.displayName,
@@ -229,12 +297,17 @@ class RecoveryScanner @Inject constructor(
                         source = MediaSource.DEEP_SCAN,
                     )
                     results += RecoveryResult(
-                        id = "${RecoverySource.SAF_FOLDER.name}|${child.uri}",
+                        id = "${if (verdict.isThumbnail) RecoverySource.THUMBNAIL_CACHE.name else RecoverySource.SAF_FOLDER.name}|${child.uri}",
                         item = item,
-                        source = RecoverySource.SAF_FOLDER,
-                        confidence = judgement.confidence,
+                        source = if (verdict.isThumbnail) {
+                            RecoverySource.THUMBNAIL_CACHE
+                        } else {
+                            RecoverySource.SAF_FOLDER
+                        },
+                        confidence = if (verdict.isThumbnail) verdict.confidence else judgement.confidence,
                         status = judgement.status,
-                        evidence = judgement.evidence,
+                        evidence = if (verdict.isThumbnail) verdict.reason else judgement.evidence,
+                        isThumbnail = verdict.isThumbnail,
                         originLabel = entity.displayName,
                     )
                 }
