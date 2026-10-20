@@ -62,7 +62,18 @@ data class RecoveryResult(
     val isThumbnail: Boolean = false,
     /** Where it was found, for the card subtitle. */
     val originLabel: String = "",
-)
+) {
+    /**
+     * Whether the bytes can be copied out.
+     *
+     * A thumbnail can: it is a real, readable file — it is just not the original,
+     * so the export names it as a thumbnail. A preview-only result that is *not* a
+     * thumbnail cannot be read at all, so there is nothing to copy.
+     */
+    val canExport: Boolean
+        get() = status == RecoveryStatus.AVAILABLE ||
+            (status == RecoveryStatus.PREVIEW_ONLY && isThumbnail)
+}
 
 /** Confidence, evidence and status derived from what we actually know. */
 data class RecoveryJudgement(
@@ -80,6 +91,20 @@ data class RecoveryScanSummary(
     val skippedAlreadyIndexed: Int = 0,
     val errors: List<String> = emptyList(),
 )
+
+/** The two scan modes the recovery screen offers. */
+enum class RecoveryScanMode(val label: String, val explanation: String) {
+    QUICK(
+        label = "Quick Scan",
+        explanation = "Everything the app can reach: the system index, its own " +
+            "Recently Deleted, and folders you granted.",
+    ),
+    THUMBNAIL_CACHE(
+        label = "Thumbnail & cache",
+        explanation = "Only thumbnails and cached previews found in folders you granted. " +
+            "These are small preview files, never the full-resolution original.",
+    ),
+}
 
 sealed interface RecoveryScanState {
     data object Idle : RecoveryScanState

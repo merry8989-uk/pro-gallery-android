@@ -27,6 +27,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.7.0]
+Phase 2B: the rest of the recovery engine.
+
+### Added
+- **Thumbnail & cache scan mode.** A second scan that looks only for thumbnails and cached previews in the folders you granted. `ThumbnailHeuristics` decides from the file's name, the folder it sits in, and a size written into its name — and deliberately **not** from small dimensions alone, because a genuinely small photo is a small photo. Every verdict carries its reason.
+- **A thumbnail can be exported, but never as the original.** It is a real readable file, so it is copied — under a name like `photo-thumbnail.jpg`, with the dialog stating plainly that it is not the full-resolution image. A preview-only result that could not be read stays unexportable.
+- **Thumbnail cache limit and clearing.** The app's own preview cache size is now a setting (32–1024 MB, applied at next launch because Coil builds its cache once), with a **Clear** action that reports how much it freed. It only empties the app's generated previews — never your photos, videos, or anything you recovered.
+- **Estimated resolution for thumbnails.** Dimensions are read from the image header only (`inJustDecodeBounds`), so even a 50 MP source is cheap to inspect.
+
+### Changed
+- **Duplicate detection is much cheaper.** It used to fully hash every same-size candidate. Now: group by size → compare a sampled hash (length + first and last 64 KB) → fully hash **only** what still collides. Only the full hash can declare a duplicate, so the cheaper passes can never be wrong — they only avoid work. The Deep Scan summary now reports how many full hashes actually ran.
+- **Progress is published on a clock as well as a count** (every 25 files *or* every 250 ms). A folder holding a few very large videos used to go a long time with no update, so the screen looked frozen. The Android-folders and recovery scans, which published nothing during their walk, now do.
+- **Recovery results are de-duplicated** by canonical document URI, so a file reachable through two overlapping grants is reported once.
+
+### Tests
+- `ThumbnailHeuristicsTest` — every signal, and the important negatives: small dimensions alone, unreadable dimensions, and a 1920×1080 wallpaper with a size in its name are **not** thumbnails.
+- `DuplicateDetectorTest` — unique sizes are never read at all; same-size files with different samples are not fully hashed; a sample collision with different bytes is **not** a duplicate; identical files are.
+- `ScanProgressThrottleTest` — count trigger, clock trigger, reset behaviour, and a long run publishing repeatedly.
+
 ## [1.6.0]
 Phase 2A: the recovery engine. Real discovery, real previews, and a safe export.
 

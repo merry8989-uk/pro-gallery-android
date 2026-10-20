@@ -62,6 +62,11 @@ data class AppSettings(
 
     // ---- B. Thumbnails and result cards -------------------------------
     val generateThumbnails: Boolean = true,
+    /**
+     * Upper bound for the app's own thumbnail cache, in MB. Applied when the app
+     * starts, because Coil builds its cache once.
+     */
+    val thumbnailCacheLimitMb: Int = 256,
     val showFileNames: Boolean = true,
     val showFileSize: Boolean = true,
 
@@ -197,6 +202,7 @@ data class AppSettings(
             maxScanResults = maxScanResults.coerceIn(50, 50_000),
             signatureReadBytes = signatureReadBytes.coerceIn(64, 65_536),
             maxConcurrentTasks = maxConcurrentTasks.coerceIn(1, 16),
+            thumbnailCacheLimitMb = thumbnailCacheLimitMb.coerceIn(32, 4096),
             // Experimental and root-related features stay off unless explicitly
             // enabled by the user; a sanitized copy never turns them on.
             experimentalMethodsEnabled = experimentalMethodsEnabled,

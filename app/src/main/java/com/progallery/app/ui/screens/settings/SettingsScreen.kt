@@ -44,6 +44,10 @@ import com.progallery.app.data.settings.PerformanceMode
 import com.progallery.app.data.settings.ThemeMode
 import com.progallery.app.data.model.SortOrder
 import com.progallery.app.util.DefaultApps
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
+import com.progallery.app.util.MediaFormatUtils
 
 /** One renderable settings row. */
 private sealed interface SettingsRow {
@@ -135,6 +139,17 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val rootStatus by viewModel.rootStatus.collectAsStateWithLifecycle()
+    val cacheSizeBytes by viewModel.cacheSizeBytes.collectAsStateWithLifecycle()
+    val cacheMessage by viewModel.cacheMessage.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) { viewModel.refreshCacheSize() }
+    LaunchedEffect(cacheMessage) {
+        cacheMessage?.let { snackbarHostState.showSnackbar(it); viewModel.consumeCacheMessage() }
+    }
+
+    /** Shown under the cache row, so the user sees what clearing would free. */
+    val cacheSizeLabel = "Using ${MediaFormatUtils.formatBytes(cacheSizeBytes)}"
     val context = LocalContext.current
 
     var query by remember { mutableStateOf("") }
@@ -143,8 +158,10 @@ fun SettingsScreen(
     val rows = buildRows(
         settings = settings,
         rootStatus = rootStatus,
+        cacheSizeLabel = cacheSizeLabel,
         update = viewModel::update,
         onCheckRoot = viewModel::checkRootStatus,
+        onClearThumbnailCache = viewModel::clearThumbnailCache,
         onOpenDefaultApps = { DefaultApps.openDefaultAppsSettings(context) },
     )
 
@@ -156,6 +173,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
@@ -238,8 +256,10 @@ fun SettingsScreen(
 private fun buildRows(
     settings: AppSettings,
     rootStatus: String?,
+    cacheSizeLabel: String,
     update: ((AppSettings) -> AppSettings) -> Unit,
     onCheckRoot: () -> Unit,
+    onClearThumbnailCache: () -> Unit,
     onOpenDefaultApps: () -> Unit,
 ): List<SettingsRow> = buildList {
     // ---- Scanning -----------------------------------------------------
@@ -341,6 +361,35 @@ private fun buildRows(
             section = "Thumbnails & result cards",
             checked = settings.generateThumbnails,
             onCheckedChange = { value -> update { it.copy(generateThumbnails = value) } },
+        ),
+    )
+
+    add(
+        SettingsRow.Slider(
+            title = "Thumbnail cache limit",
+            subtitle = "How much space the app's own preview cache may use. Takes effect the " +
+                "next time you open the app.",
+            section = "Thumbnails & result cards",
+            value = settings.thumbnailCacheLimitMb,
+            range = 32..1024,
+            onChange = { value -> update { it.copy(thumbnailCacheLimitMb = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Thumbnail cache",
+            subtitle = cacheSizeLabel,
+            section = "Thumbnails & result cards",
+            label = "Clear",
+            onClick = onClearThumbnailCache,
+        ),
+    )
+    add(
+        SettingsRow.Info(
+            title = "What clearing the cache does",
+            subtitle = "It empties the app's own store of generated previews, so the next scan " +
+                "rebuilds them. It never touches your photos, videos, or anything you recovered.",
+            section = "Thumbnails & result cards",
         ),
     )
     add(

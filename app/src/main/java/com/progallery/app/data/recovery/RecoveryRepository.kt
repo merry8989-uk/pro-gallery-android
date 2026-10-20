@@ -25,6 +25,8 @@ class RecoveryRepository @Inject constructor(
 
     fun quickScan(): Flow<RecoveryScanState> = scanner.quickScan()
 
+    fun scan(mode: RecoveryScanMode): Flow<RecoveryScanState> = scanner.scan(mode)
+
     fun openSource(result: RecoveryResult) = scanner.openSource(result)
 
     /** Kept in memory only; a scan's results are not worth persisting. */

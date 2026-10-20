@@ -88,7 +88,11 @@ reach, with the source on every result:
 | Recently Deleted | Bytes this app is holding — genuinely recoverable. |
 | Granted folder | Found by walking a folder you allowed; the system's index does not list it. |
 | System index | Already indexed by Android. Shown as indexed, **not** as a deleted file. |
-| Thumbnail / cache | A preview artefact — never the original (Phase 2B). |
+| Thumbnail / cache | A preview artefact — never the original. Exportable, but named `...-thumbnail`. |
+
+Two scan modes: **Quick Scan** (everything the app can reach) and **Thumbnail &
+cache** (only thumbnails and cached previews in folders you granted — small
+preview files, never the original, exported under a `-thumbnail` name).
 
 Each result shows its **confidence** (High only when the bytes identified the
 file), the **evidence** for that confidence, and its **status** (Available /
@@ -96,6 +100,13 @@ Preview only / Exported / Failed). Export writes through the Storage Access
 Framework, verifies the copy against the source size before reporting success,
 never overwrites, and cleans up a partial file on failure. Every attempt is
 recorded in the export history.
+
+## Thumbnail cache
+
+The app's own preview cache has a configurable limit (32–1024 MB, applied at the
+next launch, since Coil builds its cache once) and a **Clear** action that reports
+how much it freed. Clearing it only empties generated previews — it can never
+touch your photos, videos, or anything you recovered.
 
 ## Android folder access — what is actually possible
 

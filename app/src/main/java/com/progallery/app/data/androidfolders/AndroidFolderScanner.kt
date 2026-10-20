@@ -5,10 +5,11 @@ import android.net.Uri
 import android.os.Environment
 import com.progallery.app.data.deepscan.DeepScanRepository
 import com.progallery.app.data.deepscan.DuplicateDetector
+import com.progallery.app.data.deepscan.DuplicateReport
 import com.progallery.app.data.deepscan.FileClassifier
 import com.progallery.app.data.deepscan.FileHasher
+import com.progallery.app.data.deepscan.ScanProgressThrottle
 import com.progallery.app.data.deepscan.ScanState
-import com.progallery.app.data.model.DuplicateGroup
 import com.progallery.app.data.model.FileTypeRegistry
 import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaSource
@@ -47,7 +48,10 @@ class AndroidFolderScanner @Inject constructor(
     private val settingsRepository: SettingsRepository,
 ) {
 
-    private val detector = DuplicateDetector { item -> hasher.sha256(item.uri) }
+    private val detector = DuplicateDetector(
+        sampledHasher = { item -> hasher.sampledHash(item.uri) },
+        fullHasher = { item -> hasher.sha256(item.uri) },
+    )
 
     /** The directory a target maps to, or null when it has no location here. */
     fun rootFor(target: AndroidFolderTarget): File? = when (target) {
@@ -106,6 +110,7 @@ class AndroidFolderScanner @Inject constructor(
         var signatureIdentified = 0
         var skippedBySize = 0
         var truncated = false
+        val progressThrottle = ScanProgressThrottle()
 
         for (target in requested) {
             currentCoroutineContext().ensureActive()
@@ -126,6 +131,11 @@ class AndroidFolderScanner @Inject constructor(
                 currentCoroutineContext().ensureActive()
                 val (dir, path, depth) = stack.removeLast()
                 directoriesScanned++
+
+                // Keep the screen alive during a long walk.
+                if (progressThrottle.shouldPublish(filesExamined)) {
+                    emit(ScanState.Scanning(directoriesScanned, filesExamined, found.size, path))
+                }
 
                 val children = dir.listFiles()
                 if (children == null) {
@@ -202,10 +212,10 @@ class AndroidFolderScanner @Inject constructor(
             errors += "Skipped $skippedBySize file(s) outside the size range (${settings.sizeRangeLabel})."
         }
 
-        val duplicates: List<DuplicateGroup> = if (settings.duplicateDetectionEnabled) {
+        val duplicateReport = if (settings.duplicateDetectionEnabled) {
             detector.findDuplicates(found)
         } else {
-            emptyList()
+            DuplicateReport()
         }
 
         emit(
@@ -214,13 +224,14 @@ class AndroidFolderScanner @Inject constructor(
                     directoriesScanned = directoriesScanned,
                     filesExamined = filesExamined,
                     mediaFound = found.size,
-                    duplicatesFound = duplicates.sumOf { it.items.size - 1 },
+                    duplicatesFound = duplicateReport.duplicateFiles,
+                    fullHashesRun = duplicateReport.fullHashes,
                     errors = errors.take(50),
                     signatureIdentified = signatureIdentified,
                     truncated = truncated,
                 ),
                 media = found,
-                duplicates = duplicates,
+                duplicates = duplicateReport.groups,
             ),
         )
     }
