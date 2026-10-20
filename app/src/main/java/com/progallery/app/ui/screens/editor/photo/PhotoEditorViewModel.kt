@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.progallery.app.edit.photo.BitmapEditor
+import com.progallery.app.edit.photo.CropMath
 import com.progallery.app.edit.photo.CropRect
 import com.progallery.app.edit.photo.EditParams
 import com.progallery.app.edit.photo.ExportFormat
