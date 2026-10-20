@@ -8,14 +8,17 @@ import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.repository.MediaRepository
 import com.progallery.app.data.repository.TrashRepository
+import com.progallery.app.data.repository.ViewerContext
 import com.progallery.app.util.MediaActions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.progallery.app.ui.components.sameUri
 import com.progallery.app.util.runCatchingCancellable
 
 /** A rename or move that may need the platform's write-consent before it applies. */
@@ -45,6 +48,7 @@ class ViewerViewModel @Inject constructor(
     private val repository: MediaRepository,
     private val trashRepository: TrashRepository,
     private val mediaActions: MediaActions,
+    private val viewerContext: ViewerContext,
 ) : ViewModel() {
 
     private val _items = MutableStateFlow<List<MediaItem>>(emptyList())
@@ -56,11 +60,34 @@ class ViewerViewModel @Inject constructor(
     private val _state = MutableStateFlow(ViewerUiState())
     val uiState: StateFlow<ViewerUiState> = _state.asStateFlow()
 
+    private var collectionJob: Job? = null
+
     init {
-        viewModelScope.launch {
-            repository.observeMedia(MediaType.ALL).collect { _items.value = it }
-        }
         refreshFolders()
+    }
+
+    /**
+     * Sets what the pager may swipe through.
+     *
+     * [type] is the tapped item's own kind, so opening a photo can never slide
+     * into a video. When the browser handed us the on-screen list we use exactly
+     * that (same items, same order); otherwise we fall back to the library,
+     * still limited to this kind.
+     */
+    fun configure(uri: String, type: MediaType) {
+        collectionJob?.cancel()
+
+        val onScreen = ViewerPager.itemsFor(viewerContext.current(), type)
+        if (onScreen.any { sameUri(it.uri.toString(), uri) }) {
+            _items.value = onScreen
+            return
+        }
+
+        collectionJob = viewModelScope.launch {
+            repository.observeMedia(type).collect { items ->
+                _items.value = ViewerPager.itemsFor(items, type)
+            }
+        }
     }
 
     private fun refreshFolders() {
@@ -101,24 +128,27 @@ class ViewerViewModel @Inject constructor(
     /** Recoverable delete: copy into the trash first, then remove the original. */
     fun requestDelete(item: MediaItem) {
         viewModelScope.launch {
-            val trashed = trashRepository.moveToTrash(listOf(item))
-            if (trashed.isEmpty()) {
+            val outcome = trashRepository.moveToTrash(listOf(item))
+            if (outcome.succeeded.isEmpty()) {
                 _state.update {
-                    it.copy(message = "Could not move to Recently Deleted — nothing was deleted")
+                    it.copy(
+                        message = "Could not copy to Recently Deleted, so nothing was deleted. " +
+                            outcome.explain(),
+                    )
                 }
                 return@launch
             }
             val request = mediaActions.deleteRequest(listOf(item))
             if (request != null) {
                 _state.update {
-                    it.copy(pendingDelete = request, pendingTrashIds = trashed.map { it.trashId })
+                    it.copy(pendingDelete = request, pendingTrashIds = outcome.succeeded.map { it.trashId })
                 }
             } else {
                 val ok = mediaActions.deleteDirect(listOf(item))
                 if (ok) {
                     _state.update { it.copy(message = "Moved to Recently Deleted") }
                 } else {
-                    trashRepository.discard(trashed.map { it.trashId })
+                    trashRepository.discard(outcome.succeeded.map { it.trashId })
                     _state.update { it.copy(message = "Could not delete — nothing was changed") }
                 }
                 refresh()

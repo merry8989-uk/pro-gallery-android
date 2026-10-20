@@ -27,6 +27,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.5.0]
+### Fixed
+- **"No installed app can open this" even with five apps installed.** Android 11+ hides other packages from `queryIntentActivities()` unless the app declares them, so the check returned an empty list and the app refused to show the chooser — for PDFs, Word, Excel, JSON, text, everything. The manifest now declares the intents it needs to resolve (`<queries>` for VIEW/EDIT/SEND).
+- **The chooser is no longer gated on that check at all.** Package visibility can still under-report, so `Open with` now always shows the system chooser, which is the authority: it lists the real apps and says so itself when there genuinely are none. The same applies to `Open in`, the PDF viewer's `Open with`, and `Advanced edit`.
+- **A failed move to Recently Deleted now says why.** Previously every failure produced the same "nothing was deleted", which is unactionable. The copy keeps its reason (provider refused it / permission missing / empty copy) and the message names the file and the cause.
+- A trash copy that came out empty is now treated as a failure rather than being recorded — deleting an original whose backup is empty would lose the file.
+- Trash file names are sanitised (path separators stripped, length capped), so an odd display name can no longer make the destination invalid.
+
+### Added
+- **Swipe between videos.** The video player is now a playlist: sliding moves to the next video **in the order of the grid you came from**, and it starts playing. One ExoPlayer is reused, so only the media item is swapped — no second player and no overlapping audio. A "n / total" counter shows where you are. Rule is the same pure, unit-tested `ViewerPager`.
+- **Pull down to refresh.** Drag down from the top of Home, or of any media list, to rescan. The indicator only appears for the refresh itself, not for the first load.
+
+### Fixed
+- **Videos appearing while sliding through photos.** The viewer built its pager from the *whole* library (`observeMedia(ALL)`) and the route's `type` argument was never passed to the screen, so a photo could be followed by a video — or an audio track or a PDF. The pager now contains only items that can actually be displayed **and only the tapped item's own kind**, and it uses the exact list that was on screen (via a new `ViewerContext`), so the swipe order matches the grid instead of the library's own order. Opening the viewer without a browser behind it falls back to the library, still limited to that kind. Rule is a pure, unit-tested `ViewerPager`.
+
+### Changed
+- **Home now follows the file-type settings.** Switching a category off removes its entry point from Home (Photos / Videos / Audio / Documents), and "All files", "Albums" and "Favourites" disappear once no category is left on. Previously Home kept offering a folder that was guaranteed to be empty. When everything is switched off, Home says so and links to Settings instead of showing a blank screen. The rule lives in a pure, unit-tested `HomeEntries`.
+
+### Notes
+- The in-app PDF reader was already wired: tapping a PDF in any list opens it. The message in the screenshot came from the *Open with* action inside that viewer, which the visibility bug had broken.
+
 ## [1.4.1]
 ### Added
 - **`tools/adb_export_android_data.sh` and `.ps1`** — copy `Android/data` (or one app's folder) off a non-rooted phone using the official ADB interface, then push it back into `Download/` for Deep Scan. Nothing is exploited; the phone is only read.

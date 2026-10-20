@@ -50,5 +50,38 @@ object FileUtils {
         }
     }
 
+    /**
+     * Like [copyToFile] but keeps the reason for a failure, so the UI can say
+     * something useful instead of "nothing was deleted".
+     *
+     * A copy that produced zero bytes counts as a failure: the trash exists so the
+     * original can be removed safely, and deleting an original whose backup is
+     * empty would lose the file outright.
+     */
+    fun copyToFileReporting(context: Context, uri: Uri, destination: File): Result<File> {
+        return try {
+            val source = context.contentResolver.openInputStream(uri)
+                ?: return Result.failure(
+                    IllegalStateException(
+                        "the file could not be opened — the provider refused it, or the permission is missing",
+                    ),
+                )
+            source.use { input ->
+                destination.parentFile?.mkdirs()
+                destination.outputStream().use { output -> input.copyTo(output, DEFAULT_BUFFER) }
+            }
+            if (destination.exists() && destination.length() > 0L) {
+                Result.success(destination)
+            } else {
+                destination.delete()
+                Result.failure(IllegalStateException("the copy came out empty"))
+            }
+        } catch (t: Throwable) {
+            if (t is CancellationException) throw t
+            destination.delete()
+            Result.failure(t)
+        }
+    }
+
     private const val DEFAULT_BUFFER = 64 * 1024
 }

@@ -29,8 +29,15 @@ data class HomeUiState(
     val trash: Int = 0,
     val recent: List<MediaItem> = emptyList(),
     val loading: Boolean = true,
+    /** True only while a pull-to-refresh is in flight. */
+    val refreshing: Boolean = false,
     /** Offered once, on first launch. */
     val showDefaultGalleryPrompt: Boolean = false,
+    /**
+     * Categories the user has left switched on. Home hides the entry point for
+     * anything switched off, so it never offers a folder that must be empty.
+     */
+    val enabledKinds: Set<MediaType> = MediaType.entries.toSet(),
 )
 
 @HiltViewModel
@@ -69,7 +76,12 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             settingsRepository.settings.collect { settings ->
-                _state.update { it.copy(showDefaultGalleryPrompt = !settings.hasSeenDefaultGalleryPrompt) }
+                _state.update {
+                    it.copy(
+                        showDefaultGalleryPrompt = !settings.hasSeenDefaultGalleryPrompt,
+                        enabledKinds = settings.enabledKinds,
+                    )
+                }
             }
         }
         viewModelScope.launch {
@@ -79,8 +91,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /** Pull-to-refresh from the top of Home. */
     fun refresh() {
-        viewModelScope.launch { runCatchingCancellable { repository.refresh() } }
+        viewModelScope.launch {
+            _state.update { it.copy(refreshing = true) }
+            runCatchingCancellable { repository.refresh() }
+            _state.update { it.copy(refreshing = false) }
+        }
     }
 
     /** Remembers that the one-time prompt has been shown. */
