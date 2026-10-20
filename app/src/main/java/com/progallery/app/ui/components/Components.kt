@@ -1,0 +1,384 @@
+package com.progallery.app.ui.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.videoFrameMillis
+import com.progallery.app.data.model.MediaItem
+import com.progallery.app.data.model.ViewMode
+import com.progallery.app.util.MediaFormatUtils
+
+/** A single grid/list thumbnail with selection and video affordances. */
+@Composable
+fun MediaThumbnail(
+    item: MediaItem,
+    selected: Boolean,
+    selectionMode: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+    ) {
+        val request = ImageRequest.Builder(context)
+            .data(item.uri)
+            .apply { if (item.isVideo) videoFrameMillis(1000) }
+            .crossfade(true)
+            .build()
+        AsyncImage(
+            model = request,
+            contentDescription = item.displayName,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        if (item.isVideo) {
+            Icon(
+                imageVector = Icons.Filled.PlayCircle,
+                contentDescription = "Video",
+                tint = androidx.compose.ui.graphics.Color.White,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(36.dp),
+            )
+            Text(
+                text = MediaFormatUtils.formatDuration(item.durationMs),
+                color = androidx.compose.ui.graphics.Color.White,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(4.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f),
+                        RoundedCornerShape(4.dp),
+                    )
+                    .padding(horizontal = 4.dp, vertical = 1.dp),
+            )
+        }
+        if (item.isFavourite) {
+            Icon(
+                imageVector = Icons.Filled.Favorite,
+                contentDescription = "Favourite",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(4.dp)
+                    .size(18.dp),
+            )
+        }
+        if (selectionMode) {
+            Icon(
+                imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Filled.CheckCircle,
+                contentDescription = if (selected) "Selected" else "Not selected",
+                tint = if (selected) MaterialTheme.colorScheme.primary
+                else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(22.dp),
+            )
+        }
+    }
+}
+
+/** Grid or list rendering of a media collection. */
+@Composable
+fun MediaCollection(
+    items: List<MediaItem>,
+    columns: Int,
+    viewMode: ViewMode,
+    selectionMode: Boolean,
+    selectedIds: Set<Long>,
+    onClick: (MediaItem) -> Unit,
+    onLongClick: (MediaItem) -> Unit,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(4.dp),
+) {
+    if (viewMode == ViewMode.GRID) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(columns),
+            modifier = modifier.fillMaxSize(),
+            contentPadding = contentPadding,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            items(items, key = { it.uri.toString() }) { item ->
+                MediaThumbnail(
+                    item = item,
+                    selected = item.id in selectedIds,
+                    selectionMode = selectionMode,
+                    onClick = { onClick(item) },
+                    onLongClick = { onLongClick(item) },
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
+            contentPadding = contentPadding,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            items(items, key = { it.uri.toString() }) { item ->
+                MediaListRow(
+                    item = item,
+                    selected = item.id in selectedIds,
+                    selectionMode = selectionMode,
+                    onClick = { onClick(item) },
+                    onLongClick = { onLongClick(item) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaListRow(
+    item: MediaItem,
+    selected: Boolean,
+    selectionMode: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    Surface(
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer
+        else MaterialTheme.colorScheme.surface,
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            MediaThumbnail(
+                item = item,
+                selected = selected,
+                selectionMode = false,
+                onClick = onClick,
+                onLongClick = onLongClick,
+                modifier = Modifier.size(56.dp),
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
+            ) {
+                Text(
+                    text = item.displayName,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = "${item.dimensionLabel} • ${MediaFormatUtils.formatBytes(item.sizeBytes)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (selectionMode && selected) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+/** Contextual action bar shown when one or more items are selected. */
+@Composable
+fun SelectionToolbar(
+    count: Int,
+    allFavourite: Boolean,
+    onClose: () -> Unit,
+    onShare: () -> Unit,
+    onFavourite: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onHide: () -> Unit,
+) {
+    Surface(tonalElevation = 3.dp) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onClose) {
+                Icon(Icons.Filled.MoreVert, contentDescription = "Close selection")
+            }
+            Text(
+                text = "$count selected",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+            )
+            if (count == 1) {
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                }
+            }
+            IconButton(onClick = onFavourite) {
+                Icon(
+                    imageVector = if (allFavourite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    contentDescription = "Favourite",
+                )
+            }
+            IconButton(onClick = onHide) {
+                Icon(Icons.Filled.VisibilityOff, contentDescription = "Hide")
+            }
+            IconButton(onClick = onShare) {
+                Icon(Icons.Filled.Share, contentDescription = "Share")
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, contentDescription = "Delete")
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyState(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(56.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
+
+@Composable
+fun LoadingState(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    }
+}
+
+/** Small reusable tile used on the home dashboard. */
+@Composable
+fun DashboardTile(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Column(modifier = Modifier.padding(start = 12.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ErrorBanner(message: String, onRetry: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.errorContainer) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.BrokenImage, contentDescription = null)
+            Text(
+                text = message,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = onRetry) { Text("Retry") }
+        }
+    }
+}

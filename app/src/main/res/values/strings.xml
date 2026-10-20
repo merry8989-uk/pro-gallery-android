@@ -1,0 +1,35 @@
+<resources>
+    <string name="app_name">ProGallery</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_photos">Photos</string>
+    <string name="nav_albums">Albums</string>
+    <string name="nav_videos">Videos</string>
+    <string name="nav_favourites">Favourites</string>
+    <string name="nav_trash">Recently Deleted</string>
+    <string name="nav_deep_scan">Deep Scan</string>
+    <string name="nav_search">Search</string>
+
+    <!-- Actions -->
+    <string name="action_share">Share</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_favourite">Favourite</string>
+    <string name="action_unfavourite">Unfavourite</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_move">Move</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_save">Save</string>
+    <string name="action_restore">Restore</string>
+    <string name="action_delete_forever">Delete forever</string>
+    <string name="action_scan">Scan</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- Permissions -->
+    <string name="perm_title">Media access needed</string>
+    <string name="perm_body">ProGallery needs permission to read your photos and videos so it can show them here. Nothing leaves your device.</string>
+    <string name="perm_grant">Grant access</string>
+    <string name="perm_limited_title">Limited access</string>
+    <string name="perm_limited_body">You have granted access to selected items only. Grant full access to see your whole library.</string>
+</resources>
