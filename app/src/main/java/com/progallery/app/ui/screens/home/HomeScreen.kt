@@ -51,6 +51,11 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.progallery.app.ui.components.HomeDrawer
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,11 +74,11 @@ fun HomeScreen(
         DefaultGalleryPrompt(onDismiss = { viewModel.dismissDefaultGalleryPrompt() })
     }
 
-    var drawerOpen by remember { mutableStateOf(false) }
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     HomeDrawer(
-        open = drawerOpen,
-        onClose = { drawerOpen = false },
+        drawerState = drawerState,
         onNavigate = onOpen,
     ) {
     Scaffold(
@@ -81,7 +86,7 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("ProGallery") },
                 navigationIcon = {
-                    IconButton(onClick = { drawerOpen = true }) {
+                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
                         Icon(Icons.Filled.Menu, contentDescription = "Menu")
                     }
                 },

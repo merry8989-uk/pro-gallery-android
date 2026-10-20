@@ -20,16 +20,14 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoLibrary
-import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DrawerState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -37,7 +35,6 @@ import com.progallery.app.data.cloud.CloudProvider
 import com.progallery.app.data.cloud.CloudProviders
 import com.progallery.app.data.cloud.LaunchPlan
 import com.progallery.app.ui.navigation.Routes
-import kotlinx.coroutines.launch
 
 /**
  * The sidebar.
@@ -48,26 +45,16 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun HomeDrawer(
-    open: Boolean,
-    onClose: () -> Unit,
+    drawerState: DrawerState,
     onNavigate: (String) -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val drawerState = rememberDrawerState(if (open) DrawerValue.Open else DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-
-    // The drawer is driven by the caller's flag so a navigation from anywhere can open it.
-    if (open && drawerState.isClosed) scope.launch { drawerState.open() }
-    if (!open && drawerState.isOpen) scope.launch { drawerState.close() }
-
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = true,
-        onDrawerStateChange = { state -> if (state.isClosed && open) onClose() },
         drawerContent = {
             DrawerContents(
                 onNavigate = { route ->
-                    onClose()
                     onNavigate(route)
                 },
             )
