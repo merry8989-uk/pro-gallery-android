@@ -1,6 +1,6 @@
 package com.progallery.app.ui.screens.viewer
 
-import com.progallery.app.data.model.MediaItem
+import com.progallery.app.TestMedia
 import com.progallery.app.data.model.MediaType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -12,34 +12,13 @@ import org.junit.Test
  */
 class ViewerPagerTest {
 
-    private fun item(name: String, type: MediaType, previewable: Boolean) = MediaItem(
-        id = name.hashCode().toLong(),
-        uri = android.net.Uri.parse("content://media/$name"),
-        displayName = name,
-        mimeType = when (type) {
-            MediaType.IMAGE -> "image/jpeg"
-            MediaType.VIDEO -> "video/mp4"
-            MediaType.AUDIO -> "audio/mpeg"
-            else -> "application/pdf"
-        },
-        sizeBytes = 1_000,
-        dateModifiedSeconds = 0,
-        width = 0,
-        height = 0,
-        durationMs = 0,
-        bucketId = 0,
-        bucketName = "",
-        relativePath = null,
-        mediaType = type,
-    )
-
     private val library = listOf(
-        item("a.jpg", MediaType.IMAGE, true),
-        item("clip.mp4", MediaType.VIDEO, true),
-        item("b.jpg", MediaType.IMAGE, true),
-        item("song.mp3", MediaType.AUDIO, false),
-        item("doc.pdf", MediaType.DOCUMENT, false),
-        item("clip2.mp4", MediaType.VIDEO, true),
+        TestMedia.item(1, "a.jpg", type = MediaType.IMAGE),
+        TestMedia.item(2, "clip.mp4", type = MediaType.VIDEO),
+        TestMedia.item(3, "b.jpg", type = MediaType.IMAGE),
+        TestMedia.item(4, "song.mp3", type = MediaType.AUDIO, mime = "audio/mpeg"),
+        TestMedia.item(5, "doc.pdf", type = MediaType.DOCUMENT, mime = "application/pdf"),
+        TestMedia.item(6, "clip2.mp4", type = MediaType.VIDEO),
     )
 
     @Test
@@ -64,7 +43,8 @@ class ViewerPagerTest {
 
     @Test
     fun orderOfTheSourceIsPreserved() {
-        val photos = ViewerPager.itemsFor(library, MediaType.IMAGE)
-        assertEquals(library.filter { it.mediaType == MediaType.IMAGE }, photos)
+        // The playlist follows the grid's own order, so "next" means next in line.
+        val videos = ViewerPager.itemsFor(library, MediaType.VIDEO)
+        assertEquals(library.filter { it.mediaType == MediaType.VIDEO }, videos)
     }
 }
