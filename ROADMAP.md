@@ -149,7 +149,12 @@ Base exists (~45 settings). Missing from the Settings master prompt:
   playlist is loaded on demand; and `favouritesOnly` keys the pager because favourites
   are a Room set rather than a MediaStore column.
 
-**🔶 Phase 3 (settings completeness) — next.**
+**🔶 Phase 3 (settings completeness) — started in v1.10.0.**
+- ✅ Done: versioned settings export/import (SAF, no private data, strict format version,
+  tolerant of unknown keys) and per-section reset.
+- Outstanding: per-kind thumbnail toggles, the recovery/export settings block, a
+  permission diagnostics screen, privacy and log settings, and a central
+  feature-dependency registry.
 
 ## 6. Phase 4 — performance & platform — ✅ mostly DONE in v1.8.0
 
