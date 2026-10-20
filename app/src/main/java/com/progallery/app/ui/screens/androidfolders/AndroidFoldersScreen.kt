@@ -130,6 +130,31 @@ fun AndroidFoldersScreen(
                 }
 
                 item {
+                    Surface(tonalElevation = 1.dp) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                            Text(
+                                "Need another app's Android/data?",
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = "No app can read it on Android 11+ — not this one, not any other, and no " +
+                                    "permission changes that. A computer with ADB can, because the adb shell runs " +
+                                    "with broader rights.\n\n" +
+                                    "The repository's tools/ folder has ready-made scripts:\n" +
+                                    "  tools/adb_export_android_data.sh   (macOS / Linux)\n" +
+                                    "  tools/adb_export_android_data.ps1  (Windows)\n\n" +
+                                    "They copy the folder to your computer, then push it into Download so this app " +
+                                    "can Deep Scan it. Nothing is bypassed — it is the official developer interface, " +
+                                    "and the phone is only read.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                    }
+                }
+
+                item {
                     if (!state.hasAllFilesAccess) {
                         TextButton(onClick = {
                             runCatching { context.startActivity(PermissionUtils.allFilesAccessIntent(context)) }

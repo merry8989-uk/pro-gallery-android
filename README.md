@@ -94,6 +94,32 @@ This is enforced by Android, not by this app: no permission grants it, and only
 root bypasses it — which this app deliberately does not use. Anything that *is*
 reachable can be scanned, previewed, opened and shared like any other file.
 
+## Getting files out of `Android/data` (no root, no bypass)
+
+No app can read another app's `Android/data` on Android 11+ — that is the OS
+rule, and it holds with "All files access" and the folder picker too. A computer
+with **ADB** can, because the `adb` shell runs as the `shell` user with broader
+rights. `tools/` has ready-made scripts:
+
+```bash
+# macOS / Linux
+./tools/adb_export_android_data.sh                 # the whole Android/data
+./tools/adb_export_android_data.sh com.whatsapp    # one app's folder
+```
+```powershell
+# Windows
+.\tools\adb_export_android_data.ps1
+.\tools\adb_export_android_data.ps1 -Package com.whatsapp
+```
+
+They copy the folder to your computer, then push it back into `Download/` so this
+app can Deep Scan it. This is the documented developer interface — nothing is
+exploited, and the phone is only read, never modified.
+
+Worth checking first: messaging apps (WhatsApp, Telegram) keep their media in
+**`Android/media`**, which the app *can* read with All files access — so it may
+already be in the gallery.
+
 ## Default gallery
 
 On first launch the app offers to become your default gallery. Android only lets
