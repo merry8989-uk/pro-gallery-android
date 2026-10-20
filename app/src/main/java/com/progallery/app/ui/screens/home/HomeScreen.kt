@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.MusicNote
@@ -133,6 +134,13 @@ fun HomeScreen(
                             modifier = Modifier.weight(1f),
                         )
                     }
+                    DashboardTile(
+                        icon = Icons.Filled.Android,
+                        title = "Android folders",
+                        subtitle = "Android/media, this app's folder — and what is blocked",
+                        onClick = { onOpen(Routes.ANDROID_FOLDERS) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         DashboardTile(
                             icon = Icons.Filled.Delete,

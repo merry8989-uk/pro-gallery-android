@@ -27,6 +27,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.4.0]
+### Added
+- **"Android folders" screen** — access to the restricted `Android/` tree, stated honestly.
+  - Shows, per location, whether a **non-rooted** app can read it and exactly why.
+  - **Scan `Android/media`** (shared media written by other apps — WhatsApp, Telegram…), this app's own `Android/data/<package>`, and on Android 10 and below the whole legacy `Android/data` and `Android/obb`.
+  - Files found here can be opened, shared and previewed like any other, via a FileProvider (so a `file://` item never triggers `FileUriExposedException`).
+  - A shortcut to the system "All files access" screen when that is what is missing.
+- Shared `FileClassifier` so the SAF deep scan and the `Android/` scan identify files identically (MIME → extension → magic bytes).
+- `AndroidFolderPolicy` — a pure, unit-tested model of what is reachable, including the reasons.
+
+### Platform truth this release documents
+On **Android 11+**, `Android/data/<other apps>` and `Android/obb` are refused to **every** non-rooted app. Neither `MANAGE_EXTERNAL_STORAGE` ("All files access") nor the Storage Access Framework can open them — the system picker declines the grant and the file APIs return nothing. Only root can read them, which this app deliberately does not use. On Android 10 and below they are ordinary storage and are scanned normally. `Android/media` remains readable, which is where most messaging apps now keep their media.
+
 ## [1.3.5]
 ### Fixed
 - **Cancellation was being swallowed.** `runCatching` and `catch (Throwable)` catch

@@ -78,6 +78,22 @@ rooted (a read-only `su` check) but does not read raw storage — that bypasses
 Android's security model and cannot honestly promise recovery of TRIMmed or
 encrypted data.
 
+## Android folder access — what is actually possible
+
+There is a **Android folders** screen for the restricted `Android/` tree. It is
+honest about the platform rules rather than offering buttons that cannot work:
+
+| Location | Non-rooted access |
+| --- | --- |
+| `Android/media` | **Readable** — shared media written by other apps (WhatsApp, Telegram…). Needs All files access on Android 11+. |
+| `Android/data/<this app>` | **Always readable** — it is our own folder. |
+| `Android/data/<other apps>` | **Blocked from Android 11.** Refused to every non-rooted app, including with All files access and the folder picker. Readable on Android 10 and below. |
+| `Android/obb` | **Blocked from Android 11.** Readable on Android 10 and below. |
+
+This is enforced by Android, not by this app: no permission grants it, and only
+root bypasses it — which this app deliberately does not use. Anything that *is*
+reachable can be scanned, previewed, opened and shared like any other file.
+
 ## Default gallery
 
 On first launch the app offers to become your default gallery. Android only lets
