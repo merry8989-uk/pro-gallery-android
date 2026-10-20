@@ -86,7 +86,7 @@ fun AlbumDetailScreen(
                     columns = 3,
                     viewMode = ViewMode.GRID,
                     selectionMode = false,
-                    selectedIds = emptySet(),
+                    selectedIds = emptySet<String>(),
                     onClick = { onOpenViewer(it.uri.toString(), it.mediaType.name) },
                     onLongClick = {},
                     modifier = Modifier.fillMaxSize().padding(padding),

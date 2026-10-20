@@ -65,8 +65,8 @@ class CustomAlbumViewModel @Inject constructor(
         }
     }
 
-    fun removeFromAlbum(albumId: Long, mediaId: Long) = viewModelScope.launch {
-        albumRepository.removeFromAlbum(albumId, mediaId)
+    fun removeFromAlbum(albumId: Long, mediaKey: String) = viewModelScope.launch {
+        albumRepository.removeFromAlbum(albumId, mediaKey)
         _message.value = "Removed from album"
     }
 
@@ -164,7 +164,7 @@ fun CustomAlbumDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
-                    viewModel.removeFromAlbum(albumId, target.id)
+                    viewModel.removeFromAlbum(albumId, target.mediaKey)
                     actionTarget = null
                 }) { Text("Remove from album") }
             },

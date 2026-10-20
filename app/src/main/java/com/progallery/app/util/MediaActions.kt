@@ -39,11 +39,21 @@ class MediaActions @Inject constructor(
         }
     }
 
+    /**
+     * The Sharesheet chooser, fully flagged so it can be started from any
+     * context. MediaActions holds an *application* context, and starting an
+     * activity from one without FLAG_ACTIVITY_NEW_TASK throws
+     * AndroidRuntimeException — which is what crashed sharing.
+     */
+    fun shareChooser(items: List<MediaItem>): Intent =
+        Intent.createChooser(shareIntent(items), "Share via").apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
     fun launchShare(items: List<MediaItem>) {
         if (items.isEmpty()) return
-        val chooser = Intent.createChooser(shareIntent(items), "Share via")
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        context.startActivity(chooser)
+        context.startActivity(shareChooser(items))
     }
 
     /**

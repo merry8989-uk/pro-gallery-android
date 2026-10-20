@@ -29,6 +29,18 @@ data class MediaItem(
     val source: MediaSource = MediaSource.MEDIA_STORE,
     val isFavourite: Boolean = false,
 ) {
+    /**
+     * Stable identity for this item, and the key used for favourites, hidden
+     * items and custom-album membership.
+     *
+     * The numeric [id] is NOT usable as identity: photo and video ids come from
+     * different MediaStore collections and collide, and a deep-scanned file has
+     * no MediaStore id at all. The content URI carries the volume, the media
+     * type and the row id, so it stays unique across internal and removable
+     * storage. It is derived, so it can never drift from [uri].
+     */
+    val mediaKey: String get() = uri.toString()
+
     val isVideo: Boolean get() = mediaType == MediaType.VIDEO
     val isImage: Boolean get() = mediaType == MediaType.IMAGE
 

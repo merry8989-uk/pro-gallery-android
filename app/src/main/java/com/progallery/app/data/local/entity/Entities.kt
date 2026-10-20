@@ -4,10 +4,17 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * Rows that reference media are keyed by [mediaKey] (the item's content URI),
+ * never by the numeric MediaStore id: photo and video ids come from different
+ * collections and collide, so a numeric key would let one item's state land on
+ * another. See `MediaItem.mediaKey`.
+ */
+
 /** A media item the user marked as favourite. */
 @Entity(tableName = "favourites")
 data class FavouriteEntity(
-    @PrimaryKey val mediaId: Long,
+    @PrimaryKey val mediaKey: String,
     val uri: String,
     val addedAt: Long = System.currentTimeMillis(),
 )
@@ -23,12 +30,12 @@ data class CustomAlbumEntity(
 /** Membership of a media item in a custom album. */
 @Entity(
     tableName = "custom_album_items",
-    primaryKeys = ["albumId", "mediaId"],
+    primaryKeys = ["albumId", "mediaKey"],
     indices = [Index("albumId")],
 )
 data class CustomAlbumItemEntity(
     val albumId: Long,
-    val mediaId: Long,
+    val mediaKey: String,
     val uri: String,
 )
 
@@ -41,9 +48,9 @@ data class AlbumCoverEntity(
 )
 
 /**
- * An entry in the app-managed "Recently Deleted" trash. Files are moved (where
- * the platform allows) into app storage; [originalUri] and [originalRelativePath]
- * let us restore them to their previous location.
+ * An entry in the app-managed "Recently Deleted" trash. Files are copied into
+ * app storage; [originalUri] and [originalRelativePath] let us restore them to
+ * their previous location.
  */
 @Entity(tableName = "trash")
 data class TrashEntity(
@@ -62,7 +69,7 @@ data class TrashEntity(
 /** A media item hidden from the main gallery. */
 @Entity(tableName = "hidden_items")
 data class HiddenEntity(
-    @PrimaryKey val mediaId: Long,
+    @PrimaryKey val mediaKey: String,
     val uri: String,
     val hiddenAt: Long = System.currentTimeMillis(),
 )

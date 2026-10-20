@@ -41,7 +41,8 @@ class MediaFiltersTest {
     }
 
     @Test
-    fun excludeHidden_removesIds() {
-        assertEquals(listOf(2L, 3L), MediaFilters.excludeHidden(items, setOf(1L)).map { it.id })
+    fun excludeHidden_removesByMediaKey() {
+        val hidden = setOf(items[0].mediaKey)
+        assertEquals(listOf(2L, 3L), MediaFilters.excludeHidden(items, hidden).map { it.id })
     }
 }

@@ -1,8 +1,10 @@
 package com.progallery.app.data.repository
 
+import android.content.Context
 import com.progallery.app.data.local.dao.FavouriteDao
 import com.progallery.app.data.local.dao.HiddenDao
 import com.progallery.app.data.local.entity.FavouriteEntity
+import com.progallery.app.data.local.entity.HiddenEntity
 import com.progallery.app.data.mediastore.MediaStoreDataSource
 import com.progallery.app.data.model.Album
 import com.progallery.app.data.model.MediaItem
@@ -23,10 +25,14 @@ import javax.inject.Singleton
  * Single source of truth for media shown in the UI. Merges the MediaStore
  * index with app-side state (favourites, hidden items) and exposes Flows so
  * every screen reacts to changes.
+ *
+ * App-side state is matched on [MediaItem.mediaKey] (the content URI), never on
+ * the numeric id, so an image and a video that happen to share an id cannot
+ * affect each other.
  */
 @Singleton
 class MediaRepository @Inject constructor(
-    @ApplicationContext private val context: android.content.Context,
+    @ApplicationContext private val context: Context,
     private val mediaStore: MediaStoreDataSource,
     private val favouriteDao: FavouriteDao,
     private val hiddenDao: HiddenDao,
@@ -52,23 +58,23 @@ class MediaRepository @Inject constructor(
     ): Flow<List<MediaItem>> = combine(
         cache,
         favouriteDao.observeAll(),
-        hiddenDao.observeIds(),
-    ) { items, favourites, hiddenIds ->
-        val favouriteIds = favourites.mapTo(HashSet()) { it.mediaId }
-        val hiddenSet = hiddenIds.toHashSet()
+        hiddenDao.observeKeys(),
+    ) { items, favourites, hiddenKeys ->
+        val favouriteKeys = favourites.mapTo(HashSet()) { it.mediaKey }
+        val hiddenSet = hiddenKeys.toHashSet()
         val decorated = items.asSequence()
             .filter { type == MediaType.ALL || it.mediaType == type }
-            .filter { includeHidden || it.id !in hiddenSet }
-            .map { it.copy(isFavourite = it.id in favouriteIds) }
+            .filter { includeHidden || it.mediaKey !in hiddenSet }
+            .map { it.copy(isFavourite = it.mediaKey in favouriteKeys) }
             .toList()
         SortComparators.sort(decorated, sortOrder)
     }.flowOn(Dispatchers.Default)
 
     /** Auto albums derived from folders/buckets present in the current index. */
-    fun observeAlbums(): Flow<List<Album>> = combine(cache, hiddenDao.observeIds()) { items, hidden ->
+    fun observeAlbums(): Flow<List<Album>> = combine(cache, hiddenDao.observeKeys()) { items, hidden ->
         val hiddenSet = hidden.toHashSet()
         items.asSequence()
-            .filterNot { it.id in hiddenSet }
+            .filterNot { it.mediaKey in hiddenSet }
             .groupBy { it.bucketId to it.bucketName }
             .map { (key, group) ->
                 Album(
@@ -84,37 +90,32 @@ class MediaRepository @Inject constructor(
     }.flowOn(Dispatchers.Default)
 
     suspend fun toggleFavourite(item: MediaItem) = withContext(Dispatchers.IO) {
-        if (favouriteDao.isFavourite(item.id)) {
-            favouriteDao.remove(item.id)
+        if (favouriteDao.isFavourite(item.mediaKey)) {
+            favouriteDao.remove(item.mediaKey)
         } else {
-            favouriteDao.add(FavouriteEntity(mediaId = item.id, uri = item.uri.toString()))
+            favouriteDao.add(FavouriteEntity(mediaKey = item.mediaKey, uri = item.uri.toString()))
         }
     }
 
-    suspend fun setFavourite(ids: List<Long>, uris: List<String>, favourite: Boolean) =
+    suspend fun setFavourite(items: List<MediaItem>, favourite: Boolean) =
         withContext(Dispatchers.IO) {
             if (favourite) {
-                ids.forEachIndexed { index, id ->
-                    favouriteDao.add(FavouriteEntity(mediaId = id, uri = uris.getOrElse(index) { "" }))
+                items.forEach {
+                    favouriteDao.add(FavouriteEntity(mediaKey = it.mediaKey, uri = it.uri.toString()))
                 }
             } else {
-                favouriteDao.removeAll(ids)
+                favouriteDao.removeAll(items.map { it.mediaKey })
             }
         }
 
-    suspend fun setHidden(ids: List<Long>, uris: List<String>, hidden: Boolean) =
+    suspend fun setHidden(items: List<MediaItem>, hidden: Boolean) =
         withContext(Dispatchers.IO) {
             if (hidden) {
-                ids.forEachIndexed { index, id ->
-                    hiddenDao.hide(
-                        com.progallery.app.data.local.entity.HiddenEntity(
-                            mediaId = id,
-                            uri = uris.getOrElse(index) { "" },
-                        ),
-                    )
+                items.forEach {
+                    hiddenDao.hide(HiddenEntity(mediaKey = it.mediaKey, uri = it.uri.toString()))
                 }
             } else {
-                ids.forEach { hiddenDao.unhide(it) }
+                items.forEach { hiddenDao.unhide(it.mediaKey) }
             }
         }
 

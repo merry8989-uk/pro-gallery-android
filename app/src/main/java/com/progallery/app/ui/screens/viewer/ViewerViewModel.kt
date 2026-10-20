@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.repository.MediaRepository
+import com.progallery.app.data.repository.TrashRepository
 import com.progallery.app.util.MediaActions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ data class PendingWrite(val request: PendingIntent, val action: WriteAction)
 data class ViewerUiState(
     val pendingDelete: PendingIntent? = null,
     val pendingWrite: PendingWrite? = null,
+    val pendingTrashIds: List<Long> = emptyList(),
     val message: String? = null,
 )
 
@@ -40,6 +42,7 @@ data class ViewerUiState(
 @HiltViewModel
 class ViewerViewModel @Inject constructor(
     private val repository: MediaRepository,
+    private val trashRepository: TrashRepository,
     private val mediaActions: MediaActions,
 ) : ViewModel() {
 
@@ -81,20 +84,46 @@ class ViewerViewModel @Inject constructor(
         }
     }
 
+    /** Recoverable delete: copy into the trash first, then remove the original. */
     fun requestDelete(item: MediaItem) {
-        val request = mediaActions.deleteRequest(listOf(item))
-        if (request != null) {
-            _state.update { it.copy(pendingDelete = request) }
-        } else {
-            val ok = mediaActions.deleteDirect(listOf(item))
-            _state.update { it.copy(message = if (ok) "Deleted" else "Could not delete") }
-            refresh()
+        viewModelScope.launch {
+            val trashed = trashRepository.moveToTrash(listOf(item))
+            if (trashed.isEmpty()) {
+                _state.update {
+                    it.copy(message = "Could not move to Recently Deleted — nothing was deleted")
+                }
+                return@launch
+            }
+            val request = mediaActions.deleteRequest(listOf(item))
+            if (request != null) {
+                _state.update {
+                    it.copy(pendingDelete = request, pendingTrashIds = trashed.map { it.trashId })
+                }
+            } else {
+                val ok = mediaActions.deleteDirect(listOf(item))
+                if (ok) {
+                    _state.update { it.copy(message = "Moved to Recently Deleted") }
+                } else {
+                    trashRepository.discard(trashed.map { it.trashId })
+                    _state.update { it.copy(message = "Could not delete — nothing was changed") }
+                }
+                refresh()
+            }
         }
     }
 
     fun onDeleteConsent(approved: Boolean) {
-        _state.update { it.copy(pendingDelete = null, message = if (approved) "Deleted" else null) }
-        if (approved) refresh()
+        val trashIds = _state.value.pendingTrashIds
+        _state.update { it.copy(pendingDelete = null, pendingTrashIds = emptyList()) }
+        if (approved) {
+            _state.update { it.copy(message = "Moved to Recently Deleted") }
+            refresh()
+        } else {
+            viewModelScope.launch {
+                trashRepository.discard(trashIds)
+                _state.update { it.copy(message = "Deletion cancelled — nothing was changed") }
+            }
+        }
     }
 
     fun requestRename(item: MediaItem, newName: String) {

@@ -142,7 +142,7 @@ fun MediaCollection(
     columns: Int,
     viewMode: ViewMode,
     selectionMode: Boolean,
-    selectedIds: Set<Long>,
+    selectedIds: Set<String>,
     onClick: (MediaItem) -> Unit,
     onLongClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier,
@@ -159,7 +159,7 @@ fun MediaCollection(
             items(items, key = { it.uri.toString() }) { item ->
                 MediaThumbnail(
                     item = item,
-                    selected = item.id in selectedIds,
+                    selected = item.mediaKey in selectedIds,
                     selectionMode = selectionMode,
                     onClick = { onClick(item) },
                     onLongClick = { onLongClick(item) },
@@ -175,7 +175,7 @@ fun MediaCollection(
             items(items, key = { it.uri.toString() }) { item ->
                 MediaListRow(
                     item = item,
-                    selected = item.id in selectedIds,
+                    selected = item.mediaKey in selectedIds,
                     selectionMode = selectionMode,
                     onClick = { onClick(item) },
                     onLongClick = { onLongClick(item) },

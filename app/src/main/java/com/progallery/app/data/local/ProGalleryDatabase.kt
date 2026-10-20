@@ -26,7 +26,7 @@ import com.progallery.app.data.local.entity.TrashEntity
         HiddenEntity::class,
         ScanDirectoryEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class ProGalleryDatabase : RoomDatabase() {

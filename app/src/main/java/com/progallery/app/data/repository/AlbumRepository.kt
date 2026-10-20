@@ -39,7 +39,7 @@ class AlbumRepository @Inject constructor(
         albumCoverDao.observeAll(),
         mediaRepository.observeMedia(MediaType.ALL),
     ) { albums, items, covers, media ->
-        val sizeById = media.associate { it.id to it.sizeBytes }
+        val sizeByKey = media.associate { it.mediaKey to it.sizeBytes }
         val coverByKey = covers.associate { it.albumKey to it.coverUri }
         albums.map { album ->
             val members = items.filter { it.albumId == album.id }
@@ -49,7 +49,7 @@ class AlbumRepository @Inject constructor(
                 name = album.name,
                 coverUri = cover?.let(Uri::parse),
                 itemCount = members.size,
-                totalBytes = members.sumOf { sizeById[it.mediaId] ?: 0L },
+                totalBytes = members.sumOf { sizeByKey[it.mediaKey] ?: 0L },
                 isCustom = true,
             )
         }
@@ -60,8 +60,8 @@ class AlbumRepository @Inject constructor(
         customAlbumDao.observeItems(albumId),
         mediaRepository.observeMedia(MediaType.ALL),
     ) { items, media ->
-        val ids = items.mapTo(HashSet()) { it.mediaId }
-        media.filter { it.id in ids }
+        val keys = items.mapTo(HashSet()) { it.mediaKey }
+        media.filter { it.mediaKey in keys }
     }.flowOn(Dispatchers.Default)
 
     suspend fun createAlbum(name: String): Long = withContext(Dispatchers.IO) {
@@ -69,21 +69,21 @@ class AlbumRepository @Inject constructor(
     }
 
     suspend fun deleteAlbum(albumId: Long) = withContext(Dispatchers.IO) {
-        customAlbumDao.itemsIn(albumId).forEach { customAlbumDao.removeItem(albumId, it.mediaId) }
+        customAlbumDao.itemsIn(albumId).forEach { customAlbumDao.removeItem(albumId, it.mediaKey) }
         customAlbumDao.delete(albumId)
         albumCoverDao.clear(albumKey(albumId))
     }
 
     /** Adds [items] to the album, ignoring any already present. Returns how many were new. */
     suspend fun addToAlbum(albumId: Long, items: List<MediaItem>): Int = withContext(Dispatchers.IO) {
-        val existing = customAlbumDao.itemsIn(albumId).mapTo(HashSet()) { it.mediaId }
+        val existing = customAlbumDao.itemsIn(albumId).mapTo(HashSet()) { it.mediaKey }
         var added = 0
         items.forEach { item ->
-            if (existing.add(item.id)) {
+            if (existing.add(item.mediaKey)) {
                 customAlbumDao.addItem(
                     CustomAlbumItemEntity(
                         albumId = albumId,
-                        mediaId = item.id,
+                        mediaKey = item.mediaKey,
                         uri = item.uri.toString(),
                     ),
                 )
@@ -93,8 +93,8 @@ class AlbumRepository @Inject constructor(
         added
     }
 
-    suspend fun removeFromAlbum(albumId: Long, mediaId: Long) = withContext(Dispatchers.IO) {
-        customAlbumDao.removeItem(albumId, mediaId)
+    suspend fun removeFromAlbum(albumId: Long, mediaKey: String) = withContext(Dispatchers.IO) {
+        customAlbumDao.removeItem(albumId, mediaKey)
     }
 
     /** Sets an explicit cover for the album. */

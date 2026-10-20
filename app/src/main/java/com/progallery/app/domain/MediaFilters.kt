@@ -31,7 +31,10 @@ object MediaFilters {
 
     fun favourites(items: List<MediaItem>): List<MediaItem> = items.filter { it.isFavourite }
 
-    /** Applies [hiddenIds] exclusion; hidden items never appear in the main gallery. */
-    fun excludeHidden(items: List<MediaItem>, hiddenIds: Set<Long>): List<MediaItem> =
-        if (hiddenIds.isEmpty()) items else items.filterNot { it.id in hiddenIds }
+    /**
+     * Applies hidden-item exclusion. Keyed by [MediaItem.mediaKey] (the content
+     * URI) rather than the numeric id, which collides between photos and videos.
+     */
+    fun excludeHidden(items: List<MediaItem>, hiddenKeys: Set<String>): List<MediaItem> =
+        if (hiddenKeys.isEmpty()) items else items.filterNot { it.mediaKey in hiddenKeys }
 }

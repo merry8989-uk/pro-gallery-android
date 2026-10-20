@@ -197,8 +197,8 @@ The UI never touches MediaStore directly: screens talk to a ViewModel, ViewModel
 - Deep Scan with SAF directory grants, nested traversal, duplicate detection, progress, cancel.
 - Photo editor (full pipeline above) with undo/redo and export.
 - Video editor: trim, mute, rotate, resolution, Media3 export with progress/cancel.
-- Room persistence for favourites, custom albums, album covers, hidden items, trash, scan dirs.
-- App-managed Recently Deleted trash with restore and 30-day purge.
+- Room persistence for favourites, custom albums, album covers, hidden items, trash, scan dirs, all keyed by the item's content URI (never the colliding numeric MediaStore id), with an explicit migration.
+- App-managed Recently Deleted trash: deleting copies the bytes first and only then removes the originals through the platform consent flow, with restore and a 30-day purge.
 - Custom albums: create a collection, add items from the gallery selection toolbar, remove items, choose a cover, and delete the album without touching the media.
 
 **Partially supported**

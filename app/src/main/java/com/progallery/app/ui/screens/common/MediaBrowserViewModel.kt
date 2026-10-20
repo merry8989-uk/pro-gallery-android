@@ -10,6 +10,7 @@ import com.progallery.app.data.model.SortOrder
 import com.progallery.app.data.model.ViewMode
 import com.progallery.app.data.repository.AlbumRepository
 import com.progallery.app.data.repository.MediaRepository
+import com.progallery.app.data.repository.TrashRepository
 import com.progallery.app.domain.MediaFilters
 import com.progallery.app.util.MediaActions
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,10 +30,13 @@ data class BrowserUiState(
     val sortOrder: SortOrder = SortOrder.DATE_NEWEST,
     val viewMode: ViewMode = ViewMode.GRID,
     val columns: Int = 3,
-    val selection: Set<Long> = emptySet(),
+    /** Selected items, keyed by [MediaItem.mediaKey] (the content URI). */
+    val selection: Set<String> = emptySet(),
     val loading: Boolean = true,
     val error: String? = null,
     val pendingDelete: PendingIntent? = null,
+    /** Trash rows created for the delete awaiting consent, so they can be rolled back. */
+    val pendingTrashIds: List<Long> = emptyList(),
     val message: String? = null,
 ) {
     /** Items after applying the search query and the favourites filter. */
@@ -44,7 +48,7 @@ data class BrowserUiState(
         }
 
     val selectionMode: Boolean get() = selection.isNotEmpty()
-    val selectedItems: List<MediaItem> get() = items.filter { it.id in selection }
+    val selectedItems: List<MediaItem> get() = items.filter { it.mediaKey in selection }
 }
 
 /**
@@ -56,6 +60,7 @@ data class BrowserUiState(
 class MediaBrowserViewModel @Inject constructor(
     private val repository: MediaRepository,
     private val albumRepository: AlbumRepository,
+    private val trashRepository: TrashRepository,
     private val mediaActions: MediaActions,
 ) : ViewModel() {
 
@@ -153,13 +158,13 @@ class MediaBrowserViewModel @Inject constructor(
 
     fun toggleSelection(item: MediaItem) = _state.update { current ->
         val selection = current.selection.toMutableSet()
-        if (!selection.add(item.id)) selection.remove(item.id)
+        if (!selection.add(item.mediaKey)) selection.remove(item.mediaKey)
         current.copy(selection = selection)
     }
 
     fun clearSelection() = _state.update { it.copy(selection = emptySet()) }
 
-    fun selectAll() = _state.update { it.copy(selection = it.items.map { m -> m.id }.toSet()) }
+    fun selectAll() = _state.update { it.copy(selection = it.items.map { m -> m.mediaKey }.toSet()) }
 
     fun shareSelected() {
         val items = _state.value.selectedItems
@@ -172,11 +177,7 @@ class MediaBrowserViewModel @Inject constructor(
         if (items.isEmpty()) return
         val makeFavourite = items.any { !it.isFavourite }
         viewModelScope.launch {
-            repository.setFavourite(
-                ids = items.map { it.id },
-                uris = items.map { it.uri.toString() },
-                favourite = makeFavourite,
-            )
+            repository.setFavourite(items = items, favourite = makeFavourite)
             _state.update { it.copy(message = if (makeFavourite) "Added to favourites" else "Removed from favourites") }
         }
         clearSelection()
@@ -186,39 +187,68 @@ class MediaBrowserViewModel @Inject constructor(
         val items = _state.value.selectedItems
         if (items.isEmpty()) return
         viewModelScope.launch {
-            repository.setHidden(
-                ids = items.map { it.id },
-                uris = items.map { it.uri.toString() },
-                hidden = true,
-            )
+            repository.setHidden(items = items, hidden = true)
             _state.update { it.copy(message = "Hidden ${items.size} item(s)") }
         }
         clearSelection()
     }
 
+    /**
+     * Recoverable delete: the bytes are copied into the app-managed trash first,
+     * and only items that were safely copied are then removed from MediaStore
+     * through the platform's consent flow. Declining consent (or a failed
+     * removal) rolls the copies back, so the trash never diverges from reality.
+     */
     fun deleteSelected() {
         val items = _state.value.selectedItems
         if (items.isEmpty()) return
-        val request = mediaActions.deleteRequest(items)
-        if (request != null) {
-            _state.update { it.copy(pendingDelete = request) }
-        } else {
-            val ok = mediaActions.deleteDirect(items)
-            _state.update {
-                it.copy(
-                    message = if (ok) "Deleted ${items.size} item(s)" else "Could not delete some items",
-                )
+        viewModelScope.launch {
+            val trashed = trashRepository.moveToTrash(items)
+            if (trashed.isEmpty()) {
+                _state.update {
+                    it.copy(message = "Could not move to Recently Deleted — nothing was deleted")
+                }
+                return@launch
             }
-            refresh()
+            if (trashed.size < items.size) {
+                _state.update {
+                    it.copy(message = "Moved ${trashed.size} of ${items.size} to Recently Deleted")
+                }
+            }
+
+            val toDelete = trashed.map { it.item }
+            val request = mediaActions.deleteRequest(toDelete)
+            if (request != null) {
+                _state.update {
+                    it.copy(pendingDelete = request, pendingTrashIds = trashed.map { it.trashId })
+                }
+            } else {
+                val ok = mediaActions.deleteDirect(toDelete)
+                if (ok) {
+                    _state.update {
+                        it.copy(message = "Moved ${trashed.size} item(s) to Recently Deleted")
+                    }
+                } else {
+                    trashRepository.discard(trashed.map { it.trashId })
+                    _state.update { it.copy(message = "Could not delete — nothing was changed") }
+                }
+                refresh()
+            }
         }
         clearSelection()
     }
 
     fun onDeleteConsentResult(approved: Boolean) {
-        _state.update { it.copy(pendingDelete = null) }
+        val trashIds = _state.value.pendingTrashIds
+        _state.update { it.copy(pendingDelete = null, pendingTrashIds = emptyList()) }
         if (approved) {
-            _state.update { it.copy(message = "Items deleted") }
+            _state.update { it.copy(message = "Moved to Recently Deleted") }
             refresh()
+        } else {
+            viewModelScope.launch {
+                trashRepository.discard(trashIds)
+                _state.update { it.copy(message = "Deletion cancelled — nothing was changed") }
+            }
         }
     }
 

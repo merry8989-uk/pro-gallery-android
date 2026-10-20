@@ -1,5 +1,9 @@
 package com.progallery.app.ui.screens.editor.photo
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,6 +73,15 @@ fun PhotoEditorScreen(
     var showExport by remember { mutableStateOf(false) }
 
     LaunchedEffect(uri) { viewModel.load(uri) }
+
+    val writeLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result -> viewModel.onWriteConsent(result.resultCode == Activity.RESULT_OK) }
+    LaunchedEffect(state.pendingWrite) {
+        state.pendingWrite?.let {
+            writeLauncher.launch(IntentSenderRequest.Builder(it.intentSender).build())
+        }
+    }
     LaunchedEffect(state.message) {
         state.message?.let { snackbarHostState.showSnackbar(it); viewModel.consumeMessage() }
     }
@@ -153,8 +166,12 @@ fun PhotoEditorScreen(
             onFormat = viewModel::setFormat,
             onQuality = viewModel::setQuality,
             onDismiss = { showExport = false },
-            onSave = { overwrite ->
-                viewModel.export(overwrite)
+            onSaveCopy = {
+                viewModel.export(overwriteOriginal = false)
+                showExport = false
+            },
+            onOverwrite = {
+                viewModel.export(overwriteOriginal = true)
                 showExport = false
             },
         )
@@ -235,7 +252,8 @@ private fun ExportDialog(
     onFormat: (ExportFormat) -> Unit,
     onQuality: (Int) -> Unit,
     onDismiss: () -> Unit,
-    onSave: (Boolean) -> Unit,
+    onSaveCopy: () -> Unit,
+    onOverwrite: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -259,17 +277,27 @@ private fun ExportDialog(
                     valueRange = 10f..100f,
                 )
                 Text(
-                    "Saves a new file to Pictures/ProGallery. The original is preserved.",
+                    text = if (state.canOverwrite) {
+                        "Saving a copy keeps the original. Overwriting replaces the file in place and keeps its name."
+                    } else {
+                        "The original is ${state.originalMimeType ?: "an unknown format"}. Overwriting is only offered when the format matches, so this will save a copy."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
         confirmButton = {
-            Button(onClick = { onSave(false) }, enabled = !state.exporting) { Text("Save copy") }
+            Button(onClick = onSaveCopy, enabled = !state.exporting) { Text("Save copy") }
         },
         dismissButton = {
-            TextButton(onClick = { onSave(true) }, enabled = !state.exporting) { Text("Overwrite original") }
+            Row {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(
+                    onClick = onOverwrite,
+                    enabled = !state.exporting && state.canOverwrite,
+                ) { Text("Overwrite original") }
+            }
         },
     )
 }

@@ -27,6 +27,9 @@ import javax.inject.Singleton
  *
  * Only valid Android APIs are used — no direct filesystem access to other apps.
  */
+/** A media item that has been copied into the trash, and its trash row id. */
+data class TrashedMedia(val trashId: Long, val item: MediaItem)
+
 @Singleton
 class TrashRepository @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -39,9 +42,13 @@ class TrashRepository @Inject constructor(
 
     suspend fun list(): List<TrashEntity> = withContext(Dispatchers.IO) { trashDao.all() }
 
-    /** Copies items into the trash and records their origin. Returns recorded ids. */
-    suspend fun moveToTrash(items: List<MediaItem>): List<Long> = withContext(Dispatchers.IO) {
-        val ids = ArrayList<Long>()
+    /**
+     * Copies items into the trash and records their origin. Returns the entries
+     * that were successfully stored, so the caller only ever deletes originals
+     * whose bytes are safely copied.
+     */
+    suspend fun moveToTrash(items: List<MediaItem>): List<TrashedMedia> = withContext(Dispatchers.IO) {
+        val recorded = ArrayList<TrashedMedia>()
         for (item in items) {
             val destination = File(trashDir, "${System.currentTimeMillis()}_${item.displayName}")
             val copied = FileUtils.copyToFile(context, item.uri, destination) ?: continue
@@ -57,9 +64,23 @@ class TrashRepository @Inject constructor(
                     originalRelativePath = item.relativePath,
                 ),
             )
-            ids += id
+            recorded += TrashedMedia(trashId = id, item = item)
         }
-        ids
+        recorded
+    }
+
+    /**
+     * Drops trash entries and their copies without touching the originals.
+     * Used when a delete is cancelled after the copy was made, so the trash
+     * never holds duplicates of files that are still in the gallery.
+     */
+    suspend fun discard(trashIds: List<Long>) = withContext(Dispatchers.IO) {
+        trashIds.forEach { id ->
+            trashDao.byId(id)?.let { entity ->
+                runCatching { File(Uri.parse(entity.trashUri).path ?: "").delete() }
+                trashDao.delete(id)
+            }
+        }
     }
 
     /** Restores a trashed item by re-publishing its bytes to MediaStore. */

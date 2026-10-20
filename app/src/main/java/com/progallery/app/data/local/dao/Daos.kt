@@ -18,20 +18,20 @@ interface FavouriteDao {
     @Query("SELECT * FROM favourites ORDER BY addedAt DESC")
     fun observeAll(): Flow<List<FavouriteEntity>>
 
-    @Query("SELECT mediaId FROM favourites")
-    suspend fun allIds(): List<Long>
+    @Query("SELECT mediaKey FROM favourites")
+    suspend fun allKeys(): List<String>
 
-    @Query("SELECT EXISTS(SELECT 1 FROM favourites WHERE mediaId = :mediaId)")
-    suspend fun isFavourite(mediaId: Long): Boolean
+    @Query("SELECT EXISTS(SELECT 1 FROM favourites WHERE mediaKey = :mediaKey)")
+    suspend fun isFavourite(mediaKey: String): Boolean
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun add(entity: FavouriteEntity)
 
-    @Query("DELETE FROM favourites WHERE mediaId = :mediaId")
-    suspend fun remove(mediaId: Long)
+    @Query("DELETE FROM favourites WHERE mediaKey = :mediaKey")
+    suspend fun remove(mediaKey: String)
 
-    @Query("DELETE FROM favourites WHERE mediaId IN (:mediaIds)")
-    suspend fun removeAll(mediaIds: List<Long>)
+    @Query("DELETE FROM favourites WHERE mediaKey IN (:mediaKeys)")
+    suspend fun removeAll(mediaKeys: List<String>)
 }
 
 @Dao
@@ -57,8 +57,8 @@ interface CustomAlbumDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun addItem(item: CustomAlbumItemEntity)
 
-    @Query("DELETE FROM custom_album_items WHERE albumId = :albumId AND mediaId = :mediaId")
-    suspend fun removeItem(albumId: Long, mediaId: Long)
+    @Query("DELETE FROM custom_album_items WHERE albumId = :albumId AND mediaKey = :mediaKey")
+    suspend fun removeItem(albumId: Long, mediaKey: String)
 }
 
 @Dao
@@ -93,23 +93,26 @@ interface TrashDao {
     @Query("DELETE FROM trash WHERE id = :id")
     suspend fun delete(id: Long)
 
+    @Query("DELETE FROM trash WHERE id IN (:ids)")
+    suspend fun deleteAll(ids: List<Long>)
+
     @Query("SELECT * FROM trash WHERE deletedAt < :cutoff")
     suspend fun olderThan(cutoff: Long): List<TrashEntity>
 }
 
 @Dao
 interface HiddenDao {
-    @Query("SELECT mediaId FROM hidden_items")
-    fun observeIds(): Flow<List<Long>>
+    @Query("SELECT mediaKey FROM hidden_items")
+    fun observeKeys(): Flow<List<String>>
 
-    @Query("SELECT mediaId FROM hidden_items")
-    suspend fun allIds(): List<Long>
+    @Query("SELECT mediaKey FROM hidden_items")
+    suspend fun allKeys(): List<String>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun hide(entity: HiddenEntity)
 
-    @Query("DELETE FROM hidden_items WHERE mediaId = :mediaId")
-    suspend fun unhide(mediaId: Long)
+    @Query("DELETE FROM hidden_items WHERE mediaKey = :mediaKey")
+    suspend fun unhide(mediaKey: String)
 }
 
 @Dao

@@ -27,6 +27,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.0.5]
+### Fixed
+- **Share no longer crashes.** Sharing starts from an application context, which requires `FLAG_ACTIVITY_NEW_TASK`; without it the platform throws. Added, and covered by instrumentation tests for single- and multi-item sharing.
+- **Crop presets now produce the requested ratio.** The crop was computed on a unit square, which ignores the photo's shape — so 1:1 cropped nothing at all, and 4:3 / 16:9 gave the wrong ratio. Crop geometry now works in pixel space and accounts for the current rotation. Unit tests cover portrait, landscape and square photos.
+- **Delete is now recoverable.** The gallery and viewer copy the bytes into the app-managed trash *first*, then ask the platform to remove the originals. If you decline consent (or the removal fails), the copies are rolled back so the trash never diverges from reality. Permanent deletion from the trash now asks for confirmation.
+- **"Overwrite original" is safe.** It now requires the platform's write consent on Android 11+, and is only offered when the export format matches the original file's format — a JPEG can no longer be rewritten as PNG behind a JPEG name. The default action preserves the original.
+- **Stable media identity.** Favourites, hidden items and album membership were keyed by the numeric MediaStore id, which collides between photos and videos (and between volumes). They are now keyed by the item's content URI, with a Room migration that re-keys existing rows so saved favourites are preserved.
+- **SD-card media.** Items are queried from the merged external view but their URIs are now built from each row's own volume, so photos and videos on removable storage resolve correctly for open, share, rename and delete.
+
 ## [1.0.4]
 ### Added
 - **Stable release signing.** All builds from this repository are now signed with a single key held in encrypted repository secrets, so a new APK installs straight over the previous one instead of demanding an uninstall. The key also signs debug builds, and `keystore.properties` makes local builds use it too.
