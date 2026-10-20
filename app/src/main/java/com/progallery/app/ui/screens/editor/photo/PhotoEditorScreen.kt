@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.RotateLeft
 import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -105,6 +106,9 @@ fun PhotoEditorScreen(
                     }
                     IconButton(onClick = { viewModel.reset() }) {
                         Icon(Icons.Filled.RestartAlt, contentDescription = "Reset")
+                    }
+                    IconButton(onClick = { viewModel.advancedEdit() }) {
+                        Icon(Icons.Filled.AutoFixHigh, contentDescription = "Advanced edit in another app")
                     }
                     IconButton(onClick = { showExport = true }) {
                         Icon(Icons.Filled.Save, contentDescription = "Save")

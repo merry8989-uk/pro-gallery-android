@@ -222,5 +222,20 @@ class PhotoEditorViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Hands the original file to an installed editing app for advanced work,
+     * leaving the in-app editor for the basic adjustments.
+     */
+    fun advancedEdit() {
+        val uri = sourceUri ?: return
+        val opened = mediaActions.launchAdvancedEdit(
+            uri = uri,
+            mimeType = _state.value.originalMimeType ?: "image/*",
+        )
+        if (!opened) {
+            _state.update { it.copy(message = "No installed app can edit this image") }
+        }
+    }
+
     fun consumeMessage() = _state.update { it.copy(message = null) }
 }

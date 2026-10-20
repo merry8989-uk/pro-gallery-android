@@ -27,6 +27,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.3.3]
+### Added
+- **Advanced editing in another app.** Basic adjustments stay in the app; heavy editing now hands the file to whichever editor is installed:
+  - Image/video viewer: an **Advanced** action (alongside the existing **Edit** for the in-app editor).
+  - Video player: a bottom bar with **Trim** (in-app), **Advanced** (another app) and **Share**.
+  - Photo editor: an **Advanced** action in the top bar, so you can jump out mid-edit.
+  The hand-off uses `ACTION_EDIT` with a chooser, falling back to a plain open when no editor is installed, and reports plainly when nothing on the device can edit the file — no empty chooser.
+
+### Changed
+- The video player gained a labelled action bar; trimming moved into it from the top scrim.
+
 ## [1.3.2]
 ### Added
 - **"Open with" for documents and other files.** PDFs, Word, PowerPoint, Excel, archives, audio and any other file without an in-app preview can now be handed to the app you already use for them:

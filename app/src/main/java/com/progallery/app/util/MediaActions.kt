@@ -64,6 +64,80 @@ class MediaActions @Inject constructor(
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
+    /** MIME to use when handing a file to another app. */
+    private fun mimeFor(uri: Uri, mimeType: String): String = mimeType.ifBlank {
+        val type = runCatching { context.contentResolver.getType(uri) }.getOrNull()
+        type ?: "*/*"
+    }
+
+    private fun editIntent(uri: Uri, mimeType: String, grantWrite: Boolean): Intent =
+        Intent(Intent.ACTION_EDIT).apply {
+            setDataAndType(uri, mimeFor(uri, mimeType))
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Editors that save in place need write access; harmless otherwise.
+            if (grantWrite) addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+    /** True when an installed app can edit this file. */
+    fun canAdvancedEdit(uri: Uri, mimeType: String): Boolean = runCatching {
+        context.packageManager
+            .queryIntentActivities(editIntent(uri, mimeType, grantWrite = false), 0)
+            .isNotEmpty()
+    }.getOrDefault(false)
+
+    /**
+     * Hands a photo or video to another app for **advanced** editing — Snapseed,
+     * Photoshop Express, CapCut and the like — while the in-app editor stays for
+     * the basic adjustments.
+     *
+     * Prefers ACTION_EDIT; when no editor is installed it falls back to opening
+     * the file, and returns false when nothing on the device can handle it so the
+     * caller can say so instead of showing an empty chooser.
+     */
+    fun launchAdvancedEdit(
+        uri: Uri,
+        mimeType: String,
+        chooserTitle: String = "Advanced edit",
+    ): Boolean {
+        if (canAdvancedEdit(uri, mimeType)) {
+            val launched = runCatching {
+                context.startActivity(
+                    Intent.createChooser(editIntent(uri, mimeType, grantWrite = true), chooserTitle)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+                true
+            }.getOrDefault(false)
+            if (launched) return true
+
+            // Some URIs cannot be granted write access; retry read-only.
+            return runCatching {
+                context.startActivity(
+                    Intent.createChooser(editIntent(uri, mimeType, grantWrite = false), chooserTitle)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+                true
+            }.getOrDefault(false)
+        }
+        return launchOpen(
+            MediaItem(
+                id = 0,
+                uri = uri,
+                displayName = "",
+                mimeType = mimeFor(uri, mimeType),
+                sizeBytes = 0,
+                dateModifiedSeconds = 0,
+                width = 0,
+                height = 0,
+                durationMs = 0,
+                bucketId = 0,
+                bucketName = "",
+                relativePath = null,
+            ),
+            chooserTitle,
+        )
+    }
+
     /** True when at least one installed app can view this file. */
     fun canOpen(item: MediaItem): Boolean = runCatching {
         context.packageManager.queryIntentActivities(openIntent(item), 0).isNotEmpty()
