@@ -15,6 +15,7 @@ import com.progallery.app.ui.screens.audio.AudioScreen
 import com.progallery.app.ui.screens.documents.DocumentsScreen
 import com.progallery.app.ui.screens.editor.audio.AudioEditorScreen
 import com.progallery.app.ui.screens.pdf.PdfViewerScreen
+import com.progallery.app.ui.screens.settings.SettingsScreen
 import com.progallery.app.ui.screens.files.AllFilesScreen
 import com.progallery.app.ui.screens.deepscan.DeepScanScreen
 import com.progallery.app.ui.screens.editor.photo.PhotoEditorScreen
@@ -29,7 +30,10 @@ import com.progallery.app.ui.screens.viewer.ViewerScreen
 import com.progallery.app.ui.screens.videos.VideosScreen
 
 @Composable
-fun ProGalleryNavHost() {
+fun ProGalleryNavHost(
+    externalUri: String? = null,
+    onExternalUriHandled: () -> Unit = {},
+) {
     val navController = rememberNavController()
 
     // One place decides where a tapped item goes, by its kind.
@@ -39,6 +43,14 @@ fun ProGalleryNavHost() {
             item.isAudio -> navController.navigate(Routes.audioPlayer(item.uri.toString()))
             item.isVideo -> navController.navigate(Routes.videoPlayer(item.uri.toString()))
             item.isPdf -> navController.navigate(Routes.pdfViewer(item.uri.toString()))
+        }
+    }
+
+    // Opened from another app (we are the gallery): jump straight to that item.
+    androidx.compose.runtime.LaunchedEffect(externalUri) {
+        if (externalUri != null) {
+            navController.navigate(Routes.viewer(externalUri, "IMAGE"))
+            onExternalUriHandled()
         }
     }
 
@@ -127,6 +139,9 @@ fun ProGalleryNavHost() {
         }
         composable(Routes.DEEP_SCAN) {
             DeepScanScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.SETTINGS) {
+            SettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.SEARCH) {
             SearchScreen(

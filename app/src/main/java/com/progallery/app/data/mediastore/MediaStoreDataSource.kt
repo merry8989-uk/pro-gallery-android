@@ -59,8 +59,8 @@ class MediaStoreDataSource @Inject constructor(
         }
     }.toTypedArray()
 
-    /** Loads every file MediaStore exposes, optionally filtered to one [kind]. */
-    suspend fun loadMedia(kind: MediaType = MediaType.ALL): List<MediaItem> =
+    /** Loads files of the enabled [kinds] only. */
+    suspend fun loadMedia(kinds: Set<MediaType> = DEFAULT_KINDS): List<MediaItem> =
         withContext(Dispatchers.IO) {
             val results = ArrayList<MediaItem>()
             runCatching {
@@ -93,7 +93,7 @@ class MediaStoreDataSource @Inject constructor(
                         val mediaTypeHint = if (mediaTypeCol >= 0) cursor.intOrZero(mediaTypeCol) else 0
                         val resolvedKind = resolveKind(mime, displayName, mediaTypeHint)
 
-                        if (kind != MediaType.ALL && resolvedKind != kind) continue
+                        if (resolvedKind !in kinds) continue
 
                         val volume = if (volumeCol >= 0) cursor.stringOrNull(volumeCol) else null
                         val contentUri = buildContentUri(id, resolvedKind, volume)
@@ -158,6 +158,13 @@ class MediaStoreDataSource @Inject constructor(
             }
         }
         return ContentUris.withAppendedId(base, id)
+    }
+
+    companion object {
+        /** Every real file kind; MediaType.ALL is the "no filter" value, not a kind. */
+        val DEFAULT_KINDS: Set<MediaType> = MediaType.entries
+            .filter { it != MediaType.ALL }
+            .toSet()
     }
 
     private fun Cursor.stringOrNull(index: Int): String? =

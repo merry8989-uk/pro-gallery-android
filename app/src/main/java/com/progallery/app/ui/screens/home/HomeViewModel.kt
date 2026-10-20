@@ -6,6 +6,7 @@ import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.repository.MediaRepository
 import com.progallery.app.data.repository.TrashRepository
+import com.progallery.app.data.settings.SettingsRepository
 import com.progallery.app.domain.MediaFilters
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,12 +28,15 @@ data class HomeUiState(
     val trash: Int = 0,
     val recent: List<MediaItem> = emptyList(),
     val loading: Boolean = true,
+    /** Offered once, on first launch. */
+    val showDefaultGalleryPrompt: Boolean = false,
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: MediaRepository,
     private val trashRepository: TrashRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -63,6 +67,11 @@ class HomeViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            settingsRepository.settings.collect { settings ->
+                _state.update { it.copy(showDefaultGalleryPrompt = !settings.hasSeenDefaultGalleryPrompt) }
+            }
+        }
+        viewModelScope.launch {
             trashRepository.observeTrash().collect { trash ->
                 _state.update { it.copy(trash = trash.size) }
             }
@@ -71,5 +80,10 @@ class HomeViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch { runCatching { repository.refresh() } }
+    }
+
+    /** Remembers that the one-time prompt has been shown. */
+    fun dismissDefaultGalleryPrompt() {
+        viewModelScope.launch { settingsRepository.markDefaultGalleryPromptSeen() }
     }
 }

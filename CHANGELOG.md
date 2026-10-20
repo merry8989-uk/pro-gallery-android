@@ -27,6 +27,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.3.0]
+### Added
+- **Settings screen** with a clear split between **Basic** and **Advanced**: advanced sections stay hidden until you turn on Advanced mode. Includes a settings search, a live "active configuration" summary, an "Advanced mode" master switch, per-row helper text, and a Recommended/Experimental label.
+- **Feature control with real effects.** Every switch changes actual behaviour:
+  - Quick scan off → the MediaStore index is emptied and not queried.
+  - A file category off → it disappears from every list *and* is skipped by the scanner.
+  - Videos off → video discovery stops and video thumbnails are no longer generated.
+  - Thumbnails off → tiles show the file-type icon instead of going blank.
+  - Duplicate detection off → the expensive hashing pass is skipped entirely.
+  - Signature detection off → classification falls back to MIME and extension.
+  - Include hidden files / extensionless files, recursion depth, result limit and identification byte count are all enforced by the scanner.
+  - Deep scan off → the scan refuses to start and explains why.
+  - Default layout, grid size and sorting come from Settings and are applied to the real UI.
+- **File signature detection** (`FileSignatureDetector`): identifies a file from its leading bytes rather than its extension — JPEG, PNG, GIF, WebP, BMP, TIFF, HEIC/HEIF, AVIF, the MP4/MOV/M4A/3GPP family, MKV/WebM, AVI, WAV, MP3, FLAC, Ogg, MIDI, PDF, PostScript, PSD, ZIP/RAR/7z/GZIP/BZIP2/XZ, ICO, plus low-confidence text heuristics. Reads only a bounded header, never the whole file.
+- **"Set as default gallery" on first launch.** The app declares itself as a gallery candidate (`APP_GALLERY`, plus `ACTION_VIEW` filters for image/video/audio) and offers a one-time prompt that opens the system screen where the user makes the choice — Android does not let an app set this itself.
+- Opening a photo from another app now jumps straight to that item.
+- Root **status** is reported read-only (a `su` binary check). It never requests root.
+
+### Notes — deliberately not implemented
+- **Root-based recovery is not implemented.** Reading raw block devices bypasses Android's security model and cannot honestly promise recovery of TRIMmed or encrypted data, so there is no toggle pretending otherwise.
+- Settings export/import, thumbnail cache-size limits, recovery history, Paging 3 and the full recovery engine from the master prompt are not in this release.
+
 ## [1.2.0]
 ### Added
 - **In-app PDF viewer** built on the platform `PdfRenderer` (no third-party library): page-by-page rendering, swipe between pages, pinch/double-tap zoom, and a bottom bar with **Share, Copy, Move, Upload and Print**. Print goes through the system print framework, so installed print services and "Save as PDF" both work.

@@ -94,6 +94,10 @@ data class ScanSummary(
     val mediaFound: Int,
     val duplicatesFound: Int,
     val errors: List<String>,
+    /** Files identified from their bytes rather than their extension. */
+    val signatureIdentified: Int = 0,
+    /** True when a configured limit stopped the scan early. */
+    val truncated: Boolean = false,
 )
 
 /** A set of files that are byte-identical (or same-size candidates). */

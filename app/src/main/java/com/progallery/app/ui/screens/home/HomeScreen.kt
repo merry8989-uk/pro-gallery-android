@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,6 +35,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.progallery.app.ui.components.DashboardTile
+import com.progallery.app.ui.components.DefaultGalleryPrompt
 import com.progallery.app.ui.components.MediaCollection
 import com.progallery.app.ui.components.MediaPermissionGate
 import com.progallery.app.ui.navigation.Routes
@@ -51,6 +53,10 @@ fun HomeScreen(
     // at zero; refresh on every resume so they catch up.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
 
+    if (state.showDefaultGalleryPrompt) {
+        DefaultGalleryPrompt(onDismiss = { viewModel.dismissDefaultGalleryPrompt() })
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -58,6 +64,9 @@ fun HomeScreen(
                 actions = {
                     IconButton(onClick = { onOpen(Routes.SEARCH) }) {
                         Icon(Icons.Filled.Search, contentDescription = "Search")
+                    }
+                    IconButton(onClick = { onOpen(Routes.SETTINGS) }) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
                     }
                 },
             )

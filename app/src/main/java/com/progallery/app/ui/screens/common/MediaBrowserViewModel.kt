@@ -10,6 +10,8 @@ import com.progallery.app.data.model.SortOrder
 import com.progallery.app.data.model.ViewMode
 import com.progallery.app.data.repository.AlbumRepository
 import com.progallery.app.data.repository.MediaRepository
+import com.progallery.app.data.settings.LayoutMode
+import com.progallery.app.data.settings.SettingsRepository
 import com.progallery.app.data.repository.TrashRepository
 import com.progallery.app.domain.MediaFilters
 import com.progallery.app.util.MediaActions
@@ -34,6 +36,10 @@ data class BrowserUiState(
     val selection: Set<String> = emptySet(),
     val loading: Boolean = true,
     val error: String? = null,
+    /** Display flags driven by Settings. */
+    val generateThumbnails: Boolean = true,
+    val showFileNames: Boolean = false,
+    val showFileSize: Boolean = false,
     val pendingDelete: PendingIntent? = null,
     /** Trash rows created for the delete awaiting consent, so they can be rolled back. */
     val pendingTrashIds: List<Long> = emptyList(),
@@ -59,6 +65,7 @@ data class BrowserUiState(
 @HiltViewModel
 class MediaBrowserViewModel @Inject constructor(
     private val repository: MediaRepository,
+    private val settingsRepository: SettingsRepository,
     private val albumRepository: AlbumRepository,
     private val trashRepository: TrashRepository,
     private val mediaActions: MediaActions,
@@ -73,10 +80,34 @@ class MediaBrowserViewModel @Inject constructor(
 
     private var collectionJob: Job? = null
 
+    /** Layout defaults come from Settings once, so in-screen changes still win. */
+    private var layoutDefaultsApplied = false
+
     init {
         refresh()
         viewModelScope.launch {
             albumRepository.observeCustomAlbums().collect { _customAlbums.value = it }
+        }
+        viewModelScope.launch {
+            settingsRepository.settings.collect { settings ->
+                _state.update { current ->
+                    val withFlags = current.copy(
+                        generateThumbnails = settings.generateThumbnails,
+                        showFileNames = settings.showFileNames,
+                        showFileSize = settings.showFileSize,
+                    )
+                    if (layoutDefaultsApplied) {
+                        withFlags
+                    } else {
+                        layoutDefaultsApplied = true
+                        withFlags.copy(
+                            viewMode = if (settings.defaultLayout == LayoutMode.LIST) ViewMode.LIST else ViewMode.GRID,
+                            columns = settings.gridSize.columns,
+                            sortOrder = settings.defaultSort,
+                        )
+                    }
+                }
+            }
         }
     }
 

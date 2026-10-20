@@ -66,7 +66,13 @@ import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.ViewMode
 import com.progallery.app.util.MediaFormatUtils
 
-/** A single grid/list thumbnail with selection and video affordances. */
+/**
+ * A single grid thumbnail.
+ *
+ * Respects the settings: with thumbnails off it shows the file-type icon, and
+ * the name/size strip appears only when those are enabled — a tile is never
+ * blank.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MediaThumbnail(
@@ -76,6 +82,9 @@ fun MediaThumbnail(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    generateThumbnails: Boolean = true,
+    showName: Boolean = false,
+    showSize: Boolean = false,
 ) {
     val context = LocalContext.current
     Box(
@@ -85,7 +94,7 @@ fun MediaThumbnail(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
-        if (item.isPreviewable) {
+        if (item.isPreviewable && generateThumbnails) {
             val request = ImageRequest.Builder(context)
                 .data(item.uri)
                 .apply { if (item.isVideo) videoFrameMillis(1000) }
@@ -97,9 +106,16 @@ fun MediaThumbnail(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
+            if (item.isVideo) {
+                Icon(
+                    imageVector = Icons.Filled.PlayCircle,
+                    contentDescription = "Video",
+                    tint = androidx.compose.ui.graphics.Color.White,
+                    modifier = Modifier.align(Alignment.Center).size(36.dp),
+                )
+            }
         } else {
-            // Audio, documents, archives and unknown types have no thumbnail —
-            // show their kind instead of an empty or broken tile.
+            // No thumbnail (or thumbnails disabled): show what the file *is*.
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = item.mediaType.icon(),
@@ -108,72 +124,74 @@ fun MediaThumbnail(
                     modifier = Modifier.size(28.dp),
                 )
             }
-            if (item.extension.isNotEmpty()) {
+            if (!showName && item.extension.isNotEmpty()) {
                 Text(
                     text = item.extension.uppercase(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(2.dp),
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(2.dp),
                 )
             }
         }
-        if (item.isVideo) {
-            Icon(
-                imageVector = Icons.Filled.PlayCircle,
-                contentDescription = "Video",
-                tint = androidx.compose.ui.graphics.Color.White,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(36.dp),
-            )
-            Text(
-                text = MediaFormatUtils.formatDuration(item.durationMs),
-                color = androidx.compose.ui.graphics.Color.White,
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(4.dp)
-                    .background(
-                        androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f),
-                        RoundedCornerShape(4.dp),
-                    )
-                    .padding(horizontal = 4.dp, vertical = 1.dp),
-            )
+
+        Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
+            if (item.isVideo && showName) {
+                Text(
+                    text = MediaFormatUtils.formatDuration(item.durationMs),
+                    color = androidx.compose.ui.graphics.Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .padding(end = 4.dp)
+                        .background(
+                            androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f),
+                            RoundedCornerShape(4.dp),
+                        )
+                        .padding(horizontal = 4.dp, vertical = 1.dp),
+                )
+            }
+            if (showName) {
+                Text(
+                    text = item.displayName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = androidx.compose.ui.graphics.Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.55f))
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                )
+            }
+            if (showName && showSize) {
+                Text(
+                    text = MediaFormatUtils.formatBytes(item.sizeBytes),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = androidx.compose.ui.graphics.Color.White,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.55f))
+                        .padding(horizontal = 4.dp, vertical = 1.dp),
+                )
+            }
         }
-        if (item.isAudio) {
-            Icon(
-                imageVector = Icons.Filled.MusicNote,
-                contentDescription = "Audio",
-                tint = androidx.compose.ui.graphics.Color.White,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(18.dp),
-            )
-        }
+
         if (item.isFavourite) {
             Icon(
                 imageVector = Icons.Filled.Favorite,
                 contentDescription = "Favourite",
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(4.dp)
-                    .size(18.dp),
+                modifier = Modifier.align(Alignment.TopStart).padding(4.dp).size(18.dp),
             )
         }
         if (selectionMode) {
             Icon(
-                imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Filled.CheckCircle,
+                imageVector = Icons.Filled.CheckCircle,
                 contentDescription = if (selected) "Selected" else "Not selected",
                 tint = if (selected) MaterialTheme.colorScheme.primary
                 else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(22.dp),
+                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(22.dp),
             )
         }
     }
@@ -191,6 +209,9 @@ fun MediaCollection(
     onLongClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(4.dp),
+    generateThumbnails: Boolean = true,
+    showNames: Boolean = false,
+    showSize: Boolean = false,
 ) {
     if (viewMode == ViewMode.GRID) {
         LazyVerticalGrid(
@@ -207,6 +228,9 @@ fun MediaCollection(
                     selectionMode = selectionMode,
                     onClick = { onClick(item) },
                     onLongClick = { onLongClick(item) },
+                    generateThumbnails = generateThumbnails,
+                    showName = showNames,
+                    showSize = showSize,
                 )
             }
         }
@@ -223,6 +247,9 @@ fun MediaCollection(
                     selectionMode = selectionMode,
                     onClick = { onClick(item) },
                     onLongClick = { onLongClick(item) },
+                    generateThumbnails = generateThumbnails,
+                    showName = showNames,
+                    showSize = showSize,
                 )
             }
         }
@@ -237,6 +264,9 @@ private fun MediaListRow(
     selectionMode: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    generateThumbnails: Boolean,
+    showName: Boolean,
+    showSize: Boolean,
 ) {
     Surface(
         color = if (selected) MaterialTheme.colorScheme.secondaryContainer
@@ -256,24 +286,29 @@ private fun MediaListRow(
                 onClick = onClick,
                 onLongClick = onLongClick,
                 modifier = Modifier.size(56.dp),
+                generateThumbnails = generateThumbnails,
             )
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(start = 12.dp),
             ) {
-                Text(
-                    text = item.displayName,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
-                    text = "${item.dimensionLabel} • ${MediaFormatUtils.formatBytes(item.sizeBytes)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (showName) {
+                    Text(
+                        text = item.displayName,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+                if (showSize || item.isPreviewable) {
+                    Text(
+                        text = "${item.dimensionLabel} • ${MediaFormatUtils.formatBytes(item.sizeBytes)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             if (selectionMode && selected) {
                 Icon(

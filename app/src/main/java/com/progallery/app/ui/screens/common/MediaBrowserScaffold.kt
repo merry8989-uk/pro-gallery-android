@@ -203,6 +203,9 @@ fun MediaBrowserScaffold(
                         }
                     },
                     onLongClick = { viewModel.toggleSelection(it) },
+                    generateThumbnails = state.generateThumbnails,
+                    showNames = state.showFileNames,
+                    showSize = state.showFileSize,
                 )
             }
         }
