@@ -112,7 +112,7 @@ class RecoveryExporter @Inject constructor(
         outcome
     }
 
-    private fun copyInto(
+    private suspend fun copyInto(
         tree: DocumentFile,
         result: RecoveryResult,
         settings: AppSettings,

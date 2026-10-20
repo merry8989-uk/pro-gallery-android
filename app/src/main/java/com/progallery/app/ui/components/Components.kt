@@ -103,6 +103,7 @@ fun MediaThumbnail(
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         /** What the file *is*, when no real preview is available. Never a blank tile. */
+        @Composable
         fun typeIcon() {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Icon(

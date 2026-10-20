@@ -427,6 +427,7 @@ private fun SelectionBar(
     count: Int,
     exportable: Int,
     exporting: Boolean,
+    exportAllowed: Boolean,
     onExport: () -> Unit,
     onShare: () -> Unit,
     onSelectAll: () -> Unit,
