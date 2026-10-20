@@ -142,9 +142,13 @@ private fun ThumbnailOrFallback(item: MediaItem) {
     )
 }
 
-/** Type icon plus the file's format, for anything without a visual preview. */
+/**
+ * Type icon plus the file's format, for anything without a visual preview.
+ *
+ * A `BoxScope` extension so the format label can be aligned inside the tile.
+ */
 @Composable
-private fun FormatIcon(item: MediaItem) {
+private fun androidx.compose.foundation.layout.BoxScope.FormatIcon(item: MediaItem) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Icon(
             imageVector = item.mediaType.icon(),

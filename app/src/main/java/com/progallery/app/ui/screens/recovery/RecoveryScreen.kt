@@ -232,6 +232,7 @@ private fun IdlePane(onScan: () -> Unit, onAddFolder: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CompletedPane(
     state: RecoveryUiState,
