@@ -27,6 +27,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.11.0]
+Phase 3 continues: switches that cannot lie, previews that are really produced, and
+diagnostics that are actually useful.
+
+### Added
+- **A dependency registry** (`SettingsDependencies`). Every settings change now passes
+  through it, so a setting whose prerequisite is off is switched **off** with it instead
+  of being left claiming to be active — deep scan without folder access, signature
+  detection or duplicate detection with no scan method, hidden files without a folder
+  walk, per-type previews without thumbnail generation, export with nothing to scan.
+  Two deliberate non-rules: leaving Advanced mode only *hides* advanced settings rather
+  than discarding them, and resolution **never turns anything on**. When a switch flips,
+  the screen says why.
+- **Per-type previews, and they are really produced.** Video frames, embedded audio
+  artwork (read with `MediaMetadataRetriever`, which Coil has no decoder for) and a
+  PDF's first page (rendered with the same platform engine the reader uses), each with
+  its own switch, because each costs something different. Results are cached in memory
+  by URI and bounded, and anything unavailable falls back to the type icon — a tile
+  never goes blank.
+- **Resolution and duration on tiles**, shown only where the app actually knows them.
+- **A real diagnostics log.** Written only when asked, bounded by age and size, and
+  **paths are redacted to their extension unless you allow them** — `DCIM/Camera/IMG_2024.jpg`
+  becomes `*.jpg`, so the log can say what kind of file failed without saying whose or
+  where. `LogRedactionTest` pins that guarantee down. It can be saved to a file you
+  choose, or cleared.
+- **Recovery and export settings that change behaviour**: which scan modes the Recovery
+  screen offers, whether export is allowed at all (enforced in the exporter, not just
+  hidden in the UI), whether a copy is verified against the source size, what happens
+  when the destination already has that name (**keep both** or **skip** — overwriting is
+  deliberately not offered), and how many copies run at once, with the naming step
+  serialised so parallel copies cannot clobber each other.
+- **`keepScanHistory` became `keepActivityHistory`**, because that is what it actually
+  controls: it now gates whether recovery and export activity is recorded at all.
+
+### Changed
+- The export format is now generated from the settings source by
+  `tools/generate_settings_export.py`, and `SettingsExportTest` reads that same source to
+  fail if a field is missing from the export — so a new setting cannot quietly drop out
+  of a backup.
+- A skipped export is reported as **Skipped**, not as a failure.
+
+### Still to come in Phase 3
+The permission diagnostics screen.
+
 ## [1.10.0]
 Phase 3 begins: settings you can take with you.
 

@@ -50,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import com.progallery.app.util.MediaFormatUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.progallery.app.data.settings.ExportDuplicatePolicy
 
 /** One renderable settings row. */
 private sealed interface SettingsRow {
@@ -115,6 +116,7 @@ private val SECTION_ORDER = listOf(
     "Detection",
     "Scan limits",
     "Performance",
+    "Recovery & export",
     "Diagnostics & experimental",
 )
 
@@ -153,6 +155,9 @@ fun SettingsScreen(
     val importPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let { viewModel.importFrom(it) } }
+    val diagnosticsPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain"),
+    ) { uri -> uri?.let { viewModel.saveDiagnosticsTo(it) } }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.refreshCacheSize() }
@@ -180,6 +185,8 @@ fun SettingsScreen(
         onResetSection = viewModel::resetSection,
         onExportSettings = { exportPicker.launch("progallery-settings.json") },
         onImportSettings = { importPicker.launch(arrayOf("application/json")) },
+        onSaveDiagnostics = { diagnosticsPicker.launch("progallery-diagnostics.txt") },
+        onClearDiagnostics = viewModel::clearDiagnostics,
         onOpenDefaultApps = { DefaultApps.openDefaultAppsSettings(context) },
     )
 
@@ -291,6 +298,8 @@ private fun buildRows(
     onResetSection: (String) -> Unit,
     onExportSettings: () -> Unit,
     onImportSettings: () -> Unit,
+    onSaveDiagnostics: () -> Unit,
+    onClearDiagnostics: () -> Unit,
     onOpenDefaultApps: () -> Unit,
 ): List<SettingsRow> = buildList {
     // ---- Scanning -----------------------------------------------------
@@ -392,6 +401,47 @@ private fun buildRows(
             section = "Thumbnails & result cards",
             checked = settings.generateThumbnails,
             onCheckedChange = { value -> update { it.copy(generateThumbnails = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Video frames",
+            subtitle = "Show a real frame for videos. Off leaves the video icon.",
+            section = "Thumbnails & result cards",
+            advanced = true,
+            checked = settings.videoThumbnails,
+            onCheckedChange = { value -> update { it.copy(videoThumbnails = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Album art",
+            subtitle = "Show the artwork embedded in audio files. Off leaves the music icon.",
+            section = "Thumbnails & result cards",
+            advanced = true,
+            checked = settings.audioArtwork,
+            onCheckedChange = { value -> update { it.copy(audioArtwork = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Document previews",
+            subtitle = "Render the first page of a PDF. This is the most expensive preview, " +
+                "which is why it is separate.",
+            section = "Thumbnails & result cards",
+            advanced = true,
+            checked = settings.documentPreviews,
+            onCheckedChange = { value -> update { it.copy(documentPreviews = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Show resolution and duration",
+            subtitle = "Adds pixel size and running time to tiles, where the app actually " +
+                "knows them.",
+            section = "Thumbnails & result cards",
+            checked = settings.showResolution,
+            onCheckedChange = { value -> update { it.copy(showResolution = value) } },
         ),
     )
 
@@ -666,6 +716,75 @@ private fun buildRows(
         ),
     )
 
+    // ---- Recovery & export ---------------------------------------------
+    add(
+        SettingsRow.Switch(
+            title = "Recovery: quick scan",
+            subtitle = "Offers the Quick Scan on the Recovery screen.",
+            section = "Recovery & export",
+            checked = settings.recoveryQuickScanEnabled,
+            onCheckedChange = { value -> update { it.copy(recoveryQuickScanEnabled = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Recovery: thumbnails and cache",
+            subtitle = "Offers the scan that finds preview artefacts. It never finds originals, " +
+                "and says so on every result.",
+            section = "Recovery & export",
+            checked = settings.recoveryThumbnailCacheEnabled,
+            onCheckedChange = { value -> update { it.copy(recoveryThumbnailCacheEnabled = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Allow export",
+            subtitle = "Lets recovered items be written to a folder you choose. Off leaves " +
+                "recovery read-only.",
+            section = "Recovery & export",
+            checked = settings.exportEnabled,
+            onCheckedChange = { value -> update { it.copy(exportEnabled = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Verify after copying",
+            subtitle = "Checks the copy against the source size before reporting success. Off " +
+                "reports success as soon as the write finishes.",
+            section = "Recovery & export",
+            advanced = true,
+            checked = settings.exportVerifyAfterCopy,
+            onCheckedChange = { value -> update { it.copy(exportVerifyAfterCopy = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Choice(
+            title = "If the name already exists",
+            subtitle = "Overwriting is deliberately not offered: silently replacing a file you " +
+                "already have is not a recovery tool's job.",
+            section = "Recovery & export",
+            advanced = true,
+            options = ExportDuplicatePolicy.entries.map { it.label },
+            selected = settings.exportDuplicatePolicy.label,
+            onSelect = { label ->
+                ExportDuplicatePolicy.entries.firstOrNull { it.label == label }?.let { policy ->
+                    update { it.copy(exportDuplicatePolicy = policy) }
+                }
+            },
+        ),
+    )
+    add(
+        SettingsRow.Slider(
+            title = "Copies at once",
+            subtitle = "How many files may be exported in parallel.",
+            section = "Recovery & export",
+            advanced = true,
+            value = settings.exportMaxConcurrentJobs,
+            range = 1..8,
+            onChange = { value -> update { it.copy(exportMaxConcurrentJobs = value) } },
+        ),
+    )
+
     // ---- Diagnostics & experimental -----------------------------------
     add(
         SettingsRow.Action(
@@ -695,6 +814,66 @@ private fun buildRows(
             advanced = true,
             checked = settings.showRootStatus,
             onCheckedChange = { value -> update { it.copy(showRootStatus = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Keep a record of recovery and export activity",
+            subtitle = "Records recent recovery scans and exports locally, so the history screen " +
+                "has something to show. Nothing leaves the device.",
+            section = "Diagnostics & experimental",
+            checked = settings.keepActivityHistory,
+            onCheckedChange = { value -> update { it.copy(keepActivityHistory = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Write diagnostics",
+            subtitle = "Keeps a local log of what the app did. It is never sent anywhere.",
+            section = "Diagnostics & experimental",
+            checked = settings.saveDiagnosticLogs,
+            onCheckedChange = { value -> update { it.copy(saveDiagnosticLogs = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Include file paths in diagnostics",
+            subtitle = "Off by default, and it stays off unless you turn it on: a log is a file " +
+                "you may share, and a path says where your files are.",
+            section = "Diagnostics & experimental",
+            advanced = true,
+            checked = settings.includePathsInLogs,
+            onCheckedChange = { value -> update { it.copy(includePathsInLogs = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Save diagnostics",
+            subtitle = "Writes the local log to a file you choose, so you can attach it when " +
+                "reporting a problem. It is written only if diagnostics are switched on.",
+            section = "Diagnostics & experimental",
+            label = "Save",
+            onClick = onSaveDiagnostics,
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Clear diagnostics",
+            subtitle = "Empties the local log now, without waiting for the automatic clear.",
+            section = "Diagnostics & experimental",
+            label = "Clear",
+            onClick = onClearDiagnostics,
+        ),
+    )
+    add(
+        SettingsRow.Slider(
+            title = "Clear diagnostics after",
+            subtitle = "Days before the log is cleared automatically.",
+            section = "Diagnostics & experimental",
+            advanced = true,
+            value = settings.autoClearLogsAfterDays,
+            range = 1..90,
+            onChange = { value -> update { it.copy(autoClearLogsAfterDays = value) } },
         ),
     )
     if (settings.showRootStatus) {

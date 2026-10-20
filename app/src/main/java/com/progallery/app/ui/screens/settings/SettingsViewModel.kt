@@ -20,12 +20,15 @@ import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.progallery.app.data.settings.SettingsDependencies
+import com.progallery.app.data.diagnostics.DiagnosticLog
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val thumbnailCache: ThumbnailCacheManager,
+    private val diagnosticLog: DiagnosticLog,
 ) : ViewModel() {
 
     private val _cacheSizeBytes = MutableStateFlow(0L)
@@ -58,6 +61,36 @@ class SettingsViewModel @Inject constructor(
 
     fun consumeSettingsMessage() {
         _settingsMessage.value = null
+    }
+
+    /** Writes the diagnostics log to the file the user chose. */
+    fun saveDiagnosticsTo(uri: Uri) {
+        viewModelScope.launch {
+            val enabled = diagnosticLog.isEnabled()
+            val outcome = withContext(Dispatchers.IO) {
+                runCatching {
+                    if (!enabled) {
+                        error("Diagnostics are switched off, so there is nothing to save.")
+                    }
+                    val text = diagnosticLog.read()
+                    val out = context.contentResolver.openOutputStream(uri)
+                        ?: error("the chosen file could not be opened")
+                    out.use { it.write(text.toByteArray()) }
+                }
+            }
+            _settingsMessage.value = outcome.fold(
+                onSuccess = { "Diagnostics saved" },
+                onFailure = { "Could not save diagnostics: ${it.message ?: "unknown reason"}" },
+            )
+        }
+    }
+
+    /** Empties the diagnostics log. */
+    fun clearDiagnostics() {
+        viewModelScope.launch {
+            diagnosticLog.clear()
+            _settingsMessage.value = "Diagnostics cleared"
+        }
     }
 
     /** Restores one section to its defaults, leaving every other section alone. */
@@ -119,8 +152,20 @@ class SettingsViewModel @Inject constructor(
     private val _rootStatus = MutableStateFlow<String?>(null)
     val rootStatus: StateFlow<String?> = _rootStatus.asStateFlow()
 
+    /**
+     * Applies a change and, when the dependency rules had to switch something off with
+     * it, says so. A switch that flips on its own without explanation looks like a bug.
+     */
     fun update(transform: (AppSettings) -> AppSettings) {
-        viewModelScope.launch { settingsRepository.update(transform) }
+        viewModelScope.launch {
+            val before = settingsRepository.current()
+            settingsRepository.update(transform)
+            val after = settingsRepository.current()
+            val notes = SettingsDependencies.explain(before, after)
+            if (notes.isNotEmpty()) {
+                _settingsMessage.value = notes.joinToString(" ")
+            }
+        }
     }
 
     fun resetToDefaults() {

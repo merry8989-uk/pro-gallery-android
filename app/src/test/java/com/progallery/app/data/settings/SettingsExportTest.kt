@@ -4,6 +4,7 @@ import com.progallery.app.data.model.SortOrder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import java.io.File
 import org.junit.Test
 
 /**
@@ -48,7 +49,57 @@ class SettingsExportTest {
         gridSize = GridSize.LARGE,
         defaultSort = SortOrder.NAME_ASC,
         hasSeenDefaultGalleryPrompt = true,
+        videoThumbnails = false,
+        audioArtwork = false,
+        documentPreviews = false,
+        showResolution = true,
+        recoveryQuickScanEnabled = false,
+        recoveryThumbnailCacheEnabled = true,
+        exportEnabled = false,
+        exportVerifyAfterCopy = false,
+        exportDuplicatePolicy = ExportDuplicatePolicy.SKIP,
+        exportMaxConcurrentJobs = 3,
+        keepActivityHistory = true,
+        saveDiagnosticLogs = true,
+        includePathsInLogs = true,
+        autoClearLogsAfterDays = 30,
     )
+
+    /**
+     * The guard that makes the round-trip meaningful.
+     *
+     * The round-trip below sets the fields it knows about; this reads AppSettings.kt
+     * itself and fails if the export does not name every field in it. Without this, a
+     * new setting could be added and quietly left out of every backup.
+     */
+    @Test
+    fun theExportNamesEveryFieldAppSettingsDeclares() {
+        val source = File("src/main/java/com/progallery/app/data/settings/AppSettings.kt")
+        assertTrue(
+            "AppSettings.kt was not found at ${source.absolutePath}; this check cannot be skipped",
+            source.exists(),
+        )
+
+        val body = source.readText()
+            .substringAfter("data class AppSettings(")
+            .substringBefore(") {")
+            .replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("//[^\\n]*"), "")
+
+        val declared = Regex("val (\\w+):\\s*[\\w.]+\\s*=")
+            .findAll(body)
+            .map { it.groupValues[1] }
+            .toList()
+
+        assertTrue("no fields were parsed from AppSettings.kt", declared.size > 20)
+        val missing = declared - SettingsExport.FIELD_NAMES.toSet()
+        assertTrue("these settings are not exported: $missing", missing.isEmpty())
+        assertEquals(
+            "the export names fields AppSettings does not declare",
+            emptySet<String>(),
+            SettingsExport.FIELD_NAMES.toSet() - declared.toSet(),
+        )
+    }
 
     @Test
     fun everyFieldSurvivesARoundTrip() {
@@ -115,16 +166,31 @@ class SettingsExportTest {
 
     @Test
     fun theExportCarriesNothingPrivate() {
-        // An export is shared or kept, so it must not leak where the user's files are,
-        // nor any access grant.
-        val text = SettingsExport.encode(nonDefault)
-        listOf("content://", "file://", "/storage", "/sdcard", "uri", "path", "token", "grant")
-            .forEach { forbidden ->
-                assertFalse(
-                    "the export mentions \"$forbidden\"",
-                    text.contains(forbidden, ignoreCase = true),
-                )
-            }
+        // Checked against the *values*, not the raw text: a setting may legitimately be
+        // named "includePathsInLogs" — the name says what the switch does, not where any
+        // file is. What must never appear is a path, a content URI or a grant.
+        val decoded = FlatJson.decode(SettingsExport.encode(nonDefault))
+        decoded.forEach { (key, value) ->
+            val text = value?.toString() ?: return@forEach
+            listOf("content://", "file://", "/storage", "/sdcard", "tree/", "token", "grant")
+                .forEach { forbidden ->
+                    assertFalse(
+                        "the value of \"$key\" mentions \"$forbidden\": $text",
+                        text.contains(forbidden, ignoreCase = true),
+                    )
+                }
+        }
+    }
+
+    @Test
+    fun theExportCarriesNothingButTheSettingsItDeclares() {
+        // Nothing extra may be smuggled into the file, whatever it is called.
+        val keys = FlatJson.decode(SettingsExport.encode(nonDefault)).keys
+        assertEquals(
+            "the file has keys that are not settings",
+            SettingsExport.FIELD_NAMES.toSet() + "formatVersion",
+            keys,
+        )
     }
 
     @Test

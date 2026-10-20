@@ -89,6 +89,14 @@ encrypted data.
   CI here — unbalanced braces, missing icon imports, duplicate imports, an import
   after code, a second `companion object`, and a project type used without an import.
 
+## Settings
+
+Every switch has to do something. Changes are resolved through a dependency registry
+(`SettingsDependencies`), so a setting whose prerequisite is off is switched off with it
+rather than left claiming to be active, and the screen explains what changed. Settings
+can be exported and imported as versioned JSON that holds **only your choices** — no
+paths, no URIs, no grants — and each section can be reset on its own.
+
 ## Platform
 
 - **Android 8.0 – 16.** `minSdk 26`, `compileSdk`/`targetSdk` **36**.

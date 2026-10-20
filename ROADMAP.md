@@ -152,9 +152,11 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 **🔶 Phase 3 (settings completeness) — started in v1.10.0.**
 - ✅ Done: versioned settings export/import (SAF, no private data, strict format version,
   tolerant of unknown keys) and per-section reset.
-- Outstanding: per-kind thumbnail toggles, the recovery/export settings block, a
-  permission diagnostics screen, privacy and log settings, and a central
-  feature-dependency registry.
+- ✅ Done in v1.11.0: the feature-dependency registry, per-kind previews (video frames,
+  embedded audio artwork, PDF first pages), resolution/duration on tiles, the
+  recovery/export settings block wired into the exporter, and the privacy and
+  diagnostics settings backed by a real, redacting, bounded log.
+- Outstanding: the permission diagnostics screen.
 
 ## 6. Phase 4 — performance & platform — ✅ mostly DONE in v1.8.0
 
