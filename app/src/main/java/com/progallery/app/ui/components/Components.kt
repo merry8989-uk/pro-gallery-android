@@ -66,6 +66,7 @@ import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.ViewMode
 import com.progallery.app.util.MediaFormatUtils
+import androidx.paging.compose.LazyPagingItems
 
 /**
  * A single grid thumbnail.
@@ -199,6 +200,82 @@ fun MediaThumbnail(
 }
 
 /** Grid or list rendering of a media collection. */
+/**
+ * The paged sibling of [MediaCollection].
+ *
+ * Only the container differs: tiles and rows are the same composables, so a paged
+ * grid looks and behaves exactly like a cached one. Items are flagged as favourites
+ * as they are drawn, which is why a favourite toggle does not disturb the pager.
+ */
+@Composable
+fun PagedMediaCollection(
+    items: LazyPagingItems<MediaItem>,
+    columns: Int,
+    viewMode: ViewMode,
+    selectionMode: Boolean,
+    selectedIds: Set<String>,
+    favouriteKeys: Set<String>,
+    onClick: (MediaItem) -> Unit,
+    onLongClick: (MediaItem) -> Unit,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(4.dp),
+    generateThumbnails: Boolean = true,
+    showNames: Boolean = false,
+    showSize: Boolean = false,
+) {
+    if (viewMode == ViewMode.GRID) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(columns),
+            modifier = modifier.fillMaxSize(),
+            contentPadding = contentPadding,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            items(
+                count = items.itemCount,
+                // Keyed by the item's identity, so a reload does not shuffle the
+                // tiles that are already on screen.
+                key = { index -> items.peek(index)?.mediaKey ?: "pending-$index" },
+            ) { index ->
+                val item = items[index] ?: return@items
+                MediaThumbnail(
+                    item = item.copy(isFavourite = item.mediaKey in favouriteKeys),
+                    selected = item.mediaKey in selectedIds,
+                    selectionMode = selectionMode,
+                    onClick = { onClick(item) },
+                    onLongClick = { onLongClick(item) },
+                    generateThumbnails = generateThumbnails,
+                    showName = showNames,
+                    showSize = showSize,
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
+            contentPadding = contentPadding,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            items(
+                count = items.itemCount,
+                key = { index -> items.peek(index)?.mediaKey ?: "pending-$index" },
+            ) { index ->
+                val item = items[index] ?: return@items
+                MediaListRow(
+                    item = item.copy(isFavourite = item.mediaKey in favouriteKeys),
+                    selected = item.mediaKey in selectedIds,
+                    selectionMode = selectionMode,
+                    onClick = { onClick(item) },
+                    onLongClick = { onLongClick(item) },
+                    generateThumbnails = generateThumbnails,
+                    showName = showNames,
+                    showSize = showSize,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun MediaCollection(
     items: List<MediaItem>,

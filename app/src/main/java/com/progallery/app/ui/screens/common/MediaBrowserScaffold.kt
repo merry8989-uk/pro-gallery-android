@@ -48,6 +48,9 @@ import com.progallery.app.ui.components.MediaCollection
 import com.progallery.app.ui.components.MediaPermissionGate
 import com.progallery.app.ui.components.SelectionToolbar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import com.progallery.app.ui.components.PagedMediaCollection
 
 /**
  * Standard scaffold used by Photos, Videos, Favourites and Search. Owns the
@@ -96,6 +99,12 @@ fun MediaBrowserScaffold(
     var sortMenuOpen by remember { mutableStateOf(false) }
     var albumPickerOpen by remember { mutableStateOf(false) }
     val customAlbums by viewModel.customAlbums.collectAsStateWithLifecycle()
+    val pagedItems = viewModel.pagedItems.collectAsLazyPagingItems()
+    val favouriteKeys by viewModel.favouriteKeys.collectAsStateWithLifecycle()
+
+    /** What the grid has actually loaded — there is no "everything" with paging. */
+    fun loadedItems(): List<MediaItem> =
+        (0 until pagedItems.itemCount).mapNotNull { pagedItems.peek(it) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -112,8 +121,8 @@ fun MediaBrowserScaffold(
                     },
                     actions = {
                         // Bulk selection is discoverable without knowing to long-press.
-                        if (!state.selectionMode && state.items.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.selectAll() }) {
+                        if (!state.selectionMode && pagedItems.itemCount > 0) {
+                            IconButton(onClick = { viewModel.selectAll(loadedItems()) }) {
                                 Icon(Icons.Filled.SelectAll, contentDescription = "Select all")
                             }
                         }
@@ -145,10 +154,10 @@ fun MediaBrowserScaffold(
             if (state.selectionMode) {
                 SelectionToolbar(
                     count = state.selection.size,
-                    totalCount = state.items.size,
+                    totalCount = pagedItems.itemCount,
                     allFavourite = state.selectedItems.all { it.isFavourite },
                     onClose = { viewModel.clearSelection() },
-                    onSelectAll = { viewModel.selectAll() },
+                    onSelectAll = { viewModel.selectAll(loadedItems()) },
                     // Only offered for a single file that has no in-app preview —
                     // documents, archives, audio — where another app is the way to view it.
                     showOpenWith = state.selectedItems.size == 1 &&
@@ -203,18 +212,25 @@ fun MediaBrowserScaffold(
             header?.let { it() }
             when {
                 state.error != null -> ErrorBanner(state.error!!) { viewModel.refresh() }
-                state.loading -> LoadingState()
-                state.items.isEmpty() -> EmptyState(
+                pagedItems.loadState.refresh is LoadState.Loading && pagedItems.itemCount == 0 ->
+                    LoadingState()
+                pagedItems.loadState.refresh is LoadState.Error && pagedItems.itemCount == 0 ->
+                    ErrorBanner(
+                        (pagedItems.loadState.refresh as LoadState.Error).error.message
+                            ?: "The library could not be read",
+                    ) { pagedItems.retry() }
+                pagedItems.itemCount == 0 -> EmptyState(
                     icon = Icons.Filled.GridView,
                     title = emptyTitle,
                     subtitle = emptySubtitle,
                 )
-                else -> MediaCollection(
-                    items = state.items,
+                else -> PagedMediaCollection(
+                    items = pagedItems,
                     columns = state.columns,
                     viewMode = state.viewMode,
                     selectionMode = state.selectionMode,
                     selectedIds = state.selection,
+                    favouriteKeys = favouriteKeys,
                     onClick = { item ->
                         when {
                             state.selectionMode -> viewModel.toggleSelection(item)

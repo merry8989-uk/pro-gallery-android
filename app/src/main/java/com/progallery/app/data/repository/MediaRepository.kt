@@ -87,10 +87,25 @@ class MediaRepository @Inject constructor(
         kinds: Set<MediaType>,
         sort: SortOrder,
         query: String,
-    ): Flow<PagingData<MediaItem>> =
-        combine(hiddenDao.observeKeys(), settingsRepository.settings) { hidden, settings ->
-            hidden.toHashSet() to settings
-        }.flatMapLatest { (hiddenSet, settings) ->
+        favouritesOnly: Boolean = false,
+    ): Flow<PagingData<MediaItem>> {
+        // Hidden items always key the pager: they must not enter it at all. The
+        // favourite set only keys it for the Favourites screen — otherwise toggling a
+        // favourite would throw away the user's scroll position for nothing.
+        val base = combine(
+            hiddenDao.observeKeys(),
+            settingsRepository.settings,
+        ) { hidden, settings -> hidden.toHashSet() to settings }
+
+        val keyed: Flow<Triple<Set<String>, AppSettings, Set<String>>> = if (favouritesOnly) {
+            combine(base, favouriteDao.observeAll()) { (hidden, settings), favourites ->
+                Triple(hidden, settings, favourites.mapTo(HashSet()) { it.mediaKey })
+            }
+        } else {
+            base.map { (hidden, settings) -> Triple(hidden, settings, emptySet<String>()) }
+        }
+
+        return keyed.flatMapLatest { (hiddenSet, settings, favouriteSet) ->
             Pager(
                 config = PagingConfig(
                     pageSize = MediaStoreDataSource.DEFAULT_PAGE_ROWS,
@@ -105,11 +120,13 @@ class MediaRepository @Inject constructor(
                         sort = sort,
                         query = query,
                         hiddenKeys = hiddenSet,
+                        requiredKeys = if (favouritesOnly) favouriteSet else null,
                         sizeFilter = settings::acceptsSize,
                     )
                 },
             ).flow
         }
+    }
 
     /** Favourite keys, so the UI can flag paged items without reloading the pager. */
     val favouriteKeys: Flow<Set<String>> = favouriteDao.observeAll()

@@ -33,6 +33,12 @@ class MediaStorePagingSource(
      * other list. Unreadable sizes are never treated as too small.
      */
     private val sizeFilter: (Long) -> Boolean = { true },
+    /**
+     * When set, only these items are returned. The Favourites screen needs this:
+     * favourites are a Room set, not a MediaStore column, so the filter cannot be
+     * expressed in the query.
+     */
+    private val requiredKeys: Set<String>? = null,
 ) : PagingSource<Int, MediaItem>() {
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, MediaItem> {
@@ -48,6 +54,7 @@ class MediaStorePagingSource(
                 val page = dataSource.page(kinds, sort, query, row, params.loadSize)
                 page.items
                     .filterNot { it.mediaKey in hiddenKeys }
+                    .filter { requiredKeys == null || it.mediaKey in requiredKeys }
                     .filter { sizeFilter(it.sizeBytes) }
                     .forEach { collected += it }
                 row += page.rowsRead

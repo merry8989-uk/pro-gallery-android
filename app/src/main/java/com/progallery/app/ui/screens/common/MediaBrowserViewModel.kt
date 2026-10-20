@@ -14,10 +14,8 @@ import com.progallery.app.data.repository.ViewerContext
 import com.progallery.app.data.settings.LayoutMode
 import com.progallery.app.data.settings.SettingsRepository
 import com.progallery.app.data.repository.TrashRepository
-import com.progallery.app.domain.MediaFilters
 import com.progallery.app.util.MediaActions
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,10 +24,17 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import com.progallery.app.util.runCatchingCancellable
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 
 data class BrowserUiState(
-    val rawItems: List<MediaItem> = emptyList(),
     val type: MediaType = MediaType.ALL,
+    /** The categories switched on in Settings; they shape the pager's query. */
+    val enabledKinds: Set<MediaType> = MediaType.entries.filter { it != MediaType.ALL }.toSet(),
     val favouritesOnly: Boolean = false,
     val query: String = "",
     val sortOrder: SortOrder = SortOrder.DATE_NEWEST,
@@ -50,16 +55,20 @@ data class BrowserUiState(
     val pendingTrashIds: List<Long> = emptyList(),
     val message: String? = null,
 ) {
-    /** Items after applying the search query and the favourites filter. */
-    val items: List<MediaItem>
-        get() {
-            var result = MediaFilters.search(rawItems, query)
-            if (favouritesOnly) result = MediaFilters.favourites(result)
-            return result
-        }
-
     val selectionMode: Boolean get() = selection.isNotEmpty()
-    val selectedItems: List<MediaItem> get() = items.filter { it.mediaKey in selection }
+
+    /**
+     * The selected items themselves, recorded when they are picked.
+     *
+     * The grid is paged, so the items on screen are not the whole library and a
+     * selection can outlive the page it was made on. Keeping the objects with the
+     * keys is what lets share, delete, hide and "add to album" work on something the
+     * user selected earlier and then scrolled away from.
+     */
+    val selectionItems: Map<String, MediaItem> = emptyMap()
+
+    val selectedItems: List<MediaItem>
+        get() = selection.mapNotNull { selectionItems[it] }
 }
 
 /**
@@ -80,17 +89,46 @@ class MediaBrowserViewModel @Inject constructor(
     private val _state = MutableStateFlow(BrowserUiState())
     val uiState: StateFlow<BrowserUiState> = _state.asStateFlow()
 
+    /**
+     * The grid, paged.
+     *
+     * Rebuilt only when the shape of the query changes — the category, the sort, the
+     * search text or the favourites filter — and cached, so scrolling back up does
+     * not re-read the cursor.
+     */
+    val pagedItems: Flow<PagingData<MediaItem>> = _state
+        .map { PagingKey(it.type, it.enabledKinds, it.sortOrder, it.query, it.favouritesOnly) }
+        .distinctUntilChanged()
+        .flatMapLatest { key ->
+            repository.pagedMedia(
+                kinds = if (key.type == MediaType.ALL) key.kinds else setOf(key.type),
+                sort = key.sort,
+                query = key.query,
+                favouritesOnly = key.favouritesOnly,
+            )
+        }
+        .cachedIn(viewModelScope)
+
+    /**
+     * Favourite keys, so the grid can flag an item without reloading the pager.
+     * Toggling a favourite is frequent; rebuilding the pager for it would reset the
+     * scroll position every time.
+     */
+    val favouriteKeys: StateFlow<Set<String>> = repository.favouriteKeys
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
     /** User-created albums, for the "add to album" picker. */
     private val _customAlbums = MutableStateFlow<List<Album>>(emptyList())
     val customAlbums: StateFlow<List<Album>> = _customAlbums.asStateFlow()
-
-    private var collectionJob: Job? = null
 
     /** Layout defaults come from Settings once, so in-screen changes still win. */
     private var layoutDefaultsApplied = false
 
     init {
         refresh()
+        // The grid is paged and reports its own load state; the index cache still
+        // fills in the background for Home's counts and the album screens.
+        _state.update { it.copy(loading = false) }
         viewModelScope.launch {
             albumRepository.observeCustomAlbums().collect { _customAlbums.value = it }
         }
@@ -148,8 +186,24 @@ class MediaBrowserViewModel @Inject constructor(
      * Hands the exact list on screen to the viewer before opening an item, so the
      * swipe order matches the grid and no other kind leaks in.
      */
+    /**
+     * Hands the viewer the whole ordered list for the current query.
+     *
+     * It cannot come from the grid any more — the grid only holds the pages that have
+     * been scrolled to — so it is loaded when the viewer is opened. That is the trade
+     * paging makes: the grid stays small, and the full order is paid for only when
+     * something actually needs it.
+     */
     fun prepareViewerContext() {
-        viewerContext.set(_state.value.items)
+        val current = _state.value
+        viewModelScope.launch {
+            val all = repository.snapshot(
+                kinds = if (current.type == MediaType.ALL) current.enabledKinds else setOf(current.type),
+                sort = current.sortOrder,
+                query = current.query,
+            )
+            viewerContext.set(all)
+        }
     }
 
     fun configure(
@@ -162,7 +216,6 @@ class MediaBrowserViewModel @Inject constructor(
                 favouritesOnly = favouritesOnly ?: it.favouritesOnly,
             )
         }
-        restartCollection()
     }
 
     fun refresh() {
@@ -178,7 +231,6 @@ class MediaBrowserViewModel @Inject constructor(
                 }
             }
         }
-        restartCollection()
     }
 
     /**
@@ -189,22 +241,7 @@ class MediaBrowserViewModel @Inject constructor(
         viewModelScope.launch { runCatchingCancellable { repository.refresh() } }
     }
 
-    private fun restartCollection() {
-        collectionJob?.cancel()
-        collectionJob = viewModelScope.launch {
-            repository.observeMedia(
-                type = _state.value.type,
-                sortOrder = _state.value.sortOrder,
-            ).collect { items ->
-                _state.update { it.copy(rawItems = items, loading = false) }
-            }
-        }
-    }
-
-    fun setSort(order: SortOrder) {
-        _state.update { it.copy(sortOrder = order) }
-        restartCollection()
-    }
+    fun setSort(order: SortOrder) = _state.update { it.copy(sortOrder = order) }
 
     fun setQuery(query: String) = _state.update { it.copy(query = query) }
 
@@ -214,8 +251,14 @@ class MediaBrowserViewModel @Inject constructor(
 
     fun toggleSelection(item: MediaItem) = _state.update { current ->
         val selection = current.selection.toMutableSet()
-        if (!selection.add(item.mediaKey)) selection.remove(item.mediaKey)
-        current.copy(selection = selection)
+        val recorded = current.selectionItems.toMutableMap()
+        if (selection.add(item.mediaKey)) {
+            recorded[item.mediaKey] = item
+        } else {
+            selection.remove(item.mediaKey)
+            recorded.remove(item.mediaKey)
+        }
+        current.copy(selection = selection, selectionItems = recorded)
     }
 
     /**
@@ -231,9 +274,23 @@ class MediaBrowserViewModel @Inject constructor(
         }
     }
 
-    fun clearSelection() = _state.update { it.copy(selection = emptySet()) }
+    fun clearSelection() = _state.update {
+        it.copy(selection = emptySet(), selectionItems = emptyMap())
+    }
 
-    fun selectAll() = _state.update { it.copy(selection = it.items.map { m -> m.mediaKey }.toSet()) }
+    /**
+     * Selects everything the grid has loaded.
+     *
+     * With paging there is no "everything" to select without reading the whole
+     * library, so the control is named for what it does: it selects the items that
+     * are on screen.
+     */
+    fun selectAll(loaded: List<MediaItem>) = _state.update { current ->
+        current.copy(
+            selection = loaded.mapTo(mutableSetOf()) { it.mediaKey },
+            selectionItems = loaded.associateBy { it.mediaKey },
+        )
+    }
 
     fun shareSelected() {
         val items = _state.value.selectedItems
@@ -328,3 +385,12 @@ class MediaBrowserViewModel @Inject constructor(
 
     fun consumeMessage() = _state.update { it.copy(message = null) }
 }
+
+/** The shape of the query the pager is built for. */
+private data class PagingKey(
+    val type: MediaType,
+    val kinds: Set<MediaType>,
+    val sort: SortOrder,
+    val query: String,
+    val favouritesOnly: Boolean,
+)
