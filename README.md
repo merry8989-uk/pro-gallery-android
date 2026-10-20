@@ -78,6 +78,25 @@ rooted (a read-only `su` check) but does not read raw storage — that bypasses
 Android's security model and cannot honestly promise recovery of TRIMmed or
 encrypted data.
 
+## Recovery
+
+The **Recovery** screen runs a Quick Scan and shows what the app can actually
+reach, with the source on every result:
+
+| Source | What it means |
+| --- | --- |
+| Recently Deleted | Bytes this app is holding — genuinely recoverable. |
+| Granted folder | Found by walking a folder you allowed; the system's index does not list it. |
+| System index | Already indexed by Android. Shown as indexed, **not** as a deleted file. |
+| Thumbnail / cache | A preview artefact — never the original (Phase 2B). |
+
+Each result shows its **confidence** (High only when the bytes identified the
+file), the **evidence** for that confidence, and its **status** (Available /
+Preview only / Exported / Failed). Export writes through the Storage Access
+Framework, verifies the copy against the source size before reporting success,
+never overwrites, and cleans up a partial file on failure. Every attempt is
+recorded in the export history.
+
 ## Android folder access — what is actually possible
 
 There is a **Android folders** screen for the restricted `Android/` tree. It is

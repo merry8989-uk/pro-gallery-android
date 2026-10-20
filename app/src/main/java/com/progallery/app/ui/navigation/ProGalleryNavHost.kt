@@ -16,6 +16,7 @@ import com.progallery.app.ui.screens.documents.DocumentsScreen
 import com.progallery.app.ui.screens.editor.audio.AudioEditorScreen
 import com.progallery.app.ui.screens.pdf.PdfViewerScreen
 import com.progallery.app.ui.screens.androidfolders.AndroidFoldersScreen
+import com.progallery.app.ui.screens.recovery.RecoveryScreen
 import com.progallery.app.ui.screens.settings.SettingsScreen
 import com.progallery.app.ui.screens.files.AllFilesScreen
 import com.progallery.app.ui.screens.deepscan.DeepScanScreen
@@ -142,6 +143,9 @@ fun ProGalleryNavHost(
         }
         composable(Routes.DEEP_SCAN) {
             DeepScanScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.RECOVERY) {
+            RecoveryScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.ANDROID_FOLDERS) {
             AndroidFoldersScreen(

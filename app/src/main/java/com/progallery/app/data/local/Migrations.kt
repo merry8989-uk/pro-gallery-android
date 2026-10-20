@@ -72,3 +72,28 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         )
     }
 }
+
+/**
+ * Adds the recovery/export history table.
+ *
+ * Purely additive: no existing table is touched, so favourites, albums, hidden
+ * items and the trash survive the upgrade untouched.
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `recovery_history` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `displayName` TEXT NOT NULL,
+                `sourceLabel` TEXT NOT NULL,
+                `destinationLabel` TEXT NOT NULL,
+                `outcome` TEXT NOT NULL,
+                `detail` TEXT,
+                `sizeBytes` INTEGER NOT NULL,
+                `exportedAt` INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+    }
+}

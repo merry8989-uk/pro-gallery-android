@@ -132,3 +132,26 @@ interface ScanDirectoryDao {
     @Query("UPDATE scan_directories SET lastScannedAt = :timestamp WHERE treeUri = :treeUri")
     suspend fun markScanned(treeUri: String, timestamp: Long)
 }
+
+/**
+ * Export history. Rows can be cleared and old ones purged without ever touching
+ * the recovered files themselves.
+ */
+@Dao
+interface RecoveryHistoryDao {
+
+    @Query("SELECT * FROM recovery_history ORDER BY exportedAt DESC")
+    fun observeAll(): Flow<List<RecoveryHistoryEntity>>
+
+    @Query("SELECT * FROM recovery_history ORDER BY exportedAt DESC LIMIT :limit")
+    suspend fun recent(limit: Int): List<RecoveryHistoryEntity>
+
+    @Insert
+    suspend fun add(entity: RecoveryHistoryEntity): Long
+
+    @Query("DELETE FROM recovery_history WHERE exportedAt < :cutoff")
+    suspend fun purgeOlderThan(cutoff: Long): Int
+
+    @Query("DELETE FROM recovery_history")
+    suspend fun clear()
+}
