@@ -21,12 +21,14 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.progallery.app.data.settings.SettingsDependencies
+import com.progallery.app.data.diagnostics.DiagnosticLog
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val thumbnailCache: ThumbnailCacheManager,
+    private val diagnosticLog: DiagnosticLog,
 ) : ViewModel() {
 
     private val _cacheSizeBytes = MutableStateFlow(0L)
@@ -59,6 +61,36 @@ class SettingsViewModel @Inject constructor(
 
     fun consumeSettingsMessage() {
         _settingsMessage.value = null
+    }
+
+    /** Writes the diagnostics log to the file the user chose. */
+    fun saveDiagnosticsTo(uri: Uri) {
+        viewModelScope.launch {
+            val enabled = diagnosticLog.isEnabled()
+            val outcome = withContext(Dispatchers.IO) {
+                runCatching {
+                    if (!enabled) {
+                        error("Diagnostics are switched off, so there is nothing to save.")
+                    }
+                    val text = diagnosticLog.read()
+                    val out = context.contentResolver.openOutputStream(uri)
+                        ?: error("the chosen file could not be opened")
+                    out.use { it.write(text.toByteArray()) }
+                }
+            }
+            _settingsMessage.value = outcome.fold(
+                onSuccess = { "Diagnostics saved" },
+                onFailure = { "Could not save diagnostics: ${it.message ?: "unknown reason"}" },
+            )
+        }
+    }
+
+    /** Empties the diagnostics log. */
+    fun clearDiagnostics() {
+        viewModelScope.launch {
+            diagnosticLog.clear()
+            _settingsMessage.value = "Diagnostics cleared"
+        }
     }
 
     /** Restores one section to its defaults, leaving every other section alone. */

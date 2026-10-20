@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.data.settings.SettingsRepository
+import com.progallery.app.data.diagnostics.DiagnosticLog
 
 /**
  * Holds the results of the last scan so a preview screen can resolve a result by
@@ -17,6 +19,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class RecoveryRepository @Inject constructor(
+    private val settingsRepository: SettingsRepository,
+    private val diagnosticLog: DiagnosticLog,
     private val scanner: RecoveryScanner,
     private val historyDao: RecoveryHistoryDao,
 ) {
@@ -50,6 +54,20 @@ class RecoveryRepository @Inject constructor(
         destinationLabel: String,
         outcome: RecoveryExportOutcome,
     ) = withContext(Dispatchers.IO) {
+        // The history exists only if the user asked for it; with the setting off nothing
+        // is written, so the record cannot outlive the choice.
+        // The log records the attempt either way; only the history is optional.
+        diagnosticLog.record(
+            event = when (outcome) {
+                is RecoveryExportOutcome.Success -> "Export succeeded"
+                is RecoveryExportOutcome.Skipped -> "Export skipped"
+                is RecoveryExportOutcome.Failed -> "Export failed"
+            },
+            path = result.item.displayName,
+        )
+
+        if (!settingsRepository.current().keepActivityHistory) return
+
         historyDao.add(
             RecoveryHistoryEntity(
                 displayName = result.item.displayName,

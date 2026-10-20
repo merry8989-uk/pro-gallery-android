@@ -133,7 +133,7 @@ class SettingsRepository @Inject constructor(
         val exportVerifyAfterCopy = booleanPreferencesKey("export_verify_after_copy")
         val exportDuplicatePolicy = stringPreferencesKey("export_duplicate_policy")
         val exportMaxConcurrentJobs = intPreferencesKey("export_max_jobs")
-        val keepScanHistory = booleanPreferencesKey("keep_scan_history")
+        val keepActivityHistory = booleanPreferencesKey("keep_activity_history")
         val saveDiagnosticLogs = booleanPreferencesKey("save_diagnostic_logs")
         val includePathsInLogs = booleanPreferencesKey("include_paths_in_logs")
         val autoClearLogsAfterDays = intPreferencesKey("auto_clear_logs_days")
@@ -190,7 +190,7 @@ class SettingsRepository @Inject constructor(
             exportVerifyAfterCopy = p[Keys.exportVerifyAfterCopy] ?: d.exportVerifyAfterCopy,
             exportDuplicatePolicy = enumOrDefault(p[Keys.exportDuplicatePolicy], ExportDuplicatePolicy.entries, d.exportDuplicatePolicy),
             exportMaxConcurrentJobs = p[Keys.exportMaxConcurrentJobs] ?: d.exportMaxConcurrentJobs,
-            keepScanHistory = p[Keys.keepScanHistory] ?: d.keepScanHistory,
+            keepActivityHistory = p[Keys.keepActivityHistory] ?: d.keepActivityHistory,
             saveDiagnosticLogs = p[Keys.saveDiagnosticLogs] ?: d.saveDiagnosticLogs,
             includePathsInLogs = p[Keys.includePathsInLogs] ?: d.includePathsInLogs,
             autoClearLogsAfterDays = p[Keys.autoClearLogsAfterDays] ?: d.autoClearLogsAfterDays,
@@ -242,7 +242,7 @@ class SettingsRepository @Inject constructor(
         p[Keys.exportVerifyAfterCopy] = s.exportVerifyAfterCopy
         p[Keys.exportDuplicatePolicy] = s.exportDuplicatePolicy.name
         p[Keys.exportMaxConcurrentJobs] = s.exportMaxConcurrentJobs
-        p[Keys.keepScanHistory] = s.keepScanHistory
+        p[Keys.keepActivityHistory] = s.keepActivityHistory
         p[Keys.saveDiagnosticLogs] = s.saveDiagnosticLogs
         p[Keys.includePathsInLogs] = s.includePathsInLogs
         p[Keys.autoClearLogsAfterDays] = s.autoClearLogsAfterDays

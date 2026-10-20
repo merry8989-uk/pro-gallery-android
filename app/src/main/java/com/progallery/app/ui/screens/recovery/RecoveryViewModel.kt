@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.progallery.app.data.diagnostics.DiagnosticLog
 
 data class RecoveryUiState(
     val scanState: RecoveryScanState = RecoveryScanState.Idle,
@@ -76,6 +77,7 @@ class RecoveryViewModel @Inject constructor(
     private val deepScanRepository: DeepScanRepository,
     private val mediaActions: MediaActions,
     settingsRepository: SettingsRepository,
+    private val diagnosticLog: DiagnosticLog,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RecoveryUiState())
@@ -193,6 +195,7 @@ class RecoveryViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(exporting = true) }
             val outcomes = exporter.exportAll(targets, destinationTree)
+            diagnosticLog.record("Export run", "${outcomes.size} item(s)")
             val succeeded = outcomes.count { it is RecoveryExportOutcome.Success }
             val skipped = outcomes.count { it is RecoveryExportOutcome.Skipped }
             val failed = outcomes.size - succeeded - skipped

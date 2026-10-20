@@ -155,6 +155,9 @@ fun SettingsScreen(
     val importPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let { viewModel.importFrom(it) } }
+    val diagnosticsPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain"),
+    ) { uri -> uri?.let { viewModel.saveDiagnosticsTo(it) } }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.refreshCacheSize() }
@@ -182,6 +185,8 @@ fun SettingsScreen(
         onResetSection = viewModel::resetSection,
         onExportSettings = { exportPicker.launch("progallery-settings.json") },
         onImportSettings = { importPicker.launch(arrayOf("application/json")) },
+        onSaveDiagnostics = { diagnosticsPicker.launch("progallery-diagnostics.txt") },
+        onClearDiagnostics = viewModel::clearDiagnostics,
         onOpenDefaultApps = { DefaultApps.openDefaultAppsSettings(context) },
     )
 
@@ -293,6 +298,8 @@ private fun buildRows(
     onResetSection: (String) -> Unit,
     onExportSettings: () -> Unit,
     onImportSettings: () -> Unit,
+    onSaveDiagnostics: () -> Unit,
+    onClearDiagnostics: () -> Unit,
     onOpenDefaultApps: () -> Unit,
 ): List<SettingsRow> = buildList {
     // ---- Scanning -----------------------------------------------------
@@ -811,12 +818,12 @@ private fun buildRows(
     )
     add(
         SettingsRow.Switch(
-            title = "Keep scan history",
-            subtitle = "Records recent scans locally so you can review what was looked at. " +
-                "Nothing leaves the device.",
+            title = "Keep a record of recovery and export activity",
+            subtitle = "Records recent recovery scans and exports locally, so the history screen " +
+                "has something to show. Nothing leaves the device.",
             section = "Diagnostics & experimental",
-            checked = settings.keepScanHistory,
-            onCheckedChange = { value -> update { it.copy(keepScanHistory = value) } },
+            checked = settings.keepActivityHistory,
+            onCheckedChange = { value -> update { it.copy(keepActivityHistory = value) } },
         ),
     )
     add(
@@ -837,6 +844,25 @@ private fun buildRows(
             advanced = true,
             checked = settings.includePathsInLogs,
             onCheckedChange = { value -> update { it.copy(includePathsInLogs = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Save diagnostics",
+            subtitle = "Writes the local log to a file you choose, so you can attach it when " +
+                "reporting a problem. It is written only if diagnostics are switched on.",
+            section = "Diagnostics & experimental",
+            label = "Save",
+            onClick = onSaveDiagnostics,
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Clear diagnostics",
+            subtitle = "Empties the local log now, without waiting for the automatic clear.",
+            section = "Diagnostics & experimental",
+            label = "Clear",
+            onClick = onClearDiagnostics,
         ),
     )
     add(

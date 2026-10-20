@@ -59,7 +59,7 @@ class SettingsExportTest {
         exportVerifyAfterCopy = false,
         exportDuplicatePolicy = ExportDuplicatePolicy.SKIP,
         exportMaxConcurrentJobs = 3,
-        keepScanHistory = true,
+        keepActivityHistory = true,
         saveDiagnosticLogs = true,
         includePathsInLogs = true,
         autoClearLogsAfterDays = 30,

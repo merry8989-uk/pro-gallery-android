@@ -155,7 +155,7 @@ data class AppSettings(
     val exportMaxConcurrentJobs: Int = 2,
 
     /** Keep a local record of recent scans so they can be reviewed. */
-    val keepScanHistory: Boolean = false,
+    val keepActivityHistory: Boolean = false,
 
     /** Write a local diagnostics log. Nothing is ever sent anywhere. */
     val saveDiagnosticLogs: Boolean = false,
@@ -339,7 +339,7 @@ data class AppSettings(
         )
         "Diagnostics & experimental" -> copy(
             showRootStatus = Defaults.showRootStatus,
-            keepScanHistory = Defaults.keepScanHistory,
+            keepActivityHistory = Defaults.keepActivityHistory,
             saveDiagnosticLogs = Defaults.saveDiagnosticLogs,
             includePathsInLogs = Defaults.includePathsInLogs,
             autoClearLogsAfterDays = Defaults.autoClearLogsAfterDays,
