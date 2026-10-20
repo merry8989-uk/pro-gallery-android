@@ -249,33 +249,38 @@ class MediaBrowserViewModel @Inject constructor(
         val items = _state.value.selectedItems
         if (items.isEmpty()) return
         viewModelScope.launch {
-            val trashed = trashRepository.moveToTrash(items)
-            if (trashed.isEmpty()) {
+            val outcome = trashRepository.moveToTrash(items)
+            if (outcome.succeeded.isEmpty()) {
                 _state.update {
-                    it.copy(message = "Could not move to Recently Deleted — nothing was deleted")
+                    it.copy(
+                        message = "Could not copy to Recently Deleted, so nothing was deleted. " +
+                            outcome.explain(),
+                    )
                 }
                 return@launch
             }
-            if (trashed.size < items.size) {
+            if (outcome.failedCount > 0) {
                 _state.update {
-                    it.copy(message = "Moved ${trashed.size} of ${items.size} to Recently Deleted")
+                    it.copy(
+                        message = "Copied ${outcome.succeeded.size} of ${items.size}. " + outcome.explain(),
+                    )
                 }
             }
 
-            val toDelete = trashed.map { it.item }
+            val toDelete = outcome.succeeded.map { it.item }
             val request = mediaActions.deleteRequest(toDelete)
             if (request != null) {
                 _state.update {
-                    it.copy(pendingDelete = request, pendingTrashIds = trashed.map { it.trashId })
+                    it.copy(pendingDelete = request, pendingTrashIds = outcome.succeeded.map { it.trashId })
                 }
             } else {
                 val ok = mediaActions.deleteDirect(toDelete)
                 if (ok) {
                     _state.update {
-                        it.copy(message = "Moved ${trashed.size} item(s) to Recently Deleted")
+                        it.copy(message = "Moved ${outcome.succeeded.size} item(s) to Recently Deleted")
                     }
                 } else {
-                    trashRepository.discard(trashed.map { it.trashId })
+                    trashRepository.discard(outcome.succeeded.map { it.trashId })
                     _state.update { it.copy(message = "Could not delete — nothing was changed") }
                 }
                 refresh()

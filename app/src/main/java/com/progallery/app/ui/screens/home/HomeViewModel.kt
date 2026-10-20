@@ -31,6 +31,11 @@ data class HomeUiState(
     val loading: Boolean = true,
     /** Offered once, on first launch. */
     val showDefaultGalleryPrompt: Boolean = false,
+    /**
+     * Categories the user has left switched on. Home hides the entry point for
+     * anything switched off, so it never offers a folder that must be empty.
+     */
+    val enabledKinds: Set<MediaType> = MediaType.entries.toSet(),
 )
 
 @HiltViewModel
@@ -69,7 +74,12 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             settingsRepository.settings.collect { settings ->
-                _state.update { it.copy(showDefaultGalleryPrompt = !settings.hasSeenDefaultGalleryPrompt) }
+                _state.update {
+                    it.copy(
+                        showDefaultGalleryPrompt = !settings.hasSeenDefaultGalleryPrompt,
+                        enabledKinds = settings.enabledKinds,
+                    )
+                }
             }
         }
         viewModelScope.launch {
