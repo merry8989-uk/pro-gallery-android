@@ -32,6 +32,18 @@ import com.progallery.app.util.runCatchingCancellable
 /** A media item that has been copied into the trash, and its trash row id. */
 data class TrashedMedia(val trashId: Long, val item: MediaItem)
 
+/** What happened when items were moved to the trash, including *why* any failed. */
+data class TrashOutcome(
+    val succeeded: List<TrashedMedia> = emptyList(),
+    val failures: List<String> = emptyList(),
+) {
+    val failedCount: Int get() = failures.size
+
+    /** A one-line explanation for the UI. */
+    fun explain(): String =
+        if (failures.isEmpty()) "" else failures.take(2).joinToString("; ")
+}
+
 @Singleton
 class TrashRepository @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -49,27 +61,47 @@ class TrashRepository @Inject constructor(
      * that were successfully stored, so the caller only ever deletes originals
      * whose bytes are safely copied.
      */
-    suspend fun moveToTrash(items: List<MediaItem>): List<TrashedMedia> = withContext(Dispatchers.IO) {
+    suspend fun moveToTrash(items: List<MediaItem>): TrashOutcome = withContext(Dispatchers.IO) {
         val recorded = ArrayList<TrashedMedia>()
+        val failures = ArrayList<String>()
+
         for (item in items) {
-            val destination = File(trashDir, "${System.currentTimeMillis()}_${item.displayName}")
-            val copied = FileUtils.copyToFile(context, item.uri, destination) ?: continue
-            val id = trashDao.insert(
-                TrashEntity(
-                    originalUri = item.uri.toString(),
-                    trashUri = Uri.fromFile(copied).toString(),
-                    displayName = item.displayName,
-                    mimeType = item.mimeType,
-                    isVideo = item.isVideo,
-                    mediaType = item.mediaType.name,
-                    sizeBytes = copied.length(),
-                    originalBucketId = item.bucketId,
-                    originalRelativePath = item.relativePath,
-                ),
+            // A display name can contain a path separator or be very long, which
+            // would make the destination file invalid.
+            val safeName = item.displayName
+                .replace('/', '_')
+                .replace('\\', '_')
+                .take(96)
+                .ifBlank { "item" }
+
+            val destination = File(trashDir, "${System.currentTimeMillis()}_$safeName")
+
+            FileUtils.copyToFileReporting(context, item.uri, destination).fold(
+                onSuccess = { copied ->
+                    val id = trashDao.insert(
+                        TrashEntity(
+                            originalUri = item.uri.toString(),
+                            trashUri = Uri.fromFile(copied).toString(),
+                            displayName = item.displayName,
+                            mimeType = item.mimeType,
+                            isVideo = item.isVideo,
+                            mediaType = item.mediaType.name,
+                            sizeBytes = copied.length(),
+                            originalBucketId = item.bucketId,
+                            originalRelativePath = item.relativePath,
+                        ),
+                    )
+                    recorded += TrashedMedia(trashId = id, item = item)
+                },
+                onFailure = { error ->
+                    // Keep the reason: "nothing was deleted" on its own tells the
+                    // user nothing about what to do next.
+                    failures += "${item.displayName}: ${error.message ?: error::class.java.simpleName}"
+                },
             )
-            recorded += TrashedMedia(trashId = id, item = item)
         }
-        recorded
+
+        TrashOutcome(succeeded = recorded, failures = failures)
     }
 
     /**

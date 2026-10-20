@@ -27,6 +27,7 @@ import com.progallery.app.ui.screens.photos.PhotosScreen
 import com.progallery.app.ui.screens.player.VideoPlayerScreen
 import com.progallery.app.ui.screens.search.SearchScreen
 import com.progallery.app.ui.screens.trash.TrashScreen
+import com.progallery.app.data.model.MediaType
 import com.progallery.app.ui.screens.viewer.ViewerScreen
 import com.progallery.app.ui.screens.videos.VideosScreen
 
@@ -167,6 +168,9 @@ fun ProGalleryNavHost(
         ) { entry ->
             ViewerScreen(
                 uri = entry.arguments?.getString("uri") ?: "",
+                type = entry.arguments?.getString("type")
+                    ?.let { name -> MediaType.entries.firstOrNull { it.name == name } }
+                    ?: MediaType.IMAGE,
                 onBack = { navController.popBackStack() },
                 onEdit = { targetUri, isVideo ->
                     navController.navigate(

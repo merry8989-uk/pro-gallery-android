@@ -71,6 +71,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.progallery.app.data.model.MediaItem
+import com.progallery.app.data.model.MediaType
 import com.progallery.app.ui.components.FileActionBar
 import com.progallery.app.ui.components.FileActionSpec
 import com.progallery.app.ui.components.FileInfoDialog
@@ -91,6 +92,7 @@ import com.progallery.app.util.MediaFormatUtils
 @Composable
 fun ViewerScreen(
     uri: String,
+    type: MediaType = MediaType.IMAGE,
     onBack: () -> Unit,
     onEdit: (uri: String, isVideo: Boolean) -> Unit,
     onPlayVideo: (uri: String) -> Unit,
@@ -107,6 +109,9 @@ fun ViewerScreen(
     // Start at page 0 and jump to the tapped item once the library has loaded.
     // (An initialPage computed here would always be 0, because the media list is
     // still empty on the first composition.)
+    // Load only the tapped item's own kind, so photos never slide into videos.
+    LaunchedEffect(decodedUri, type) { viewModel.configure(decodedUri, type) }
+
     val pagerState = rememberPagerState(pageCount = { items.size.coerceAtLeast(1) })
     var didJump by remember { mutableStateOf(false) }
     LaunchedEffect(items) {

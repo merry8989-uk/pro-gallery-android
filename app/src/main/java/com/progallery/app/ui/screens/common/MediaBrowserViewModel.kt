@@ -10,6 +10,7 @@ import com.progallery.app.data.model.SortOrder
 import com.progallery.app.data.model.ViewMode
 import com.progallery.app.data.repository.AlbumRepository
 import com.progallery.app.data.repository.MediaRepository
+import com.progallery.app.data.repository.ViewerContext
 import com.progallery.app.data.settings.LayoutMode
 import com.progallery.app.data.settings.SettingsRepository
 import com.progallery.app.data.repository.TrashRepository
@@ -68,6 +69,7 @@ class MediaBrowserViewModel @Inject constructor(
     private val repository: MediaRepository,
     private val settingsRepository: SettingsRepository,
     private val albumRepository: AlbumRepository,
+    private val viewerContext: ViewerContext,
     private val trashRepository: TrashRepository,
     private val mediaActions: MediaActions,
 ) : ViewModel() {
@@ -137,6 +139,14 @@ class MediaBrowserViewModel @Inject constructor(
             _state.update { it.copy(message = "Created \"$name\" with $added item(s)") }
         }
         clearSelection()
+    }
+
+    /**
+     * Hands the exact list on screen to the viewer before opening an item, so the
+     * swipe order matches the grid and no other kind leaks in.
+     */
+    fun prepareViewerContext() {
+        viewerContext.set(_state.value.items)
     }
 
     fun configure(
@@ -249,33 +259,38 @@ class MediaBrowserViewModel @Inject constructor(
         val items = _state.value.selectedItems
         if (items.isEmpty()) return
         viewModelScope.launch {
-            val trashed = trashRepository.moveToTrash(items)
-            if (trashed.isEmpty()) {
+            val outcome = trashRepository.moveToTrash(items)
+            if (outcome.succeeded.isEmpty()) {
                 _state.update {
-                    it.copy(message = "Could not move to Recently Deleted — nothing was deleted")
+                    it.copy(
+                        message = "Could not copy to Recently Deleted, so nothing was deleted. " +
+                            outcome.explain(),
+                    )
                 }
                 return@launch
             }
-            if (trashed.size < items.size) {
+            if (outcome.failedCount > 0) {
                 _state.update {
-                    it.copy(message = "Moved ${trashed.size} of ${items.size} to Recently Deleted")
+                    it.copy(
+                        message = "Copied ${outcome.succeeded.size} of ${items.size}. " + outcome.explain(),
+                    )
                 }
             }
 
-            val toDelete = trashed.map { it.item }
+            val toDelete = outcome.succeeded.map { it.item }
             val request = mediaActions.deleteRequest(toDelete)
             if (request != null) {
                 _state.update {
-                    it.copy(pendingDelete = request, pendingTrashIds = trashed.map { it.trashId })
+                    it.copy(pendingDelete = request, pendingTrashIds = outcome.succeeded.map { it.trashId })
                 }
             } else {
                 val ok = mediaActions.deleteDirect(toDelete)
                 if (ok) {
                     _state.update {
-                        it.copy(message = "Moved ${trashed.size} item(s) to Recently Deleted")
+                        it.copy(message = "Moved ${outcome.succeeded.size} item(s) to Recently Deleted")
                     }
                 } else {
-                    trashRepository.discard(trashed.map { it.trashId })
+                    trashRepository.discard(outcome.succeeded.map { it.trashId })
                     _state.update { it.copy(message = "Could not delete — nothing was changed") }
                 }
                 refresh()

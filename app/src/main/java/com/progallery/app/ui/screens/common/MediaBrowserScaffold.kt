@@ -215,7 +215,12 @@ fun MediaBrowserScaffold(
                             // Images and videos preview, audio plays in the
                             // in-app player; documents/archives/unknown types
                             // are handed to the system.
-                            item.isPreviewable || item.isAudio || item.isPdf -> onOpenItem(item)
+                            item.isPreviewable || item.isAudio || item.isPdf -> {
+                                // Tell the viewer what is on screen, so swiping
+                                // matches the grid instead of the whole library.
+                                if (item.isPreviewable) viewModel.prepareViewerContext()
+                                onOpenItem(item)
+                            }
                             else -> viewModel.openWith(item)
                         }
                     },
