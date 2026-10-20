@@ -116,6 +116,15 @@ fun DeepScanScreen(
                             Text("Files examined: ${scan.summary.filesExamined}")
                             Text("Media found: ${scan.summary.mediaFound}")
                             Text("Duplicates: ${scan.summary.duplicatesFound}")
+                            if (scan.summary.signatureIdentified > 0) {
+                                Text("Identified by file signature: ${scan.summary.signatureIdentified}")
+                            }
+                            if (scan.summary.truncated) {
+                                Text(
+                                    "Stopped at the configured result limit — raise it in Settings → Scan limits.",
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
                             if (scan.summary.errors.isNotEmpty()) {
                                 Text("Issues (${scan.summary.errors.size})", style = MaterialTheme.typography.titleSmall)
                                 scan.summary.errors.take(10).forEach {

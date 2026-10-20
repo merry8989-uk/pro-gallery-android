@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.progallery.app.data.deepscan.DeepScanRepository
 import com.progallery.app.data.deepscan.ScanState
 import com.progallery.app.data.local.entity.ScanDirectoryEntity
+import com.progallery.app.data.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -27,6 +28,7 @@ data class DeepScanUiState(
 class DeepScanViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: DeepScanRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DeepScanUiState())
@@ -44,7 +46,18 @@ class DeepScanViewModel @Inject constructor(
 
     fun addDirectory(treeUri: Uri) {
         val name = DocumentFile.fromTreeUri(context, treeUri)?.name ?: treeUri.lastPathSegment ?: "Folder"
-        viewModelScope.launch { repository.addAuthorisedDirectory(treeUri, name) }
+        viewModelScope.launch {
+            val persisted = repository.addAuthorisedDirectory(treeUri, name)
+            if (!persisted) {
+                _state.update {
+                    it.copy(
+                        scanState = ScanState.Failed(
+                            "Android did not keep access to \"$name\". Please pick the folder again.",
+                        ),
+                    )
+                }
+            }
+        }
     }
 
     fun removeDirectory(treeUri: String) {
@@ -54,8 +67,27 @@ class DeepScanViewModel @Inject constructor(
     fun startScan() {
         if (scanJob?.isActive == true) return
         scanJob = viewModelScope.launch {
-            repository.scanAll(findDuplicates = true).collect { scanState ->
-                _state.update { it.copy(scanState = scanState) }
+            // Explain rather than silently doing nothing when the user has
+            // disabled the feature that this screen drives.
+            val settings = settingsRepository.current()
+            when {
+                !settings.deepScanEnabled && !settings.safScanEnabled ->
+                    _state.update {
+                        it.copy(scanState = ScanState.Failed("Deep scan is turned off in Settings."))
+                    }
+
+                !settings.anyCategoryEnabled ->
+                    _state.update {
+                        it.copy(
+                            scanState = ScanState.Failed(
+                                "Every file category is disabled in Settings, so there is nothing to look for.",
+                            ),
+                        )
+                    }
+
+                else -> repository.scanAll().collect { scanState ->
+                    _state.update { it.copy(scanState = scanState) }
+                }
             }
         }
     }

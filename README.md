@@ -39,6 +39,40 @@ A native Android gallery: a fast, Material 3 photo and video browser with **deep
 
 ---
 
+## Settings
+
+Open Settings from the home screen's top bar.
+
+- **Basic** shows the options most people want: which scan methods run, which file
+  types to include, thumbnails, appearance, and a shortcut to set the app as the
+  default gallery.
+- **Advanced mode** (a switch at the top) reveals detection options, scan limits,
+  performance controls and diagnostics.
+
+Every switch changes real behaviour — there are no decorative toggles. A few
+examples: turning **Videos** off stops video discovery *and* video thumbnail
+generation; turning **Thumbnails** off shows file-type icons instead of blank
+tiles; turning **Duplicate detection** off skips the hashing pass entirely;
+turning **Deep scan** off makes the scan screen explain why it cannot start. The
+live summary at the top of Settings states exactly what a scan would look at, and
+warns when the current combination would scan nothing.
+
+Settings are stored with DataStore, survive restarts, and every numeric value is
+clamped to a safe range so a bad value can never hang the scanner.
+
+**Root recovery is not implemented.** The app can report whether a device looks
+rooted (a read-only `su` check) but does not read raw storage — that bypasses
+Android's security model and cannot honestly promise recovery of TRIMmed or
+encrypted data.
+
+## Default gallery
+
+On first launch the app offers to become your default gallery. Android only lets
+the *user* choose a default, so the app declares itself as a candidate
+(`APP_GALLERY`, plus viewer filters for images, videos and audio) and the prompt
+opens the system screen where you make the choice. You can revisit it from
+Settings → Default app.
+
 ## Supported file types
 
 The scanner indexes every kind of file it can reach, not just photos and videos.

@@ -10,6 +10,8 @@ import com.progallery.app.data.model.Album
 import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.SortOrder
+import com.progallery.app.data.settings.AppSettings
+import com.progallery.app.data.settings.SettingsRepository
 import com.progallery.app.domain.SortComparators
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -36,13 +38,27 @@ class MediaRepository @Inject constructor(
     private val mediaStore: MediaStoreDataSource,
     private val favouriteDao: FavouriteDao,
     private val hiddenDao: HiddenDao,
+    private val settingsRepository: SettingsRepository,
 ) {
+
+    /** Live settings, so the UI can react to toggles. */
+    val settings: Flow<AppSettings> = settingsRepository.settings
 
     private val cache = MutableStateFlow<List<MediaItem>>(emptyList())
 
-    /** Reloads the MediaStore index into the in-memory cache. */
+    /**
+     * Reloads the MediaStore index into the in-memory cache.
+     *
+     * Respects the settings: if Quick scan is off, or every file category is
+     * off, the index is emptied instead of quietly loading anyway.
+     */
     suspend fun refresh(): Int {
-        val items = mediaStore.loadMedia(MediaType.ALL)
+        val current = settingsRepository.current()
+        if (!current.quickScanEnabled || !current.anyCategoryEnabled) {
+            cache.value = emptyList()
+            return 0
+        }
+        val items = mediaStore.loadMedia(current.enabledKinds)
         cache.value = items
         return items.size
     }
@@ -59,10 +75,14 @@ class MediaRepository @Inject constructor(
         cache,
         favouriteDao.observeAll(),
         hiddenDao.observeKeys(),
-    ) { items, favourites, hiddenKeys ->
+        settingsRepository.settings,
+    ) { items, favourites, hiddenKeys, settings ->
         val favouriteKeys = favourites.mapTo(HashSet()) { it.mediaKey }
         val hiddenSet = hiddenKeys.toHashSet()
+        val enabledKinds = settings.enabledKinds
         val decorated = items.asSequence()
+            // A disabled category disappears from every list, not just its own tab.
+            .filter { it.mediaType in enabledKinds }
             .filter { type == MediaType.ALL || it.mediaType == type }
             .filter { includeHidden || it.mediaKey !in hiddenSet }
             .map { it.copy(isFavourite = it.mediaKey in favouriteKeys) }
