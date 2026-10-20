@@ -61,12 +61,7 @@ class VideoTrimmer @Inject constructor(
 
         val mediaItem = MediaItem.Builder()
             .setUri(source)
-            .setClippingConfiguration(
-                MediaItem.ClippingConfiguration.Builder()
-                    .setStartPositionMs(edit.trimStartMs)
-                    .setEndPositionMs(if (edit.trimEndMs > 0) edit.trimEndMs else MediaItem.ClippingConfiguration.TIME_END_OF_SOURCE)
-                    .build(),
-            )
+            .setClippingConfiguration(buildClipping(edit))
             .build()
 
         val editedMediaItem = EditedMediaItem.Builder(mediaItem)
@@ -114,6 +109,14 @@ class VideoTrimmer @Inject constructor(
             transformer.cancel()
         }
     }.flowOn(Dispatchers.Default)
+
+    /** Clips to the trimmed range; leaves the end open when it is not set. */
+    private fun buildClipping(edit: VideoEditState): MediaItem.ClippingConfiguration {
+        val builder = MediaItem.ClippingConfiguration.Builder()
+            .setStartPositionMs(edit.trimStartMs)
+        if (edit.trimEndMs > 0) builder.setEndPositionMs(edit.trimEndMs)
+        return builder.build()
+    }
 
     private fun buildEffects(edit: VideoEditState): Effects {
         val effects = ArrayList<androidx.media3.common.Effect>()

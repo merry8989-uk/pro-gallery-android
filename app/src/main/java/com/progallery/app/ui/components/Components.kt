@@ -1,5 +1,6 @@
 package com.progallery.app.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,6 +57,7 @@ import com.progallery.app.data.model.ViewMode
 import com.progallery.app.util.MediaFormatUtils
 
 /** A single grid/list thumbnail with selection and video affordances. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MediaThumbnail(
     item: MediaItem,
@@ -182,6 +185,7 @@ fun MediaCollection(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MediaListRow(
     item: MediaItem,
@@ -247,6 +251,7 @@ fun SelectionToolbar(
     onShare: () -> Unit,
     onFavourite: () -> Unit,
     onEdit: () -> Unit,
+    onAddToAlbum: () -> Unit,
     onDelete: () -> Unit,
     onHide: () -> Unit,
 ) {
@@ -275,6 +280,9 @@ fun SelectionToolbar(
                     imageVector = if (allFavourite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     contentDescription = "Favourite",
                 )
+            }
+            IconButton(onClick = onAddToAlbum) {
+                Icon(Icons.Filled.PlaylistAdd, contentDescription = "Add to album")
             }
             IconButton(onClick = onHide) {
                 Icon(Icons.Filled.VisibilityOff, contentDescription = "Hide")
