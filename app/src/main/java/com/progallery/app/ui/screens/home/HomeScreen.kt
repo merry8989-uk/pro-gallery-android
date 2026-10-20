@@ -35,6 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -170,6 +171,13 @@ fun HomeScreen(
                         }
                     }
 
+                    DashboardTile(
+                        icon = Icons.Filled.Restore,
+                        title = "Recovery",
+                        subtitle = "Quick Scan: what the app can actually reach, and from where",
+                        onClick = { onOpen(Routes.RECOVERY) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     DashboardTile(
                         icon = Icons.Filled.Android,
                         title = "Android folders",

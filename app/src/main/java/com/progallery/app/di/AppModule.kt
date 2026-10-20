@@ -4,11 +4,13 @@ import android.content.Context
 import androidx.room.Room
 import com.progallery.app.data.local.MIGRATION_1_2
 import com.progallery.app.data.local.MIGRATION_2_3
+import com.progallery.app.data.local.MIGRATION_3_4
 import com.progallery.app.data.local.ProGalleryDatabase
 import com.progallery.app.data.local.dao.AlbumCoverDao
 import com.progallery.app.data.local.dao.CustomAlbumDao
 import com.progallery.app.data.local.dao.FavouriteDao
 import com.progallery.app.data.local.dao.HiddenDao
+import com.progallery.app.data.local.dao.RecoveryHistoryDao
 import com.progallery.app.data.local.dao.ScanDirectoryDao
 import com.progallery.app.data.local.dao.TrashDao
 import dagger.Module
@@ -28,7 +30,7 @@ object AppModule {
         Room.databaseBuilder(context, ProGalleryDatabase::class.java, "progallery.db")
             // Explicit migration: re-keys media references by URI and keeps
             // existing favourites, hidden items and album membership.
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
 
     @Provides fun provideFavouriteDao(db: ProGalleryDatabase): FavouriteDao = db.favouriteDao()
@@ -37,4 +39,7 @@ object AppModule {
     @Provides fun provideTrashDao(db: ProGalleryDatabase): TrashDao = db.trashDao()
     @Provides fun provideHiddenDao(db: ProGalleryDatabase): HiddenDao = db.hiddenDao()
     @Provides fun provideScanDirectoryDao(db: ProGalleryDatabase): ScanDirectoryDao = db.scanDirectoryDao()
+
+    @Provides fun provideRecoveryHistoryDao(db: ProGalleryDatabase): RecoveryHistoryDao =
+        db.recoveryHistoryDao()
 }

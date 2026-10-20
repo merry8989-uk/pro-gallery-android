@@ -20,6 +20,7 @@ import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
+import com.progallery.app.edit.video.ResolutionPreset
 import com.progallery.app.edit.video.VideoEditState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -167,7 +168,7 @@ class MediaTrimmer @Inject constructor(
                 .setRotationDegrees(edit.rotationDegrees.toFloat())
                 .build()
         }
-        if (edit.resolution != com.progallery.app.edit.video.ResolutionPreset.ORIGINAL) {
+        if (edit.resolution != ResolutionPreset.ORIGINAL) {
             effects += Presentation.createForHeight(edit.resolution.targetHeight)
         }
         return Effects(emptyList(), effects)

@@ -88,3 +88,25 @@ data class ScanDirectoryEntity(
     val addedAt: Long = System.currentTimeMillis(),
     val lastScannedAt: Long? = null,
 )
+
+/**
+ * One export attempt, kept so the user can see what was recovered and where it
+ * went.
+ *
+ * Only a human-readable destination label is stored — never the Storage Access
+ * Framework tree URI, which carries a grant that must not be written to the
+ * database.
+ */
+@Entity(tableName = "recovery_history")
+data class RecoveryHistoryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val displayName: String,
+    val sourceLabel: String,
+    val destinationLabel: String,
+    /** "Exported" or "Failed". */
+    val outcome: String,
+    /** The failure reason, when there was one. */
+    val detail: String? = null,
+    val sizeBytes: Long = 0,
+    val exportedAt: Long = System.currentTimeMillis(),
+)

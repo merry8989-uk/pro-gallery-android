@@ -27,6 +27,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.6.0]
+Phase 2A: the recovery engine. Real discovery, real previews, and a safe export.
+
+### Added
+- **Recovery screen (Quick Scan).** Finds everything this app can actually reach and says where each piece came from:
+  1. media the system's index lists,
+  2. files this app is holding in **Recently Deleted**,
+  3. files inside folders you granted that the index does **not** list.
+  An indexed file is never called a deleted file — every result carries its source, and a scan summary states exactly how many were indexed, held, or unindexed, plus how many were skipped because the index already lists them.
+- **`RecoveryThumbnail`** — real image thumbnails, video frames, type icons with the file's format, a broken-preview placeholder when decoding fails, and a **THUMBNAIL** / **PREVIEW** marker so an artefact is never mistaken for the original. Lazy and cached, decoded at display size.
+- **Result cards** showing thumbnail, name, size, **discovery source**, **confidence** (High/Medium/Low) with the **evidence** behind it, and **recovery status** (Available / Preview only / Exported / Failed).
+- **Preview dialog** with full metadata: type, size, dimensions, duration, modified date, source, where it was found, and the confidence reasoning.
+- **Safe export** through the Storage Access Framework: you choose the destination, the copy is streamed, written under a temporary name, **verified against the source size**, and only then named. An existing file is never overwritten — a numbered name is used — and a failed or cancelled copy deletes the partial file. The source is never modified or deleted.
+- **Export history** in Room (migration 3→4, purely additive) recording name, source, destination label, outcome and timestamp. Only a human-readable destination label is stored — never the SAF tree URI, which carries a permission grant.
+- Tabs (All / Photos / Videos / Audio / Documents / Other / Recently Deleted / Thumbnails), search, sort (**Most recoverable** / Newest / Largest / Name), grid and list, bulk selection with Select all, and Share.
+- **Confidence is derived, never asserted.** Signature identification is High; an extension on its own is only Medium; a file that cannot be read is Low and **Preview only**.
+
+### Tests
+- `RecoveryConfidencePolicyTest` — every confidence/status branch, including "an unreadable file is never offered as available" and "a thumbnail is never available".
+- `RecoveryQueryTest` — tab filtering by kind *and* by provenance, search across name/source/evidence, and all four sort orders.
+
+### Notes
+- Thumbnail/cache discovery is the one scan mode still to come (Phase 2B), along with faster duplicate detection. The `THUMBNAIL_CACHE` source and the tab exist so nothing has to be reshaped later.
+- The index and a granted folder use different URI schemes and can never be matched by URI; name + size is used instead. That is a heuristic, and the code says so.
+
 ## [1.5.1]
 Phase 1 of the pending-work plan: correctness and data safety. No new features.
 

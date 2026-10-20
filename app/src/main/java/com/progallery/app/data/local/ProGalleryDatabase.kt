@@ -6,6 +6,7 @@ import com.progallery.app.data.local.dao.AlbumCoverDao
 import com.progallery.app.data.local.dao.CustomAlbumDao
 import com.progallery.app.data.local.dao.FavouriteDao
 import com.progallery.app.data.local.dao.HiddenDao
+import com.progallery.app.data.local.dao.RecoveryHistoryDao
 import com.progallery.app.data.local.dao.ScanDirectoryDao
 import com.progallery.app.data.local.dao.TrashDao
 import com.progallery.app.data.local.entity.AlbumCoverEntity
@@ -13,6 +14,7 @@ import com.progallery.app.data.local.entity.CustomAlbumEntity
 import com.progallery.app.data.local.entity.CustomAlbumItemEntity
 import com.progallery.app.data.local.entity.FavouriteEntity
 import com.progallery.app.data.local.entity.HiddenEntity
+import com.progallery.app.data.local.entity.RecoveryHistoryEntity
 import com.progallery.app.data.local.entity.ScanDirectoryEntity
 import com.progallery.app.data.local.entity.TrashEntity
 
@@ -25,8 +27,9 @@ import com.progallery.app.data.local.entity.TrashEntity
         TrashEntity::class,
         HiddenEntity::class,
         ScanDirectoryEntity::class,
+        RecoveryHistoryEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class ProGalleryDatabase : RoomDatabase() {
@@ -36,4 +39,5 @@ abstract class ProGalleryDatabase : RoomDatabase() {
     abstract fun trashDao(): TrashDao
     abstract fun hiddenDao(): HiddenDao
     abstract fun scanDirectoryDao(): ScanDirectoryDao
+    abstract fun recoveryHistoryDao(): RecoveryHistoryDao
 }
