@@ -75,6 +75,19 @@ class ViewerViewModel @Inject constructor(
 
     fun share(item: MediaItem) = mediaActions.launchShare(listOf(item))
 
+    /**
+     * Advanced editing: hands the file to an installed editing app. The in-app
+     * editor stays for the basic adjustments.
+     */
+    fun advancedEdit(item: MediaItem) {
+        val opened = mediaActions.launchAdvancedEdit(item.uri, item.mimeType)
+        if (!opened) {
+            _state.update {
+                it.copy(message = "No installed app can edit ${item.displayName}")
+            }
+        }
+    }
+
     fun toggleFavourite(item: MediaItem) {
         viewModelScope.launch {
             repository.toggleFavourite(item)

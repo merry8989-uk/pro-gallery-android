@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -233,6 +235,7 @@ fun ViewerScreen(
             ViewerActionBar(
                 onShare = { viewModel.share(current) },
                 onEdit = { onEdit(current.uri.toString(), current.isVideo) },
+                onAdvancedEdit = { viewModel.advancedEdit(current) },
                 onRename = { renameTarget = current },
                 onMove = { moveTarget = current },
                 onDelete = { viewModel.requestDelete(current) },
@@ -319,6 +322,7 @@ private fun ViewerTopBar(
 private fun ViewerActionBar(
     onShare: () -> Unit,
     onEdit: () -> Unit,
+    onAdvancedEdit: () -> Unit,
     onRename: () -> Unit,
     onMove: () -> Unit,
     onDelete: () -> Unit,
@@ -336,6 +340,7 @@ private fun ViewerActionBar(
     ) {
         ViewerAction(Icons.Filled.Share, "Share", onShare)
         ViewerAction(Icons.Filled.Edit, "Edit", onEdit)
+        ViewerAction(Icons.Filled.AutoFixHigh, "Advanced", onAdvancedEdit)
         ViewerAction(Icons.Filled.DriveFileRenameOutline, "Rename", onRename)
         ViewerAction(Icons.Filled.DriveFileMove, "Move", onMove)
         ViewerAction(Icons.Filled.Delete, "Delete", onDelete)
@@ -345,11 +350,21 @@ private fun ViewerActionBar(
 
 @Composable
 private fun ViewerAction(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = onClick) {
-            Icon(icon, contentDescription = label, tint = Color.White)
+    // widthIn keeps seven labelled actions fitting on a narrow phone.
+    Column(
+        modifier = Modifier.widthIn(min = 44.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        IconButton(onClick = onClick, modifier = Modifier.size(44.dp)) {
+            Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(24.dp))
         }
-        Text(text = label, color = Color.White, style = MaterialTheme.typography.labelSmall)
+        Text(
+            text = label,
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }
 
