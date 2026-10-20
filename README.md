@@ -15,8 +15,8 @@ A native Android gallery: a fast, Material 3 photo and video browser with **deep
 - Sorting by date, name, size and media type.
 - Search by file name, album/folder name and MIME type.
 - Multi-select with a contextual action bar (share, favourite, hide, edit, delete).
-- Full-screen viewer with pinch-to-zoom and swipe paging.
-- Full-screen video player (Media3 ExoPlayer).
+- **Immersive full-screen viewer and player**: system bars hidden, black background, tap to reveal controls, pinch/double-tap zoom and swipe paging, with swipe-to-reveal so you are never trapped. Restores the bars on exit.
+- Media extends into display cutouts on notched devices.
 - Empty states, loading indicators, error handling, and a permission gate.
 
 ### Deep scanning

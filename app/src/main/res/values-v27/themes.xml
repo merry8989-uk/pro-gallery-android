@@ -1,0 +1,12 @@
+<resources>
+    <!--
+      Let the immersive viewer/player extend into a display cutout so full-screen
+      media genuinely fills the screen on notched devices. API 27+ only.
+    -->
+    <style name="Theme.ProGallery" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>

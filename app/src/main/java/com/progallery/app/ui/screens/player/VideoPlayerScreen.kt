@@ -1,9 +1,13 @@
 package com.progallery.app.ui.screens.player
 
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCut
@@ -21,7 +25,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.progallery.app.util.ImmersiveSystemBars
 
+/**
+ * Full-screen video playback: system bars hidden so the video fills the
+ * display, with a light top scrim for the back and trim actions.
+ */
 @Composable
 fun VideoPlayerScreen(
     uri: String,
@@ -39,27 +48,44 @@ fun VideoPlayerScreen(
         }
     }
 
+    ImmersiveSystemBars(hide = true)
+
     DisposableEffect(Unit) {
         onDispose { player.release() }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+    ) {
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     this.player = player
                     useController = true
+                    setShutterBackgroundColor(android.graphics.Color.BLACK)
                 }
             },
             modifier = Modifier.fillMaxSize(),
         )
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
-        ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White) }
-        IconButton(
-            onClick = { onEdit(decoded.toString()) },
-            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-        ) { Icon(Icons.Filled.ContentCut, contentDescription = "Trim", tint = Color.White) }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.35f))
+                .statusBarsPadding()
+                .padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+            }
+            Box(modifier = Modifier.weight(1f))
+            IconButton(onClick = { onEdit(decoded.toString()) }) {
+                Icon(Icons.Filled.ContentCut, contentDescription = "Trim", tint = Color.White)
+            }
+        }
     }
 }

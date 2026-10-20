@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Grid and list views with adjustable density.
 - Multi-select toolbar: share (Sharesheet), favourite, hide, delete with Android 11+ consent flow.
 - Full-screen viewer with pinch-to-zoom and swipe paging; Media3 ExoPlayer video player.
+- Immersive full-screen media: system bars hidden with swipe-to-reveal, black background, tap-to-reveal controls, double-tap zoom, and display-cutout support.
 - Deep Scan over Storage Access Framework directory grants, with nested traversal, progress, cancel, and SHA-256 duplicate detection.
 - Photo editor: crop presets, rotate, flip, brightness, contrast, saturation, warmth, exposure, grayscale, sepia, blur, sharpen; undo/redo; before/after; EXIF orientation; export to JPEG/PNG/WebP.
 - Video editor: trim, mute, rotate, resolution presets, Media3 Transformer export with progress and cancellation.
@@ -25,6 +26,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - The published APK is a debug build (Android debug key) — sideload/testing only, not Play-ready.
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
+
+## [1.0.1]
+### Added
+- Immersive full-screen media: the image viewer and video player hide the system bars, use a black background, reveal controls on tap, and support double-tap zoom. Bars are restored on exit, and a swipe reveals them transiently.
+- Media now extends into display cutouts (`windowLayoutInDisplayCutoutMode=shortEdges`) on notched devices.
 
 ## [1.0.0] - TBD
 Initial release.
