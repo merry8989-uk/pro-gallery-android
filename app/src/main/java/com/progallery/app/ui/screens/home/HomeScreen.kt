@@ -47,6 +47,10 @@ import com.progallery.app.ui.components.MediaPermissionGate
 import com.progallery.app.ui.navigation.Routes
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.progallery.app.ui.components.HomeDrawer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,10 +69,22 @@ fun HomeScreen(
         DefaultGalleryPrompt(onDismiss = { viewModel.dismissDefaultGalleryPrompt() })
     }
 
+    var drawerOpen by remember { mutableStateOf(false) }
+
+    HomeDrawer(
+        open = drawerOpen,
+        onClose = { drawerOpen = false },
+        onNavigate = onOpen,
+    ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("ProGallery") },
+                navigationIcon = {
+                    IconButton(onClick = { drawerOpen = true }) {
+                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                    }
+                },
                 actions = {
                     IconButton(onClick = { onOpen(Routes.SEARCH) }) {
                         Icon(Icons.Filled.Search, contentDescription = "Search")
@@ -239,6 +255,7 @@ fun HomeScreen(
             }
             }
         }
+    }
     }
 }
 
