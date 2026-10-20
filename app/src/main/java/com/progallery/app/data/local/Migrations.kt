@@ -1,5 +1,8 @@
 package com.progallery.app.data.local
 
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
 /**
  * The schema version the app is on. Used by the `@Database` annotation and read by
  * the migration tests, so the two can never disagree.
@@ -34,9 +37,6 @@ object MigrationSql {
         )
     """.trimIndent()
 }
-
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * v1 keyed favourites, hidden items and custom-album membership by the numeric
