@@ -74,10 +74,12 @@ object RecoveryQuery {
 
     /**
      * "Most recoverable" puts what the app is actually holding first, then files it
-     * found on disk, then things the system already indexes, and thumbnail
-     * artefacts last — because those are not the original file.
+     * found on disk, then things the system already indexes. Thumbnail and cache
+     * artefacts always sort last, whatever their source, because they are not the
+     * original file and cannot be recovered as one.
      */
     private val relevanceOrder = compareBy<RecoveryResult>(
+        { if (it.isThumbnail) 1 else 0 },
         { sourceRank(it.source) },
         { confidenceRank(it.confidence) },
         { -it.item.dateModifiedSeconds },
