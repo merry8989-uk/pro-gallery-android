@@ -9,11 +9,9 @@ import com.progallery.app.data.model.MediaType
  */
 object MediaFilters {
 
-    fun byType(items: List<MediaItem>, type: MediaType): List<MediaItem> = when (type) {
-        MediaType.ALL -> items
-        MediaType.IMAGE -> items.filter { it.mediaType == MediaType.IMAGE }
-        MediaType.VIDEO -> items.filter { it.mediaType == MediaType.VIDEO }
-    }
+    /** [MediaType.ALL] means "no filter"; every other value selects one kind. */
+    fun byType(items: List<MediaItem>, type: MediaType): List<MediaItem> =
+        if (type == MediaType.ALL) items else items.filter { it.mediaType == type }
 
     /**
      * Case-insensitive search across filename, album/folder name and MIME type.
