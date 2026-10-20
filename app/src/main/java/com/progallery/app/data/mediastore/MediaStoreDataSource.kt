@@ -6,10 +6,10 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import com.progallery.app.data.model.FileTypeRegistry
 import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaSource
 import com.progallery.app.data.model.MediaType
-import com.progallery.app.util.MediaFormatUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,14 +17,22 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Reads media metadata from the platform [MediaStore]. This is the fast,
- * index-backed path; it respects scoped storage and only returns items the
- * app has been granted access to.
+ * Reads files from the platform [MediaStore].
  *
- * The query runs against the *merged* external view (`VOLUME_EXTERNAL`) so a
- * single pass covers internal and removable storage, but each item's playable
- * URI is built from that row's own volume. Building it from the primary volume
- * instead would produce URIs that do not resolve for SD-card media.
+ * Everything MediaStore exposes to the app is indexed — images, videos, audio
+ * and any other file the app is permitted to see — and classified by
+ * [FileTypeRegistry]. Rows are never discarded for having an unfamiliar type:
+ * they land in [MediaType.OTHER] and stay browsable.
+ *
+ * The query runs against the *merged* external view (`VOLUME_EXTERNAL`) so one
+ * pass covers internal and removable storage, but each item's URI is built from
+ * that row's own volume. Building it from the primary volume instead would
+ * produce URIs that do not resolve for SD-card files.
+ *
+ * Platform limits worth knowing: from Android 11, MediaStore only returns media
+ * (image/video/audio) plus files the app itself owns. Documents and archives
+ * created by other apps are not visible here — those are reachable through
+ * Deep Scan over a user-granted folder.
  */
 @Singleton
 class MediaStoreDataSource @Inject constructor(
@@ -43,35 +51,21 @@ class MediaStoreDataSource @Inject constructor(
         add(MediaStore.MediaColumns.HEIGHT)
         add(MediaStore.MediaColumns.BUCKET_ID)
         add(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
+        add(MediaStore.Files.FileColumns.MEDIA_TYPE)
         add(MediaStore.Video.VideoColumns.DURATION)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             add(MediaStore.MediaColumns.RELATIVE_PATH)
-            // Which physical volume this row lives on (internal, or an SD card).
             add(MediaStore.MediaColumns.VOLUME_NAME)
         }
     }.toTypedArray()
 
-    /** Loads every image and/or video currently visible to the app. */
-    suspend fun loadMedia(type: MediaType = MediaType.ALL): List<MediaItem> =
+    /** Loads every file MediaStore exposes, optionally filtered to one [kind]. */
+    suspend fun loadMedia(kind: MediaType = MediaType.ALL): List<MediaItem> =
         withContext(Dispatchers.IO) {
-            val selection = when (type) {
-                MediaType.ALL -> "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (?, ?)"
-                MediaType.IMAGE -> "${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?"
-                MediaType.VIDEO -> "${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?"
-            }
-            val args: Array<String> = when (type) {
-                MediaType.ALL -> arrayOf(
-                    MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
-                    MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString(),
-                )
-                MediaType.IMAGE -> arrayOf(MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString())
-                MediaType.VIDEO -> arrayOf(MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString())
-            }
-
             val results = ArrayList<MediaItem>()
             runCatching {
                 context.contentResolver.query(
-                    collection, projection, selection, args,
+                    collection, projection, null, null,
                     "${MediaStore.MediaColumns.DATE_MODIFIED} DESC",
                 )?.use { cursor ->
                     val idCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
@@ -83,6 +77,7 @@ class MediaStoreDataSource @Inject constructor(
                     val heightCol = cursor.getColumnIndex(MediaStore.MediaColumns.HEIGHT)
                     val bucketCol = cursor.getColumnIndex(MediaStore.MediaColumns.BUCKET_ID)
                     val bucketNameCol = cursor.getColumnIndex(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
+                    val mediaTypeCol = cursor.getColumnIndex(MediaStore.Files.FileColumns.MEDIA_TYPE)
                     val durationCol = cursor.getColumnIndex(MediaStore.Video.VideoColumns.DURATION)
                     val pathCol = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
@@ -92,18 +87,20 @@ class MediaStoreDataSource @Inject constructor(
                     } else -1
 
                     while (cursor.moveToNext()) {
-                        val mime = cursor.stringOrNull(mimeCol)
-                        if (!MediaFormatUtils.isSupported(mime)) continue
                         val id = cursor.getLong(idCol)
-                        val isVideo = MediaFormatUtils.isVideo(mime)
-                        val volume = if (volumeCol >= 0) {
-                            cursor.stringOrNull(volumeCol)
-                        } else null
-                        val contentUri = buildContentUri(id, isVideo, volume)
+                        val displayName = cursor.stringOrNull(nameCol) ?: "Unnamed"
+                        val mime = cursor.stringOrNull(mimeCol)
+                        val mediaTypeHint = if (mediaTypeCol >= 0) cursor.intOrZero(mediaTypeCol) else 0
+                        val resolvedKind = resolveKind(mime, displayName, mediaTypeHint)
+
+                        if (kind != MediaType.ALL && resolvedKind != kind) continue
+
+                        val volume = if (volumeCol >= 0) cursor.stringOrNull(volumeCol) else null
+                        val contentUri = buildContentUri(id, resolvedKind, volume)
                         results += MediaItem(
                             id = id,
                             uri = contentUri,
-                            displayName = cursor.stringOrNull(nameCol) ?: "Unnamed",
+                            displayName = displayName,
                             mimeType = mime ?: "",
                             sizeBytes = cursor.longOrZero(sizeCol),
                             dateModifiedSeconds = cursor.longOrZero(dateCol),
@@ -113,7 +110,7 @@ class MediaStoreDataSource @Inject constructor(
                             bucketId = cursor.longOrZero(bucketCol),
                             bucketName = cursor.stringOrNull(bucketNameCol) ?: "Unknown",
                             relativePath = if (pathCol >= 0) cursor.stringOrNull(pathCol) else null,
-                            mediaType = if (isVideo) MediaType.VIDEO else MediaType.IMAGE,
+                            mediaType = resolvedKind,
                             source = MediaSource.MEDIA_STORE,
                         )
                     }
@@ -123,19 +120,42 @@ class MediaStoreDataSource @Inject constructor(
         }
 
     /**
+     * MIME first, then the MediaStore media-type hint (useful when a provider
+     * reports a generic MIME), then the extension.
+     */
+    private fun resolveKind(mime: String?, displayName: String, mediaTypeHint: Int): MediaType {
+        val fromMime = FileTypeRegistry.kindFor(mime, displayName)
+        if (fromMime != MediaType.OTHER) return fromMime
+
+        val fromHint = when (mediaTypeHint) {
+            MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE -> MediaType.IMAGE
+            MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO -> MediaType.VIDEO
+            MediaStore.Files.FileColumns.MEDIA_TYPE_AUDIO -> MediaType.AUDIO
+            else -> null
+        }
+        return fromHint ?: MediaType.OTHER
+    }
+
+    /**
      * Builds the URI for a row on its own volume. On API 29+ we use the row's
      * VOLUME_NAME (falling back to the primary volume if it is absent); below
      * that, `getContentUri(volume)` does not exist, so the single external
      * collection is correct.
      */
-    private fun buildContentUri(id: Long, isVideo: Boolean, volumeName: String?): Uri {
+    private fun buildContentUri(id: Long, kind: MediaType, volumeName: String?): Uri {
         val base = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val volume = volumeName ?: MediaStore.VOLUME_EXTERNAL_PRIMARY
-            if (isVideo) MediaStore.Video.Media.getContentUri(volume)
-            else MediaStore.Images.Media.getContentUri(volume)
+            when (kind) {
+                MediaType.VIDEO -> MediaStore.Video.Media.getContentUri(volume)
+                MediaType.AUDIO -> MediaStore.Audio.Media.getContentUri(volume)
+                else -> MediaStore.Images.Media.getContentUri(volume)
+            }
         } else {
-            if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-            else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            when (kind) {
+                MediaType.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                MediaType.AUDIO -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                else -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            }
         }
         return ContentUris.withAppendedId(base, id)
     }

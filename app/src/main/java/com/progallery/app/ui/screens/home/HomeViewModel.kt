@@ -18,6 +18,10 @@ import javax.inject.Inject
 data class HomeUiState(
     val photos: Int = 0,
     val videos: Int = 0,
+    val audio: Int = 0,
+    val documents: Int = 0,
+    val other: Int = 0,
+    val allFiles: Int = 0,
     val albums: Int = 0,
     val favourites: Int = 0,
     val trash: Int = 0,
@@ -40,11 +44,19 @@ class HomeViewModel @Inject constructor(
             repository.observeMedia(MediaType.ALL).collect { items ->
                 _state.update {
                     it.copy(
-                        photos = MediaFilters.byType(items, MediaType.IMAGE).size,
-                        videos = MediaFilters.byType(items, MediaType.VIDEO).size,
+                        photos = items.count { m -> m.mediaType == MediaType.IMAGE },
+                        videos = items.count { m -> m.mediaType == MediaType.VIDEO },
+                        audio = items.count { m -> m.mediaType == MediaType.AUDIO },
+                        documents = items.count { m -> m.mediaType == MediaType.DOCUMENT },
+                        other = items.count {
+                            m -> m.mediaType == MediaType.ARCHIVE || m.mediaType == MediaType.OTHER
+                        },
+                        allFiles = items.size,
                         albums = items.map { m -> m.bucketId }.distinct().size,
                         favourites = MediaFilters.favourites(items).size,
-                        recent = items.take(12),
+                        // Only previewable items go in the "Recent" grid; the
+                        // rest have no thumbnail.
+                        recent = items.filter { m -> m.isPreviewable }.take(12),
                         loading = false,
                     )
                 }

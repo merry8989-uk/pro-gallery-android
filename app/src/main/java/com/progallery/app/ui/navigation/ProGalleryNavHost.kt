@@ -9,6 +9,9 @@ import androidx.navigation.navArgument
 import com.progallery.app.ui.screens.albums.AlbumDetailScreen
 import com.progallery.app.ui.screens.albums.AlbumsScreen
 import com.progallery.app.ui.screens.albums.CustomAlbumDetailScreen
+import com.progallery.app.ui.screens.audio.AudioScreen
+import com.progallery.app.ui.screens.documents.DocumentsScreen
+import com.progallery.app.ui.screens.files.AllFilesScreen
 import com.progallery.app.ui.screens.deepscan.DeepScanScreen
 import com.progallery.app.ui.screens.editor.photo.PhotoEditorScreen
 import com.progallery.app.ui.screens.editor.video.VideoEditorScreen
@@ -37,6 +40,22 @@ fun ProGalleryNavHost() {
                 onBack = { navController.popBackStack() },
                 onOpenViewer = { uri, type -> navController.navigate(Routes.viewer(uri, type)) },
                 onEdit = { uri -> navController.navigate(Routes.photoEditor(uri)) },
+            )
+        }
+        composable(Routes.AUDIO) {
+            AudioScreen(
+                onBack = { navController.popBackStack() },
+                onOpenPlayer = { uri -> navController.navigate(Routes.videoPlayer(uri)) },
+            )
+        }
+        composable(Routes.DOCUMENTS) {
+            DocumentsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.ALL_FILES) {
+            AllFilesScreen(
+                onBack = { navController.popBackStack() },
+                onOpenViewer = { uri, type -> navController.navigate(Routes.viewer(uri, type)) },
+                onOpenPlayer = { uri -> navController.navigate(Routes.videoPlayer(uri)) },
             )
         }
         composable(Routes.ALBUMS) {
@@ -85,6 +104,7 @@ fun ProGalleryNavHost() {
             FavouritesScreen(
                 onBack = { navController.popBackStack() },
                 onOpenViewer = { uri, type -> navController.navigate(Routes.viewer(uri, type)) },
+                onOpenPlayer = { uri -> navController.navigate(Routes.videoPlayer(uri)) },
             )
         }
         composable(Routes.TRASH) {
@@ -97,6 +117,7 @@ fun ProGalleryNavHost() {
             SearchScreen(
                 onBack = { navController.popBackStack() },
                 onOpenViewer = { uri, type -> navController.navigate(Routes.viewer(uri, type)) },
+                onOpenPlayer = { uri -> navController.navigate(Routes.videoPlayer(uri)) },
             )
         }
         composable(

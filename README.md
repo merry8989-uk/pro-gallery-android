@@ -10,7 +10,7 @@ A native Android gallery: a fast, Material 3 photo and video browser with **deep
 
 ### Browse
 - Material 3 UI with light/dark themes and dynamic colour on Android 12+.
-- Home dashboard: Photos, Videos, Albums, Favourites, Recently Deleted, Deep Scan, Search.
+- Home dashboard: All files, Photos, Videos, Audio, Documents, Albums, Favourites, Recently Deleted, Deep Scan, Search.
 - Grid **and** list view; adjustable grid density.
 - Sorting by date, name, size and media type.
 - Search by file name, album/folder name and MIME type.
@@ -22,8 +22,8 @@ A native Android gallery: a fast, Material 3 photo and video browser with **deep
 - Empty states, loading indicators, error handling, and a permission gate.
 
 ### Deep scanning
-- Standard indexing via **MediaStore** (images and videos, all decodable formats).
-- A separate **Deep Scan** that walks directories the user grants through the Storage Access Framework (`ACTION_OPEN_DOCUMENT_TREE`), including nested folders, to find supported files the system index may have missed.
+- Standard indexing via **MediaStore** across images, videos and audio, classified by a file-type registry.
+- A separate **Deep Scan** that walks directories the user grants through the Storage Access Framework (`ACTION_OPEN_DOCUMENT_TREE`), including nested folders, indexing **every file type** — documents, archives, raw files and unknown formats, not just media.
 - **Duplicate detection**: candidates are narrowed by exact file size, then confirmed with a streamed SHA-256 hash. Reports reclaimable bytes.
 - Live progress (folders, files, media found, current path), errors, and a working cancel button.
 - Persisted directory grants so access survives process death.
@@ -36,6 +36,42 @@ A native Android gallery: a fast, Material 3 photo and video browser with **deep
 - Respects scoped storage. Requests `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO` on Android 13+, handles Android 14+ partial ("selected photos") access, and falls back to `READ_EXTERNAL_STORAGE` on older versions.
 - Uses content URIs only — never exposes raw filesystem paths to other apps (sharing goes through the Sharesheet with `FLAG_GRANT_READ_URI_PERMISSION`).
 - Operates entirely on-device. No account, no uploads, no analytics.
+
+---
+
+## Supported file types
+
+The scanner indexes every kind of file it can reach, not just photos and videos.
+Classification lives in `FileTypeRegistry` (pure Kotlin, unit tested) and resolves
+by MIME type first, then by extension. Anything unrecognised is browsable as
+**Other** rather than being hidden.
+
+| Category | Examples |
+| --- | --- |
+| **Images** | JPG, JPEG, PNG, APNG, GIF, WebP, AVIF, HEIC/HEIF, JXL, BMP, TIFF, ICO, SVG, TGA, PSD/PSB, AI, EPS, INDD, XCF, Sketch, EXR, HDR, DDS |
+| **Camera raw** | RAW, DNG, CR2/CR3/CRW, NEF/NRW, ARW/SRF/SR2, ORF, RAF, RW2, PEF, SRW, X3F, 3FR, MRW, ERF |
+| **Video** | MP4, M4V, MOV/QT, MKV, WebM, AVI, DivX, WMV/ASF, FLV/F4V, MPG/MPEG, TS/M2TS/MTS, 3GP/3G2, OGV, RM/RMVB, VOB, MXF, DV |
+| **Audio** | MP3, M4A/M4B/M4R, AAC, WAV, FLAC, OGG/Opus, WMA, AMR/AWB, MIDI, AIFF, AC3/EAC3/DTS, APE, CAF, DSF/DFF, MKA |
+| **Documents** | PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, ODT/ODS/ODP, Pages/Numbers/Key, RTF, TXT, MD, CSV/TSV, JSON/XML/YAML/TOML, HTML/CSS, source code, EPUB/MOBI/AZW3, DjVu, CBZ/CBR, SRT/VTT/ASS, XPS, DWG/DXF/DWF/DGN |
+| **Archives & packages** | ZIP, RAR, 7Z, TAR, GZ, BZ2, XZ, ZSTD, CAB, ARJ, LZH, CPIO, WIM, ISO, IMG, DMG, JAR/WAR, APK/AAB/XAPK, DEB/RPM, MSI, APPX |
+
+### Where each type can be found
+
+Android's storage rules decide how much the app can see, and the app reports
+this honestly rather than pretending otherwise:
+
+- **MediaStore (the fast index)** — images, videos and **audio**, on internal and
+  removable storage. That needs `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO` and
+  `READ_MEDIA_AUDIO` on Android 13+, or `READ_EXTERNAL_STORAGE` below that.
+- **From Android 11**, MediaStore does not return documents or archives created by
+  other apps, regardless of permission. That is a platform limit, not a bug.
+- **Deep Scan (SAF)** — point it at a folder and *every* file type inside it,
+  including nested folders, is indexed: documents, archives, raw files, unknown
+  formats. This is the way to make arbitrary files scannable.
+
+Images and videos get thumbnails and an in-app viewer/editor. Audio plays in the
+in-app player. Documents, archives and unknown types show a type icon and open
+with whatever app on the device handles them.
 
 ---
 
@@ -148,6 +184,7 @@ with it will not upgrade in place over each other.
 | --- | --- | --- |
 | `READ_MEDIA_IMAGES` | Android 13+ | Read photos. |
 | `READ_MEDIA_VIDEO` | Android 13+ | Read videos. |
+| `READ_MEDIA_AUDIO` | Android 13+ | Read audio. |
 | `READ_MEDIA_VISUAL_USER_SELECTED` | Android 14+ | Partial access to selected items. |
 | `READ_EXTERNAL_STORAGE` | Android 12 and below (maxSdk 32) | Legacy media read. |
 | `WRITE_EXTERNAL_STORAGE` | Android 9 and below (maxSdk 28) | Legacy export on old versions. |

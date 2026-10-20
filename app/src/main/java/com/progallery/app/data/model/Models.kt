@@ -2,8 +2,23 @@ package com.progallery.app.data.model
 
 import android.net.Uri
 
-/** Broad media category used for filtering. */
-enum class MediaType { IMAGE, VIDEO, ALL }
+/**
+ * Broad category of a file, used for browsing and filtering.
+ *
+ * [ALL] is the "no filter" value. Anything the registry cannot identify is
+ * [OTHER] rather than being dropped, so every file the app can see is browsable.
+ */
+enum class MediaType {
+    IMAGE,
+    VIDEO,
+    AUDIO,
+    DOCUMENT,
+    ARCHIVE,
+    OTHER,
+
+    /** No filter — every kind. */
+    ALL,
+}
 
 /** Where a media item was discovered. */
 enum class MediaSource { MEDIA_STORE, DEEP_SCAN }
@@ -43,6 +58,16 @@ data class MediaItem(
 
     val isVideo: Boolean get() = mediaType == MediaType.VIDEO
     val isImage: Boolean get() = mediaType == MediaType.IMAGE
+    val isAudio: Boolean get() = mediaType == MediaType.AUDIO
+    val isDocument: Boolean get() = mediaType == MediaType.DOCUMENT
+    val isArchive: Boolean get() = mediaType == MediaType.ARCHIVE
+
+    /** Whether the app can render an inline preview (image or video). */
+    val isPreviewable: Boolean
+        get() = mediaType == MediaType.IMAGE || mediaType == MediaType.VIDEO
+
+    /** File extension, lowercased and without the dot. */
+    val extension: String get() = FileTypeRegistry.extensionOf(displayName)
 
     /** Human readable dimensions, e.g. "1920 × 1080". */
     val dimensionLabel: String get() = if (width > 0 && height > 0) "$width × $height" else "—"

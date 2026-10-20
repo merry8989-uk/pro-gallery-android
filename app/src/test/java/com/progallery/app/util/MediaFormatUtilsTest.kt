@@ -23,13 +23,6 @@ class MediaFormatUtilsTest {
     }
 
     @Test
-    fun isSupported_coversImagesAndVideos() {
-        assertTrue(MediaFormatUtils.isSupported("image/webp"))
-        assertTrue(MediaFormatUtils.isSupported("video/webm"))
-        assertFalse(MediaFormatUtils.isSupported("application/pdf"))
-    }
-
-    @Test
     fun formatBytes_usesBinaryUnits() {
         assertEquals("512 B", MediaFormatUtils.formatBytes(512))
         assertEquals("1.0 KB", MediaFormatUtils.formatBytes(1024))

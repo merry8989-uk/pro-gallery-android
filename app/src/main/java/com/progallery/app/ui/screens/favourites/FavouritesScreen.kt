@@ -12,6 +12,7 @@ import com.progallery.app.ui.screens.common.MediaBrowserViewModel
 fun FavouritesScreen(
     onBack: () -> Unit,
     onOpenViewer: (String, String) -> Unit,
+    onOpenPlayer: (String) -> Unit,
     viewModel: MediaBrowserViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(Unit) { viewModel.configure(type = MediaType.ALL, favouritesOnly = true) }
@@ -20,7 +21,10 @@ fun FavouritesScreen(
             title = "Favourites",
             viewModel = viewModel,
             onBack = onBack,
-            onOpenItem = { onOpenViewer(it.uri.toString(), it.mediaType.name) },
+            onOpenItem = { item ->
+                if (item.isImage) onOpenViewer(item.uri.toString(), item.mediaType.name)
+                else onOpenPlayer(item.uri.toString())
+            },
             emptyTitle = "No favourites yet",
             emptySubtitle = "Tap the heart on any photo or video to keep it here.",
         )

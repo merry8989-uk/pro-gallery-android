@@ -162,6 +162,14 @@ class MediaBrowserViewModel @Inject constructor(
         current.copy(selection = selection)
     }
 
+    /** Hands a non-previewable file (audio, document, archive…) to the system. */
+    fun openWith(item: MediaItem) {
+        val opened = mediaActions.launchOpen(item)
+        if (!opened) {
+            _state.update { it.copy(message = "No app on this device can open ${item.displayName}") }
+        }
+    }
+
     fun clearSelection() = _state.update { it.copy(selection = emptySet()) }
 
     fun selectAll() = _state.update { it.copy(selection = it.items.map { m -> m.mediaKey }.toSet()) }

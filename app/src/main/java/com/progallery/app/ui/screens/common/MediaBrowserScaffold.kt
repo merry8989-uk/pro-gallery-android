@@ -185,7 +185,14 @@ fun MediaBrowserScaffold(
                     selectionMode = state.selectionMode,
                     selectedIds = state.selection,
                     onClick = { item ->
-                        if (state.selectionMode) viewModel.toggleSelection(item) else onOpenItem(item)
+                        when {
+                            state.selectionMode -> viewModel.toggleSelection(item)
+                            // Images and videos preview, audio plays in the
+                            // in-app player; documents/archives/unknown types
+                            // are handed to the system.
+                            item.isPreviewable || item.isAudio -> onOpenItem(item)
+                            else -> viewModel.openWith(item)
+                        }
                     },
                     onLongClick = { viewModel.toggleSelection(it) },
                 )

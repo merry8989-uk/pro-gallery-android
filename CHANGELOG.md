@@ -27,6 +27,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.1.0]
+### Added
+- **Every file type is now scannable**, not just photos and videos. A pure-Kotlin `FileTypeRegistry` classifies by MIME then extension across images (including camera raw, PSD, AI, EPS, INDD, HEIF, TIFF, WebP), video, audio, documents (office, PDF, ebooks, subtitles, source, CAD/DWG) and archives — hundreds of extensions. Unknown files are browsable as **Other** instead of being dropped.
+- New browse categories: **All files**, **Audio** and **Documents**, with counts on the home dashboard.
+- Audio plays in the in-app player; documents, archives and unknown types open with whichever app on the device handles them, and report clearly when none does.
+- Thumbnails for non-previewable kinds show a type icon and the file extension.
+- `READ_MEDIA_AUDIO` is requested on Android 13+.
+- Deep Scan indexes every file type in a granted folder, not only media.
+
+### Changed
+- `MediaType` is now a full file-kind enum (image, video, audio, document, archive, other, all).
+- MediaStore rows are no longer filtered by "supported MIME"; each row is classified and kept.
+
 ## [1.0.5]
 ### Fixed
 - **Share no longer crashes.** Sharing starts from an application context, which requires `FLAG_ACTIVITY_NEW_TASK`; without it the platform throws. Added, and covered by instrumentation tests for single- and multi-item sharing.

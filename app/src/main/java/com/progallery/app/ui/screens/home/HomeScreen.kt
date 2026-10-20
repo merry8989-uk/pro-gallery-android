@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -61,6 +63,13 @@ fun HomeScreen(
                     modifier = Modifier.padding(horizontal = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    DashboardTile(
+                        icon = Icons.Filled.Folder,
+                        title = "All files",
+                        subtitle = "${state.allFiles} files · ${state.other} other",
+                        onClick = { onOpen(Routes.ALL_FILES) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         DashboardTile(
                             icon = Icons.Filled.PhotoLibrary,
@@ -74,6 +83,22 @@ fun HomeScreen(
                             title = "Videos",
                             subtitle = "${state.videos} items",
                             onClick = { onOpen(Routes.VIDEOS) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DashboardTile(
+                            icon = Icons.Filled.MusicNote,
+                            title = "Audio",
+                            subtitle = "${state.audio} items",
+                            onClick = { onOpen(Routes.AUDIO) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        DashboardTile(
+                            icon = Icons.Filled.Description,
+                            title = "Documents",
+                            subtitle = "${state.documents} items",
+                            onClick = { onOpen(Routes.DOCUMENTS) },
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -104,7 +129,7 @@ fun HomeScreen(
                         DashboardTile(
                             icon = Icons.Filled.TravelExplore,
                             title = "Deep Scan",
-                            subtitle = "Find files & duplicates",
+                            subtitle = "Find any file type",
                             onClick = { onOpen(Routes.DEEP_SCAN) },
                             modifier = Modifier.weight(1f),
                         )

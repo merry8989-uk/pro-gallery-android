@@ -10,7 +10,7 @@ import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaSource
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.ScanSummary
-import com.progallery.app.util.MediaFormatUtils
+import com.progallery.app.data.model.FileTypeRegistry
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -117,11 +117,12 @@ class DeepScanRepository @Inject constructor(
                         continue
                     }
                     filesExamined++
-                    val mime = child.type ?: guessMime(child.name)
-                    if (!MediaFormatUtils.isSupported(mime)) continue
+                    val mime = child.type ?: ""
+                    // Every file type is indexed, not just photos and videos —
+                    // unknown types land in OTHER rather than being skipped.
+                    val kind = FileTypeRegistry.kindFor(mime, child.name)
                     val uri = child.uri
                     if (!visited.add(uri.toString())) continue
-                    val isVideo = MediaFormatUtils.isVideo(mime)
                     found += MediaItem(
                         id = uri.toString().hashCode().toLong(),
                         uri = uri,
@@ -135,7 +136,7 @@ class DeepScanRepository @Inject constructor(
                         bucketId = path.hashCode().toLong(),
                         bucketName = path.substringAfterLast('/'),
                         relativePath = path,
-                        mediaType = if (isVideo) MediaType.VIDEO else MediaType.IMAGE,
+                        mediaType = kind,
                         source = MediaSource.DEEP_SCAN,
                     )
                 }
@@ -154,18 +155,4 @@ class DeepScanRepository @Inject constructor(
         emit(ScanState.Completed(summary, found, duplicates))
     }.flowOn(Dispatchers.IO)
 
-    private fun guessMime(name: String?): String {
-        val ext = name?.substringAfterLast('.', "")?.lowercase() ?: return ""
-        return when (ext) {
-            "jpg", "jpeg" -> "image/jpeg"
-            "png" -> "image/png"
-            "webp" -> "image/webp"
-            "gif" -> "image/gif"
-            "heic" -> "image/heic"
-            "mp4" -> "video/mp4"
-            "mkv" -> "video/x-matroska"
-            "webm" -> "video/webm"
-            else -> ""
-        }
-    }
 }

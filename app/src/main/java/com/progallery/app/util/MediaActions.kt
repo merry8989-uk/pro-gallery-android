@@ -56,6 +56,21 @@ class MediaActions @Inject constructor(
         context.startActivity(shareChooser(items))
     }
 
+    /** Intent that hands a file to whatever app can display it. */
+    fun openIntent(item: MediaItem): Intent =
+        Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(item.uri, item.mimeType.ifBlank { "*/*" })
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+    /**
+     * Opens a file with the system. Returns false when nothing can handle it,
+     * so the caller can tell the user instead of failing silently.
+     */
+    fun launchOpen(item: MediaItem): Boolean =
+        runCatching { context.startActivity(openIntent(item)) }.isSuccess
+
     /**
      * Returns a delete-consent [PendingIntent] on Android 11+, or null when the
      * caller should delete directly (older versions / app-owned files).

@@ -22,6 +22,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FolderZip
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -53,6 +59,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
 import com.progallery.app.data.model.MediaItem
+import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.ViewMode
 import com.progallery.app.util.MediaFormatUtils
 
@@ -75,17 +82,40 @@ fun MediaThumbnail(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
-        val request = ImageRequest.Builder(context)
-            .data(item.uri)
-            .apply { if (item.isVideo) videoFrameMillis(1000) }
-            .crossfade(true)
-            .build()
-        AsyncImage(
-            model = request,
-            contentDescription = item.displayName,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
+        if (item.isPreviewable) {
+            val request = ImageRequest.Builder(context)
+                .data(item.uri)
+                .apply { if (item.isVideo) videoFrameMillis(1000) }
+                .crossfade(true)
+                .build()
+            AsyncImage(
+                model = request,
+                contentDescription = item.displayName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            // Audio, documents, archives and unknown types have no thumbnail —
+            // show their kind instead of an empty or broken tile.
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = item.mediaType.icon(),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+            if (item.extension.isNotEmpty()) {
+                Text(
+                    text = item.extension.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(2.dp),
+                )
+            }
+        }
         if (item.isVideo) {
             Icon(
                 imageVector = Icons.Filled.PlayCircle,
@@ -107,6 +137,17 @@ fun MediaThumbnail(
                         RoundedCornerShape(4.dp),
                     )
                     .padding(horizontal = 4.dp, vertical = 1.dp),
+            )
+        }
+        if (item.isAudio) {
+            Icon(
+                imageVector = Icons.Filled.MusicNote,
+                contentDescription = "Audio",
+                tint = androidx.compose.ui.graphics.Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(18.dp),
             )
         }
         if (item.isFavourite) {
@@ -295,6 +336,17 @@ fun SelectionToolbar(
             }
         }
     }
+}
+
+/** A representative icon for a file kind. */
+fun MediaType.icon(): ImageVector = when (this) {
+    MediaType.IMAGE -> Icons.Filled.Image
+    MediaType.VIDEO -> Icons.Filled.Movie
+    MediaType.AUDIO -> Icons.Filled.MusicNote
+    MediaType.DOCUMENT -> Icons.Filled.Description
+    MediaType.ARCHIVE -> Icons.Filled.FolderZip
+    MediaType.OTHER -> Icons.Filled.InsertDriveFile
+    MediaType.ALL -> Icons.Filled.Folder
 }
 
 @Composable

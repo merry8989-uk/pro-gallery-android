@@ -24,8 +24,6 @@ object MediaFormatUtils {
     fun isVideo(mime: String?): Boolean =
         mime != null && (mime.startsWith(VIDEO_MIME_PREFIX) || mime in SUPPORTED_VIDEO_MIME)
 
-    fun isSupported(mime: String?): Boolean = isImage(mime) || isVideo(mime)
-
     /** Human-readable size using binary units. */
     fun formatBytes(bytes: Long): String {
         if (bytes < 1024) return "$bytes B"
