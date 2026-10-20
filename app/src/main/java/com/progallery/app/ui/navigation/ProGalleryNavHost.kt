@@ -15,6 +15,7 @@ import com.progallery.app.ui.screens.audio.AudioScreen
 import com.progallery.app.ui.screens.documents.DocumentsScreen
 import com.progallery.app.ui.screens.editor.audio.AudioEditorScreen
 import com.progallery.app.ui.screens.pdf.PdfViewerScreen
+import com.progallery.app.ui.screens.androidfolders.AndroidFoldersScreen
 import com.progallery.app.ui.screens.settings.SettingsScreen
 import com.progallery.app.ui.screens.files.AllFilesScreen
 import com.progallery.app.ui.screens.deepscan.DeepScanScreen
@@ -140,6 +141,13 @@ fun ProGalleryNavHost(
         }
         composable(Routes.DEEP_SCAN) {
             DeepScanScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.ANDROID_FOLDERS) {
+            AndroidFoldersScreen(
+                onBack = { navController.popBackStack() },
+                // Results here are file:// items, so route by kind like everywhere else.
+                onOpen = openItem,
+            )
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(onBack = { navController.popBackStack() })

@@ -3,4 +3,13 @@
     <cache-path name="shared_cache" path="shared/" />
     <files-path name="exports" path="exports/" />
     <external-cache-path name="external_shared" path="shared/" />
+
+    <!--
+      Files discovered under Android/: shared media written by other apps, this
+      app's own Android/data folder, and (on Android 10 and below) the legacy
+      Android/data tree. Needed so these file:// items can be handed to other
+      apps without a FileUriExposedException.
+    -->
+    <external-path name="android_media" path="Android/media/" />
+    <external-path name="own_android_data" path="Android/data/" />
 </paths>

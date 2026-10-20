@@ -11,7 +11,6 @@ import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaSource
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.ScanSummary
-import com.progallery.app.data.recovery.FileSignatureDetector
 import com.progallery.app.data.settings.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +54,7 @@ class DeepScanRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val scanDirectoryDao: ScanDirectoryDao,
     private val hasher: FileHasher,
+    private val classifier: FileClassifier,
     private val settingsRepository: SettingsRepository,
 ) {
 
@@ -195,32 +195,28 @@ class DeepScanRepository @Inject constructor(
                     val uri = child.uri
                     if (!visited.add(uri.toString())) continue
 
-                    var mime = child.type ?: ""
-                    var kind = FileTypeRegistry.kindFor(mime, name)
-
-                    // Signature detection: identify from the bytes when the
-                    // extension/MIME is missing or generic.
-                    if (settings.signatureDetectionEnabled &&
-                        (kind == MediaType.OTHER || extension.isEmpty() || mime.isEmpty())
-                    ) {
-                        val sniffed = FileSignatureDetector.sniff(
-                            openStream = { runCatchingCancellable { context.contentResolver.openInputStream(uri) }.getOrNull() },
-                            maxBytes = settings.signatureReadBytes,
-                        )
-                        if (sniffed != null) {
-                            kind = sniffed.kind
-                            mime = sniffed.mimeType
-                            signatureIdentified++
-                        }
-                    }
-
+                    // One shared classifier for every scanner: MIME, then
+                    // extension, then the leading bytes.
+                    val classified = classifier.classify(
+                        name = name,
+                        declaredMime = child.type,
+                        readSignature = settings.signatureDetectionEnabled,
+                        maxSignatureBytes = settings.signatureReadBytes,
+                        openStream = {
+                            runCatchingCancellable {
+                                context.contentResolver.openInputStream(uri)
+                            }.getOrNull()
+                        },
+                    )
+                    if (classified.identifiedBySignature) signatureIdentified++
+                    val kind = classified.kind
                     if (kind !in settings.enabledKinds) continue
 
                     found += MediaItem(
                         id = uri.toString().hashCode().toLong(),
                         uri = uri,
                         displayName = name,
-                        mimeType = mime,
+                        mimeType = classified.mimeType,
                         sizeBytes = fileSize,
                         dateModifiedSeconds = child.lastModified() / 1000,
                         width = 0,

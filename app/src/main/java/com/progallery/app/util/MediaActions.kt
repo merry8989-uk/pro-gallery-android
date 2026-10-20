@@ -24,7 +24,7 @@ class MediaActions @Inject constructor(
 
     /** Builds a Sharesheet intent for one or many items. */
     fun shareIntent(items: List<MediaItem>): Intent {
-        val uris = ArrayList(items.map { it.uri })
+        val uris = ArrayList(items.map { shareableUri(it.uri) })
         return if (uris.size == 1) {
             Intent(Intent.ACTION_SEND).apply {
                 type = items.first().mimeType.ifBlank { "*/*" }
@@ -57,6 +57,29 @@ class MediaActions @Inject constructor(
         context.startActivity(shareChooser(items))
     }
 
+    /**
+     * Other apps cannot receive a `file://` URI (it throws
+     * FileUriExposedException), so convert one to a FileProvider content URI.
+     * Files discovered under `Android/` are File-based, which is why this exists.
+     */
+    private fun shareableUri(uri: Uri): Uri =
+        if (uri.scheme == "file") {
+            val path = uri.path
+            if (path.isNullOrEmpty()) {
+                uri
+            } else {
+                runCatching {
+                    androidx.core.content.FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        java.io.File(path),
+                    )
+                }.getOrDefault(uri)
+            }
+        } else {
+            uri
+        }
+
     /** MIME to use when handing a file to another app. */
     private fun mimeFor(uri: Uri, mimeType: String): String = mimeType.ifBlank {
         runCatchingCancellable { context.contentResolver.getType(uri) }.getOrNull() ?: "*/*"
@@ -64,7 +87,7 @@ class MediaActions @Inject constructor(
 
     private fun viewIntent(uri: Uri, mimeType: String): Intent =
         Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, mimeFor(uri, mimeType))
+            setDataAndType(shareableUri(uri), mimeFor(uri, mimeType))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
@@ -74,7 +97,7 @@ class MediaActions @Inject constructor(
 
     private fun editIntent(uri: Uri, mimeType: String, grantWrite: Boolean): Intent =
         Intent(Intent.ACTION_EDIT).apply {
-            setDataAndType(uri, mimeFor(uri, mimeType))
+            setDataAndType(shareableUri(uri), mimeFor(uri, mimeType))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             // Editors that save in place need write access; harmless otherwise.
             if (grantWrite) addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
