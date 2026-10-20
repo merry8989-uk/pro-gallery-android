@@ -31,12 +31,12 @@ val hasSigningConfig = signingStore?.exists() == true
 
 android {
     namespace = "com.progallery.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.progallery.app"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 22
         versionName = "1.7.0"
 
