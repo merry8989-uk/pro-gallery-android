@@ -1,5 +1,6 @@
 package com.progallery.app.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -56,6 +57,7 @@ import com.progallery.app.data.model.ViewMode
 import com.progallery.app.util.MediaFormatUtils
 
 /** A single grid/list thumbnail with selection and video affordances. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MediaThumbnail(
     item: MediaItem,
@@ -183,6 +185,7 @@ fun MediaCollection(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MediaListRow(
     item: MediaItem,
