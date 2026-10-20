@@ -222,6 +222,4 @@ class PhotoEditorViewModel @Inject constructor(
     }
 
     fun consumeMessage() = _state.update { it.copy(message = null) }
-
-    }
 }
