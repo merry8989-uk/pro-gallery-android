@@ -32,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaType
@@ -61,6 +63,7 @@ fun MediaBrowserScaffold(
     showSearch: Boolean = false,
     emptyTitle: String = "Nothing here yet",
     emptySubtitle: String = "Photos and videos you add will appear here.",
+    header: (@Composable () -> Unit)? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -70,6 +73,10 @@ fun MediaBrowserScaffold(
     ) { result ->
         viewModel.onDeleteConsentResult(result.resultCode == Activity.RESULT_OK)
     }
+
+    // Re-query whenever the screen returns to the foreground: a permission may
+    // have just been granted, or the device's media may have changed.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
 
     LaunchedEffect(state.pendingDelete) {
         state.pendingDelete?.let { intent ->
@@ -170,6 +177,7 @@ fun MediaBrowserScaffold(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                 )
             }
+            header?.let { it() }
             when {
                 state.error != null -> ErrorBanner(state.error!!) { viewModel.refresh() }
                 state.loading -> LoadingState()
@@ -190,7 +198,7 @@ fun MediaBrowserScaffold(
                             // Images and videos preview, audio plays in the
                             // in-app player; documents/archives/unknown types
                             // are handed to the system.
-                            item.isPreviewable || item.isAudio -> onOpenItem(item)
+                            item.isPreviewable || item.isAudio || item.isPdf -> onOpenItem(item)
                             else -> viewModel.openWith(item)
                         }
                     },

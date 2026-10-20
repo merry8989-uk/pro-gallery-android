@@ -9,8 +9,12 @@ import androidx.navigation.navArgument
 import com.progallery.app.ui.screens.albums.AlbumDetailScreen
 import com.progallery.app.ui.screens.albums.AlbumsScreen
 import com.progallery.app.ui.screens.albums.CustomAlbumDetailScreen
+import com.progallery.app.data.model.MediaItem
+import com.progallery.app.ui.screens.audio.AudioPlayerScreen
 import com.progallery.app.ui.screens.audio.AudioScreen
 import com.progallery.app.ui.screens.documents.DocumentsScreen
+import com.progallery.app.ui.screens.editor.audio.AudioEditorScreen
+import com.progallery.app.ui.screens.pdf.PdfViewerScreen
 import com.progallery.app.ui.screens.files.AllFilesScreen
 import com.progallery.app.ui.screens.deepscan.DeepScanScreen
 import com.progallery.app.ui.screens.editor.photo.PhotoEditorScreen
@@ -27,6 +31,16 @@ import com.progallery.app.ui.screens.videos.VideosScreen
 @Composable
 fun ProGalleryNavHost() {
     val navController = rememberNavController()
+
+    // One place decides where a tapped item goes, by its kind.
+    val openItem: (MediaItem) -> Unit = { item ->
+        when {
+            item.isImage -> navController.navigate(Routes.viewer(item.uri.toString(), item.mediaType.name))
+            item.isAudio -> navController.navigate(Routes.audioPlayer(item.uri.toString()))
+            item.isVideo -> navController.navigate(Routes.videoPlayer(item.uri.toString()))
+            item.isPdf -> navController.navigate(Routes.pdfViewer(item.uri.toString()))
+        }
+    }
 
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
@@ -45,17 +59,19 @@ fun ProGalleryNavHost() {
         composable(Routes.AUDIO) {
             AudioScreen(
                 onBack = { navController.popBackStack() },
-                onOpenPlayer = { uri -> navController.navigate(Routes.videoPlayer(uri)) },
+                onOpenPlayer = { uri -> navController.navigate(Routes.audioPlayer(uri)) },
             )
         }
         composable(Routes.DOCUMENTS) {
-            DocumentsScreen(onBack = { navController.popBackStack() })
+            DocumentsScreen(
+                onBack = { navController.popBackStack() },
+                onOpen = openItem,
+            )
         }
         composable(Routes.ALL_FILES) {
             AllFilesScreen(
                 onBack = { navController.popBackStack() },
-                onOpenViewer = { uri, type -> navController.navigate(Routes.viewer(uri, type)) },
-                onOpenPlayer = { uri -> navController.navigate(Routes.videoPlayer(uri)) },
+                onOpen = openItem,
             )
         }
         composable(Routes.ALBUMS) {
@@ -103,8 +119,7 @@ fun ProGalleryNavHost() {
         composable(Routes.FAVOURITES) {
             FavouritesScreen(
                 onBack = { navController.popBackStack() },
-                onOpenViewer = { uri, type -> navController.navigate(Routes.viewer(uri, type)) },
-                onOpenPlayer = { uri -> navController.navigate(Routes.videoPlayer(uri)) },
+                onOpen = openItem,
             )
         }
         composable(Routes.TRASH) {
@@ -116,8 +131,7 @@ fun ProGalleryNavHost() {
         composable(Routes.SEARCH) {
             SearchScreen(
                 onBack = { navController.popBackStack() },
-                onOpenViewer = { uri, type -> navController.navigate(Routes.viewer(uri, type)) },
-                onOpenPlayer = { uri -> navController.navigate(Routes.videoPlayer(uri)) },
+                onOpen = openItem,
             )
         }
         composable(
@@ -154,6 +168,40 @@ fun ProGalleryNavHost() {
         ) { entry ->
             PhotoEditorScreen(
                 uri = entry.arguments?.getString("uri") ?: "",
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = "${Routes.PDF_VIEWER}?uri={uri}",
+            arguments = listOf(navArgument("uri") { type = NavType.StringType }),
+        ) { entry ->
+            PdfViewerScreen(
+                uri = entry.arguments?.getString("uri") ?: "",
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = "${Routes.AUDIO_PLAYER}?uri={uri}",
+            arguments = listOf(navArgument("uri") { type = NavType.StringType }),
+        ) { entry ->
+            AudioPlayerScreen(
+                uri = entry.arguments?.getString("uri") ?: "",
+                onBack = { navController.popBackStack() },
+                onEdit = { targetUri, cut ->
+                    navController.navigate(Routes.audioEditor(targetUri, cut))
+                },
+            )
+        }
+        composable(
+            route = "${Routes.AUDIO_EDITOR}?uri={uri}&cut={cut}",
+            arguments = listOf(
+                navArgument("uri") { type = NavType.StringType },
+                navArgument("cut") { type = NavType.BoolType; defaultValue = false },
+            ),
+        ) { entry ->
+            AudioEditorScreen(
+                uri = entry.arguments?.getString("uri") ?: "",
+                startInCutMode = entry.arguments?.getBoolean("cut") ?: false,
                 onBack = { navController.popBackStack() },
             )
         }

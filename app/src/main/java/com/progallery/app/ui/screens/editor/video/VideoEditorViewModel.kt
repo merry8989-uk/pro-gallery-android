@@ -7,8 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.progallery.app.edit.video.ResolutionPreset
 import com.progallery.app.edit.video.VideoEditState
-import com.progallery.app.edit.video.VideoExportState
-import com.progallery.app.edit.video.VideoTrimmer
+import com.progallery.app.edit.MediaExportState
+import com.progallery.app.edit.MediaTrimmer
+import com.progallery.app.edit.TrimKind
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -32,7 +33,7 @@ data class VideoEditorUiState(
 @HiltViewModel
 class VideoEditorViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val trimmer: VideoTrimmer,
+    private val trimmer: MediaTrimmer,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(VideoEditorUiState())
@@ -76,11 +77,16 @@ class VideoEditorViewModel @Inject constructor(
         val normalized = _state.value.edit.normalized(_state.value.durationMs)
         _state.update { it.copy(exporting = true, progress = 0, error = null) }
         exportJob = viewModelScope.launch {
-            trimmer.export(uri, normalized, "ProGallery_${System.currentTimeMillis()}").collect { exportState ->
+            trimmer.export(
+                source = uri,
+                edit = normalized,
+                outputName = "ProGallery_${System.currentTimeMillis()}",
+                kind = TrimKind.VIDEO,
+            ).collect { exportState ->
                 when (exportState) {
-                    is VideoExportState.Progress ->
+                    is MediaExportState.Progress ->
                         _state.update { it.copy(progress = exportState.percent) }
-                    is VideoExportState.Success ->
+                    is MediaExportState.Success ->
                         _state.update {
                             it.copy(
                                 exporting = false,
@@ -88,7 +94,7 @@ class VideoEditorViewModel @Inject constructor(
                                 message = "Saved to Movies/ProGallery",
                             )
                         }
-                    is VideoExportState.Failure ->
+                    is MediaExportState.Failure ->
                         _state.update {
                             it.copy(exporting = false, error = exportState.message)
                         }

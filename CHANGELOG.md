@@ -27,6 +27,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.2.0]
+### Added
+- **In-app PDF viewer** built on the platform `PdfRenderer` (no third-party library): page-by-page rendering, swipe between pages, pinch/double-tap zoom, and a bottom bar with **Share, Copy, Move, Upload and Print**. Print goes through the system print framework, so installed print services and "Save as PDF" both work.
+- **In-app audio player**: playback with a seek bar, and a bottom bar with **Edit, Cut, Share, Move, Copy and Info**.
+- **Audio trim editor**: pick a start and end point, preview exactly that range, and export the clip to `Music/ProGallery` via Media3 Transformer. The original file is untouched.
+- Copy support: copies a file into another folder through MediaStore, cleaning up the pending row if the copy fails.
+- An optional **All files access** card on the Documents screen, which is what makes PDFs and other documents created by other apps visible.
+
+### Fixed
+- **Audio appeared to be missing.** The permission gate required *every* permission at once, so denying audio (or any single one) blanked the whole app. Access is now granted if the app can see any category, with an actionable banner for whatever is still off.
+- **The list no longer stays empty after granting a permission.** Screens re-query MediaStore on resume, which also picks up files added while the app was in the background.
+- **PDFs are visible and openable.** Android hides documents created by other apps from a normal media permission; with All files access they appear in the index, and Deep Scan remains the alternative. PDFs now open in the in-app viewer instead of being handed to the system.
+- `MediaTrimmer` replaces `VideoTrimmer` and handles audio-only exports as well as video.
+
 ## [1.1.1]
 ### Fixed
 - **The selection bar no longer hides under the system navigation bar.** It now clears the navigation-bar inset, so its actions are actually tappable on gesture- and button-navigation devices.

@@ -56,6 +56,19 @@ class MediaActions @Inject constructor(
         context.startActivity(shareChooser(items))
     }
 
+    /**
+     * Offers the file to another app under a custom chooser title. Used for
+     * "Upload", where this app has no server of its own and simply hands the
+     * file to an app that does (Drive, Gmail, …).
+     */
+    fun launchOpenWithChooser(item: MediaItem, title: String): Boolean = runCatching {
+        context.startActivity(
+            Intent.createChooser(openIntent(item), title)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        true
+    }.getOrDefault(false)
+
     /** Intent that hands a file to whatever app can display it. */
     fun openIntent(item: MediaItem): Intent =
         Intent(Intent.ACTION_VIEW).apply {
@@ -106,6 +119,63 @@ class MediaActions @Inject constructor(
         }
         context.contentResolver.update(uri, values, null, null) > 0
     }.getOrDefault(false)
+
+    /**
+     * Copies a file into another folder by re-publishing its bytes through
+     * MediaStore. Needs Android 10+ for RELATIVE_PATH; for documents created by
+     * other apps it additionally needs All-files access.
+     *
+     * A failed copy deletes the pending row it created rather than leaving an
+     * empty entry behind.
+     */
+    fun copyTo(item: MediaItem, targetRelativePath: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        return runCatching {
+            val normalized = if (targetRelativePath.endsWith("/")) {
+                targetRelativePath
+            } else {
+                "$targetRelativePath/"
+            }
+            val values = android.content.ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, item.displayName)
+                put(
+                    MediaStore.MediaColumns.MIME_TYPE,
+                    item.mimeType.ifBlank { "application/octet-stream" },
+                )
+                put(MediaStore.MediaColumns.RELATIVE_PATH, normalized)
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+            val uri = context.contentResolver.insert(collectionFor(item), values)
+            if (uri == null) {
+                false
+            } else {
+                val copied = context.contentResolver.openInputStream(item.uri)?.use { input ->
+                    context.contentResolver.openOutputStream(uri)?.use { output ->
+                        input.copyTo(output)
+                    }
+                    true
+                } ?: false
+
+                if (copied) {
+                    values.clear()
+                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    context.contentResolver.update(uri, values, null, null)
+                } else {
+                    // Don't leave a half-written, pending row behind.
+                    context.contentResolver.delete(uri, null, null)
+                }
+                copied
+            }
+        }.getOrDefault(false)
+    }
+
+    /** The MediaStore collection a file of this kind belongs in. */
+    private fun collectionFor(item: MediaItem): Uri = when {
+        item.isVideo -> MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        item.isAudio -> MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        item.isImage -> MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        else -> MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+    }
 
     /**
      * Write consent for renaming/moving. Shares the same platform flow as the

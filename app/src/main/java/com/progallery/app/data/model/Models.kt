@@ -62,6 +62,10 @@ data class MediaItem(
     val isDocument: Boolean get() = mediaType == MediaType.DOCUMENT
     val isArchive: Boolean get() = mediaType == MediaType.ARCHIVE
 
+    /** True for PDFs, which have their own in-app viewer. */
+    val isPdf: Boolean
+        get() = mimeType.equals("application/pdf", ignoreCase = true) || extension == "pdf"
+
     /** Whether the app can render an inline preview (image or video). */
     val isPreviewable: Boolean
         get() = mediaType == MediaType.IMAGE || mediaType == MediaType.VIDEO

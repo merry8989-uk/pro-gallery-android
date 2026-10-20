@@ -8,6 +8,9 @@ object Routes {
     const val AUDIO = "audio"
     const val DOCUMENTS = "documents"
     const val ALL_FILES = "all_files"
+    const val PDF_VIEWER = "pdf_viewer"
+    const val AUDIO_PLAYER = "audio_player"
+    const val AUDIO_EDITOR = "audio_editor"
     const val VIDEOS = "videos"
     const val FAVOURITES = "favourites"
     const val TRASH = "trash"
@@ -26,4 +29,7 @@ object Routes {
     fun videoPlayer(uri: String) = "$VIDEO_PLAYER?uri=${java.net.URLEncoder.encode(uri, "UTF-8")}"
     fun photoEditor(uri: String) = "$PHOTO_EDITOR?uri=${java.net.URLEncoder.encode(uri, "UTF-8")}"
     fun videoEditor(uri: String) = "$VIDEO_EDITOR?uri=${java.net.URLEncoder.encode(uri, "UTF-8")}"
+    fun pdfViewer(uri: String) = "$PDF_VIEWER?uri=${java.net.URLEncoder.encode(uri, "UTF-8")}"
+    fun audioPlayer(uri: String) = "$AUDIO_PLAYER?uri=${java.net.URLEncoder.encode(uri, "UTF-8")}"
+    fun audioEditor(uri: String, cut: Boolean) = "$AUDIO_EDITOR?uri=${java.net.URLEncoder.encode(uri, "UTF-8")}&cut=$cut"
 }

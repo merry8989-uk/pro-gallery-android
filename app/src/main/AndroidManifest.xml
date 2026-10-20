@@ -18,6 +18,16 @@
         tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
 
+    <!--
+      Optional "All files access". MediaStore hides documents and archives created
+      by other apps from a normal media permission, so this is the only way to
+      browse PDFs and similar files in the main list. The app explains this and
+      sends the user to system Settings; it is never requested automatically.
+    -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
     <application
         android:name=".ProGalleryApplication"
         android:allowBackup="true"

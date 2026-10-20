@@ -2,8 +2,12 @@ package com.progallery.app.util
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import androidx.core.content.ContextCompat
 
 /**
@@ -31,16 +35,57 @@ object PermissionUtils {
         else -> listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 
-    /** Full read access to all photos and videos. */
-    fun hasFullAccess(context: Context): Boolean = requiredPermissions()
-        .filterNot { Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
-            it == Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED }
-        .all { granted(context, it) }
+    /** Read access to photos and videos. */
+    fun hasVisualAccess(context: Context): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            granted(context, Manifest.permission.READ_MEDIA_IMAGES) ||
+                granted(context, Manifest.permission.READ_MEDIA_VIDEO)
+        } else {
+            granted(context, Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+    /** Read access to audio. */
+    fun hasAudioAccess(context: Context): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            granted(context, Manifest.permission.READ_MEDIA_AUDIO)
+        } else {
+            granted(context, Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
 
     /** Android 14+ partial ("selected photos") access. */
     fun hasPartialAccess(context: Context): Boolean =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
             granted(context, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+
+    /** Any access at all — enough to show something rather than a blank screen. */
+    fun hasAnyAccess(context: Context): Boolean =
+        hasVisualAccess(context) || hasAudioAccess(context) || hasPartialAccess(context)
+
+    /** Read access to everything the gallery needs for photos and videos. */
+    fun hasFullAccess(context: Context): Boolean = hasVisualAccess(context)
+
+    /**
+     * Android 11+ "All files access".
+     *
+     * This is the only way for an app to see documents, archives and other
+     * non-media files created by *other* apps: MediaStore hides those from a
+     * normal media permission. It is granted from system Settings, not a dialog,
+     * and Google Play restricts its use — appropriate for a sideloaded,
+     * on-device gallery, and the app says so before asking.
+     */
+    fun hasAllFilesAccess(context: Context): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()
+
+    /** Opens the system screen where the user can grant All files access. */
+    fun allFilesAccessIntent(context: Context): Intent =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Intent(
+                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                Uri.parse("package:${context.packageName}"),
+            )
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+        }
 
     private fun granted(context: Context, permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED

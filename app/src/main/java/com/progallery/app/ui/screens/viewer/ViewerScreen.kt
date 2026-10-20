@@ -69,38 +69,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.progallery.app.data.model.MediaItem
+import com.progallery.app.ui.components.FileActionBar
+import com.progallery.app.ui.components.FileActionSpec
+import com.progallery.app.ui.components.FileInfoDialog
+import com.progallery.app.ui.components.FolderPickerDialog
+import com.progallery.app.ui.components.ZoomState
+import com.progallery.app.ui.components.sameUri
+import com.progallery.app.ui.components.zoomGestures
 import com.progallery.app.util.ImmersiveSystemBars
 import com.progallery.app.util.MediaFormatUtils
-
-/**
- * Holds the zoom/pan for the visible page. A single instance is shared by the
- * viewer so the gesture handlers always read current values (a plain captured
- * `Float` would go stale inside a long-lived `pointerInput` block).
- */
-private class ZoomState {
-    var scale by mutableFloatStateOf(1f)
-    var offset by mutableStateOf(Offset.Zero)
-
-    val isZoomed: Boolean get() = scale > 1f
-
-    fun reset() {
-        scale = 1f
-        offset = Offset.Zero
-    }
-
-    fun apply(zoomChange: Float, panChange: Offset) {
-        val newScale = (scale * zoomChange).coerceIn(1f, 6f)
-        scale = newScale
-        offset = if (newScale <= 1f) Offset.Zero else offset + panChange
-    }
-}
-
-/** Compares a MediaStore URI with a navigation argument, tolerating double-encoding. */
-private fun sameUri(itemUri: String, passed: String): Boolean {
-    if (itemUri == passed) return true
-    val decoded = runCatching { java.net.URLDecoder.decode(passed, "UTF-8") }.getOrNull()
-    return decoded != null && itemUri == decoded
-}
 
 /**
  * Full-screen photo/video viewer.
@@ -284,9 +261,11 @@ fun ViewerScreen(
     }
 
     moveTarget?.let { item ->
-        MoveDialog(
-            item = item,
+        FolderPickerDialog(
+            title = "Move to folder",
             folders = folders,
+            currentPath = item.relativePath ?: item.bucketName,
+            confirmLabel = "Move",
             onDismiss = { moveTarget = null },
             onConfirm = { target ->
                 viewModel.requestMove(item, target)
@@ -296,28 +275,7 @@ fun ViewerScreen(
     }
 
     infoTarget?.let { item ->
-        InfoDialog(item = item, onDismiss = { infoTarget = null })
-    }
-}
-
-/**
- * Two-finger pinch always zooms; one-finger drag pans only while zoomed.
- * At natural size the gesture is left unconsumed so the pager can page.
- */
-private fun Modifier.zoomGestures(zoom: ZoomState): Modifier = pointerInput(Unit) {
-    awaitEachGesture {
-        awaitFirstDown(requireUnconsumed = false)
-        do {
-            val event = awaitPointerEvent()
-            val pressedCount = event.changes.count { it.pressed }
-            val zoomChange = event.calculateZoom()
-            val panChange = event.calculatePan()
-            val handle = pressedCount > 1 || zoom.isZoomed
-            if (handle && (zoomChange != 1f || panChange != Offset.Zero)) {
-                zoom.apply(zoomChange, panChange)
-                event.changes.forEach { it.consume() }
-            }
-        } while (event.changes.any { it.pressed })
+        FileInfoDialog(item = item, onDismiss = { infoTarget = null })
     }
 }
 
@@ -415,103 +373,4 @@ private fun RenameDialog(item: MediaItem, onDismiss: () -> Unit, onConfirm: (Str
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
-}
-
-@Composable
-private fun MoveDialog(
-    item: MediaItem,
-    folders: List<String>,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-) {
-    var custom by remember { mutableStateOf("") }
-    val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Move to folder") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 360.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                if (!supported) {
-                    Text(
-                        "Moving files needs Android 11 or newer. On this version the platform does not allow an app to change a file's folder.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                } else {
-                    Text(
-                        "Current: ${item.relativePath ?: item.bucketName}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    folders.forEach { folder ->
-                        Text(
-                            text = folder,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onConfirm(folder) }
-                                .padding(vertical = 12.dp),
-                        )
-                    }
-                    OutlinedTextField(
-                        value = custom,
-                        onValueChange = { custom = it },
-                        label = { Text("Or type a folder, e.g. Pictures/Keep") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(custom) },
-                enabled = supported && custom.isNotBlank(),
-            ) { Text("Move") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}
-
-@Composable
-private fun InfoDialog(item: MediaItem, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Info") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                InfoRow("Name", item.displayName)
-                InfoRow("Type", item.mimeType.ifBlank { "—" })
-                InfoRow("Size", MediaFormatUtils.formatBytes(item.sizeBytes))
-                InfoRow("Dimensions", item.dimensionLabel)
-                if (item.isVideo) {
-                    InfoRow("Duration", MediaFormatUtils.formatDuration(item.durationMs))
-                }
-                InfoRow("Album", item.bucketName)
-                InfoRow("Path", item.relativePath ?: "—")
-                InfoRow("Modified", MediaFormatUtils.formatDate(item.dateModifiedSeconds))
-                InfoRow("Source", if (item.source.name == "DEEP_SCAN") "Deep scan" else "MediaStore")
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-    )
-}
-
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(end = 12.dp),
-        )
-        Text(text = value, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-    }
 }
