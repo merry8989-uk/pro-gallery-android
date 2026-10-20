@@ -11,6 +11,7 @@ Checks
   1. Brace, parenthesis and bracket balance per file (comments and strings ignored).
   2. Every `Icons.Filled.*` / `Icons.AutoMirrored.Filled.*` use has its import.
   3. No duplicate imports.
+  3c. At most one `companion object` per file — Kotlin rejects a second one.
   3b. Every `import` appears before any declaration — Kotlin rejects an import
       that follows code ("imports are only allowed in the beginning of file").
   4. Every project type a file references is imported, declared locally, or in the
@@ -85,6 +86,12 @@ def main() -> int:
         for icon in set(re.findall(r"Icons\.(?:Filled|AutoMirrored\.Filled)\.(\w+)", code)):
             if not any(i.endswith("." + icon) for i in icon_imports):
                 problems.append(f"{name}: Icons.*.{icon} used but not imported")
+
+        companions = len(re.findall(r"\bcompanion object\b", code))
+        if companions > 1:
+            problems.append(
+                f"{name}: {companions} companion objects — Kotlin allows only one per class"
+            )
 
         seen = set()
         seen_code = False

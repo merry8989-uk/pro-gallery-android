@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import com.progallery.app.util.runCatchingCancellable
 
 data class BrowserUiState(
     val rawItems: List<MediaItem> = emptyList(),

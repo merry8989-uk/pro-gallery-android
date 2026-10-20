@@ -45,11 +45,6 @@ class MediaStoreDataSource @Inject constructor(
 
     private val collection: Uri = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
 
-    companion object {
-        /** Rows read before the index is published again. */
-        const val DEFAULT_BATCH_SIZE = 500
-    }
-
     private val projection = buildList {
         add(MediaStore.MediaColumns._ID)
         add(MediaStore.MediaColumns.DISPLAY_NAME)
@@ -199,6 +194,9 @@ class MediaStoreDataSource @Inject constructor(
     }
 
     companion object {
+        /** Rows read before the index is published again. */
+        const val DEFAULT_BATCH_SIZE = 500
+
         /** Every real file kind; MediaType.ALL is the "no filter" value, not a kind. */
         val DEFAULT_KINDS: Set<MediaType> = MediaType.entries
             .filter { it != MediaType.ALL }

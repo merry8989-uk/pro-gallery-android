@@ -90,7 +90,6 @@ object PermissionUtils {
 
     private fun granted(context: Context, permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
-}
 
     /**
      * The system photo picker, used to change which photos a **partial** grant
@@ -111,3 +110,4 @@ object PermissionUtils {
 
     /** How many photos the picker may return when widening a partial grant. */
     private const val RESELECT_LIMIT = 100
+}
