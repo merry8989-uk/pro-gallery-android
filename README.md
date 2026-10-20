@@ -158,7 +158,7 @@ this honestly rather than pretending otherwise:
   including nested folders, is indexed: documents, archives, raw files, unknown
   formats. This is the way to make arbitrary files scannable.
 
-Images and videos get thumbnails and an in-app viewer/editor. Audio plays in the
+The viewer swipes through **only the tapped item's own kind** — opening a photo never slides into a video. Images and videos get thumbnails and an in-app viewer/editor. Audio plays in the
 in-app player. Documents, archives and unknown types show a type icon, and open
 with whichever app on the device handles them — tapping the file opens the system
 chooser, a single selection offers **Open in** in the action bar, and the PDF

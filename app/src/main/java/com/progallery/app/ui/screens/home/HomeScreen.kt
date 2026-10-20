@@ -35,11 +35,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.progallery.app.data.model.MediaType
 import com.progallery.app.ui.components.DashboardTile
 import com.progallery.app.ui.components.DefaultGalleryPrompt
 import com.progallery.app.ui.components.MediaCollection
 import com.progallery.app.ui.components.MediaPermissionGate
 import com.progallery.app.ui.navigation.Routes
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,66 +79,97 @@ fun HomeScreen(
         },
     ) { padding ->
         MediaPermissionGate {
-            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            PullToRefreshBox(
+                isRefreshing = state.refreshing,
+                onRefresh = { viewModel.refresh() },
+                modifier = Modifier.fillMaxSize().padding(padding),
+            ) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier.padding(horizontal = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    DashboardTile(
-                        icon = Icons.Filled.Folder,
-                        title = "All files",
-                        subtitle = "${state.allFiles} files · ${state.other} other",
-                        onClick = { onOpen(Routes.ALL_FILES) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (HomeEntries.isEmpty(state.enabledKinds)) {
+                        // Everything is switched off: say so instead of showing an
+                        // empty Home with no explanation.
                         DashboardTile(
-                            icon = Icons.Filled.PhotoLibrary,
-                            title = "Photos",
-                            subtitle = "${state.photos} items",
-                            onClick = { onOpen(Routes.PHOTOS) },
-                            modifier = Modifier.weight(1f),
-                        )
-                        DashboardTile(
-                            icon = Icons.Filled.Videocam,
-                            title = "Videos",
-                            subtitle = "${state.videos} items",
-                            onClick = { onOpen(Routes.VIDEOS) },
-                            modifier = Modifier.weight(1f),
+                            icon = Icons.Filled.Tune,
+                            title = "Nothing to show",
+                            subtitle = "Every file category is switched off. Open Settings to turn one back on.",
+                            onClick = { onOpen(Routes.SETTINGS) },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DashboardTile(
-                            icon = Icons.Filled.MusicNote,
-                            title = "Audio",
-                            subtitle = "${state.audio} items",
-                            onClick = { onOpen(Routes.AUDIO) },
-                            modifier = Modifier.weight(1f),
-                        )
-                        DashboardTile(
-                            icon = Icons.Filled.Description,
-                            title = "Documents",
-                            subtitle = "${state.documents} items",
-                            onClick = { onOpen(Routes.DOCUMENTS) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                    if (HomeEntries.showCollections(state.enabledKinds)) {
                         DashboardTile(
                             icon = Icons.Filled.Folder,
-                            title = "Albums",
-                            subtitle = "${state.albums} folders",
-                            onClick = { onOpen(Routes.ALBUMS) },
-                            modifier = Modifier.weight(1f),
-                        )
-                        DashboardTile(
-                            icon = Icons.Filled.Favorite,
-                            title = "Favourites",
-                            subtitle = "${state.favourites} items",
-                            onClick = { onOpen(Routes.FAVOURITES) },
-                            modifier = Modifier.weight(1f),
+                            title = "All files",
+                            subtitle = "${state.allFiles} files · ${state.other} other",
+                            onClick = { onOpen(Routes.ALL_FILES) },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
+
+                    // One row per pair of enabled types; a lone tile keeps half width.
+                    HomeEntries.typeTiles(state.enabledKinds)
+                        .map { kind ->
+                            when (kind) {
+                                MediaType.IMAGE -> HomeTile(
+                                    Icons.Filled.PhotoLibrary, "Photos",
+                                    "${state.photos} items", Routes.PHOTOS,
+                                )
+                                MediaType.VIDEO -> HomeTile(
+                                    Icons.Filled.Videocam, "Videos",
+                                    "${state.videos} items", Routes.VIDEOS,
+                                )
+                                MediaType.AUDIO -> HomeTile(
+                                    Icons.Filled.MusicNote, "Audio",
+                                    "${state.audio} items", Routes.AUDIO,
+                                )
+                                else -> HomeTile(
+                                    Icons.Filled.Description, "Documents",
+                                    "${state.documents} items", Routes.DOCUMENTS,
+                                )
+                            }
+                        }
+                        .chunked(2)
+                        .forEach { pair ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                pair.forEach { tile ->
+                                    DashboardTile(
+                                        icon = tile.icon,
+                                        title = tile.title,
+                                        subtitle = tile.subtitle,
+                                        onClick = { onOpen(tile.route) },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                                if (pair.size == 1) {
+                                    Box(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+
+                    if (HomeEntries.showCollections(state.enabledKinds)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            DashboardTile(
+                                icon = Icons.Filled.Folder,
+                                title = "Albums",
+                                subtitle = "${state.albums} folders",
+                                onClick = { onOpen(Routes.ALBUMS) },
+                                modifier = Modifier.weight(1f),
+                            )
+                            DashboardTile(
+                                icon = Icons.Filled.Favorite,
+                                title = "Favourites",
+                                subtitle = "${state.favourites} items",
+                                onClick = { onOpen(Routes.FAVOURITES) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+
                     DashboardTile(
                         icon = Icons.Filled.Android,
                         title = "Android folders",
@@ -178,6 +214,15 @@ fun HomeScreen(
                     }
                 }
             }
+            }
         }
     }
 }
+
+/** One Home entry point, built only when its category is enabled. */
+private data class HomeTile(
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String,
+    val route: String,
+)

@@ -47,6 +47,7 @@ import com.progallery.app.ui.components.LoadingState
 import com.progallery.app.ui.components.MediaCollection
 import com.progallery.app.ui.components.MediaPermissionGate
 import com.progallery.app.ui.components.SelectionToolbar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 
 /**
  * Standard scaffold used by Photos, Videos, Favourites and Search. Owns the
@@ -183,7 +184,12 @@ fun MediaBrowserScaffold(
                 },
             )
         }
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        PullToRefreshBox(
+            isRefreshing = state.refreshing,
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
             if (showSearch) {
                 androidx.compose.material3.OutlinedTextField(
                     value = state.query,
@@ -215,7 +221,12 @@ fun MediaBrowserScaffold(
                             // Images and videos preview, audio plays in the
                             // in-app player; documents/archives/unknown types
                             // are handed to the system.
-                            item.isPreviewable || item.isAudio || item.isPdf -> onOpenItem(item)
+                            item.isPreviewable || item.isAudio || item.isPdf -> {
+                                // Tell the viewer what is on screen, so swiping
+                                // matches the grid instead of the whole library.
+                                if (item.isPreviewable) viewModel.prepareViewerContext()
+                                onOpenItem(item)
+                            }
                             else -> viewModel.openWith(item)
                         }
                     },
@@ -226,5 +237,6 @@ fun MediaBrowserScaffold(
                 )
             }
         }
+            }
     }
 }

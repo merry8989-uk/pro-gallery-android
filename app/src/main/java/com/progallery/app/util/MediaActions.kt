@@ -128,9 +128,12 @@ class MediaActions @Inject constructor(
      * so instead of showing an empty chooser.
      */
     fun launchOpen(item: MediaItem, chooserTitle: String = "Open with"): Boolean {
-        val target = openIntent(item)
-        if (!canHandle(target)) return false
-        return launchChooser(target, chooserTitle)
+        // Deliberately NOT gated on canHandle(). Package visibility filtering can
+        // report "nothing can handle this" while five apps are installed, which
+        // made the app refuse to show the chooser at all. The system chooser is
+        // the authority: it lists the real apps, and says so itself when there
+        // genuinely are none.
+        return launchChooser(openIntent(item), chooserTitle)
     }
 
     /** True when an installed app can edit this file. */
@@ -158,9 +161,9 @@ class MediaActions @Inject constructor(
             return launchChooser(editIntent(uri, mimeType, grantWrite = false), chooserTitle)
         }
 
-        val fallback = viewIntent(uri, mimeType)
-        if (!canHandle(fallback)) return false
-        return launchChooser(fallback, chooserTitle)
+        // No editor detected (or visibility hid it): still offer the chooser, so
+        // the user sees the apps that really exist.
+        return launchChooser(viewIntent(uri, mimeType), chooserTitle)
     }
 
     /**

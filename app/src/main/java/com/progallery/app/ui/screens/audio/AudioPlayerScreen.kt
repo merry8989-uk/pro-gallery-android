@@ -197,24 +197,27 @@ class AudioPlayerViewModel @Inject constructor(
      */
     fun requestDelete(item: MediaItem) {
         viewModelScope.launch {
-            val trashed = trashRepository.moveToTrash(listOf(item))
-            if (trashed.isEmpty()) {
+            val outcome = trashRepository.moveToTrash(listOf(item))
+            if (outcome.succeeded.isEmpty()) {
                 _state.update {
-                    it.copy(message = "Could not move to Recently Deleted — nothing was deleted")
+                    it.copy(
+                        message = "Could not copy to Recently Deleted, so nothing was deleted. " +
+                            outcome.explain(),
+                    )
                 }
                 return@launch
             }
             val request = mediaActions.deleteRequest(listOf(item))
             if (request != null) {
                 _state.update {
-                    it.copy(pendingDelete = request, pendingTrashIds = trashed.map { it.trashId })
+                    it.copy(pendingDelete = request, pendingTrashIds = outcome.succeeded.map { it.trashId })
                 }
             } else {
                 val ok = mediaActions.deleteDirect(listOf(item))
                 if (ok) {
                     _state.update { it.copy(message = "Moved to Recently Deleted") }
                 } else {
-                    trashRepository.discard(trashed.map { it.trashId })
+                    trashRepository.discard(outcome.succeeded.map { it.trashId })
                     _state.update { it.copy(message = "Could not delete — nothing was changed") }
                 }
                 repository.refresh()
