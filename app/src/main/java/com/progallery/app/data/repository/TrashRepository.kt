@@ -10,6 +10,7 @@ import android.provider.MediaStore
 import com.progallery.app.data.local.dao.TrashDao
 import com.progallery.app.data.local.entity.TrashEntity
 import com.progallery.app.data.model.MediaItem
+import com.progallery.app.data.model.MediaType
 import com.progallery.app.util.FileUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +60,7 @@ class TrashRepository @Inject constructor(
                     displayName = item.displayName,
                     mimeType = item.mimeType,
                     isVideo = item.isVideo,
+                    mediaType = item.mediaType.name,
                     sizeBytes = copied.length(),
                     originalBucketId = item.bucketId,
                     originalRelativePath = item.relativePath,
@@ -111,20 +113,37 @@ class TrashRepository @Inject constructor(
         expired.size
     }
 
+    /** Where a restored file of this kind belongs. */
+    private fun restoreTarget(entity: TrashEntity): Triple<MediaType, String, String> {
+        val kind = entity.mediaType
+            ?.let { name -> MediaType.entries.firstOrNull { it.name == name } }
+            ?: if (entity.isVideo) MediaType.VIDEO else MediaType.IMAGE
+        return when (kind) {
+            MediaType.VIDEO -> Triple(kind, Environment.DIRECTORY_MOVIES, "video/mp4")
+            MediaType.AUDIO -> Triple(kind, Environment.DIRECTORY_MUSIC, "audio/mpeg")
+            MediaType.DOCUMENT -> Triple(kind, Environment.DIRECTORY_DOCUMENTS, "application/octet-stream")
+            MediaType.ARCHIVE, MediaType.OTHER ->
+                Triple(kind, Environment.DIRECTORY_DOWNLOADS, "application/octet-stream")
+            else -> Triple(MediaType.IMAGE, Environment.DIRECTORY_PICTURES, "image/jpeg")
+        }
+    }
+
     private fun publishBack(file: File, entity: TrashEntity): Uri? {
+        val (kind, directory, fallbackMime) = restoreTarget(entity)
+        val mime = entity.mimeType.ifBlank { fallbackMime }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val collection = if (entity.isVideo) {
-                MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            } else {
-                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val collection = when (kind) {
+                MediaType.VIDEO -> MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                MediaType.AUDIO -> MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                MediaType.IMAGE -> MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                // Documents and everything else belong in the general Files
+                // collection, not in Images.
+                else -> MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
             }
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, entity.displayName)
-                put(MediaStore.MediaColumns.MIME_TYPE, entity.mimeType)
-                put(
-                    MediaStore.MediaColumns.RELATIVE_PATH,
-                    "${if (entity.isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES}/ProGallery/Restored",
-                )
+                put(MediaStore.MediaColumns.MIME_TYPE, mime)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "$directory/ProGallery/Restored")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
             val uri = context.contentResolver.insert(collection, values) ?: return null
@@ -137,15 +156,13 @@ class TrashRepository @Inject constructor(
             return uri
         } else {
             val dir = File(
-                Environment.getExternalStoragePublicDirectory(
-                    if (entity.isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES,
-                ),
+                Environment.getExternalStoragePublicDirectory(directory),
                 "ProGallery/Restored",
             )
             if (!dir.exists() && !dir.mkdirs()) return null
             val dest = File(dir, entity.displayName)
             file.copyTo(dest, overwrite = true)
-            MediaScannerConnection.scanFile(context, arrayOf(dest.absolutePath), arrayOf(entity.mimeType), null)
+            MediaScannerConnection.scanFile(context, arrayOf(dest.absolutePath), arrayOf(mime), null)
             return Uri.fromFile(dest)
         }
     }

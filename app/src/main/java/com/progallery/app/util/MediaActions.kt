@@ -88,10 +88,21 @@ class MediaActions @Inject constructor(
      * Returns a delete-consent [PendingIntent] on Android 11+, or null when the
      * caller should delete directly (older versions / app-owned files).
      */
+    /**
+     * Consent request for deleting MediaStore entries (Android 11+).
+     *
+     * `createDeleteRequest` rejects a set that spans different collections or
+     * volumes (internal + SD card together, or mixed media types) and throws.
+     * That used to propagate out of the caller and make deletion look like it
+     * did nothing, so a failure here returns null and the caller falls back to
+     * deleting items individually with a clear result.
+     */
     fun deleteRequest(items: List<MediaItem>): PendingIntent? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
-        val uris = items.map { it.uri }
-        return MediaStore.createDeleteRequest(context.contentResolver, uris)
+        if (items.isEmpty()) return null
+        return runCatching {
+            MediaStore.createDeleteRequest(context.contentResolver, items.map { it.uri })
+        }.getOrNull()
     }
 
     /** Direct delete, used on Android 10 and below. Returns true if all succeeded. */
@@ -183,7 +194,14 @@ class MediaActions @Inject constructor(
      */
     fun writeRequest(uris: List<Uri>): PendingIntent? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
-        return MediaStore.createWriteRequest(context.contentResolver, uris)
+        if (uris.isEmpty()) return null
+        // Same constraint as the delete request: a set spanning volumes or
+        // collections throws. Also throws for non-MediaStore URIs, such as a file
+        // picked through the Storage Access Framework. Returning null lets the
+        // caller report a clear failure instead of the exception escaping.
+        return runCatching {
+            MediaStore.createWriteRequest(context.contentResolver, uris)
+        }.getOrNull()
     }
 
     /**

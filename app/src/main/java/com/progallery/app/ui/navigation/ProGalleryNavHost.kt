@@ -78,6 +78,7 @@ fun ProGalleryNavHost(
             DocumentsScreen(
                 onBack = { navController.popBackStack() },
                 onOpen = openItem,
+                onOpenPdf = { uri -> navController.navigate(Routes.pdfViewer(uri)) },
             )
         }
         composable(Routes.ALL_FILES) {

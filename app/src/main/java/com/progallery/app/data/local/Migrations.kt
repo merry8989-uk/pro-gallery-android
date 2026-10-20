@@ -58,3 +58,17 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         )
     }
 }
+
+/**
+ * Adds the real media kind to trash rows. Before this, only `isVideo` was
+ * stored, so a deleted audio file was restored into Pictures as if it were an
+ * image — and on some devices that insert simply failed.
+ */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `trash` ADD COLUMN `mediaType` TEXT")
+        db.execSQL(
+            "UPDATE `trash` SET `mediaType` = CASE WHEN `isVideo` = 1 THEN 'VIDEO' ELSE 'IMAGE' END",
+        )
+    }
+}
