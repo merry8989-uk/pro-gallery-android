@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
@@ -52,6 +53,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.repository.MediaRepository
+import com.progallery.app.data.repository.TrashRepository
 import com.progallery.app.ui.components.FileActionBar
 import com.progallery.app.ui.components.FileActionSpec
 import com.progallery.app.ui.components.FileInfoDialog
@@ -80,6 +82,9 @@ data class AudioPlayerUiState(
     val message: String? = null,
     val pendingWrite: PendingIntent? = null,
     val pendingWriteTarget: String? = null,
+    /** Delete consent awaiting the platform's result. */
+    val pendingDelete: PendingIntent? = null,
+    val pendingTrashIds: List<Long> = emptyList(),
 )
 
 @HiltViewModel
@@ -87,6 +92,7 @@ class AudioPlayerViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val mediaActions: MediaActions,
     private val repository: MediaRepository,
+    private val trashRepository: TrashRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AudioPlayerUiState())
@@ -184,6 +190,52 @@ class AudioPlayerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Deletes audio the same recoverable way as the rest of the app: copy the
+     * bytes into the trash first, then ask the platform to remove the original.
+     * A declined or failed removal rolls the copy back.
+     */
+    fun requestDelete(item: MediaItem) {
+        viewModelScope.launch {
+            val trashed = trashRepository.moveToTrash(listOf(item))
+            if (trashed.isEmpty()) {
+                _state.update {
+                    it.copy(message = "Could not move to Recently Deleted — nothing was deleted")
+                }
+                return@launch
+            }
+            val request = mediaActions.deleteRequest(listOf(item))
+            if (request != null) {
+                _state.update {
+                    it.copy(pendingDelete = request, pendingTrashIds = trashed.map { it.trashId })
+                }
+            } else {
+                val ok = mediaActions.deleteDirect(listOf(item))
+                if (ok) {
+                    _state.update { it.copy(message = "Moved to Recently Deleted") }
+                } else {
+                    trashRepository.discard(trashed.map { it.trashId })
+                    _state.update { it.copy(message = "Could not delete — nothing was changed") }
+                }
+                repository.refresh()
+            }
+        }
+    }
+
+    fun onDeleteConsent(approved: Boolean) {
+        val trashIds = _state.value.pendingTrashIds
+        _state.update { it.copy(pendingDelete = null, pendingTrashIds = emptyList()) }
+        if (approved) {
+            _state.update { it.copy(message = "Moved to Recently Deleted") }
+            viewModelScope.launch { repository.refresh() }
+        } else {
+            viewModelScope.launch {
+                trashRepository.discard(trashIds)
+                _state.update { it.copy(message = "Deletion cancelled — nothing was changed") }
+            }
+        }
+    }
+
     fun consumeMessage() = _state.update { it.copy(message = null) }
 
     override fun onCleared() {
@@ -223,6 +275,16 @@ fun AudioPlayerScreen(
     LaunchedEffect(state.pendingWrite) {
         state.pendingWrite?.let {
             writeLauncher.launch(
+                androidx.activity.result.IntentSenderRequest.Builder(it.intentSender).build(),
+            )
+        }
+    }
+    val deleteLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result -> viewModel.onDeleteConsent(result.resultCode == android.app.Activity.RESULT_OK) }
+    LaunchedEffect(state.pendingDelete) {
+        state.pendingDelete?.let {
+            deleteLauncher.launch(
                 androidx.activity.result.IntentSenderRequest.Builder(it.intentSender).build(),
             )
         }
@@ -339,6 +401,7 @@ fun AudioPlayerScreen(
                         FileActionSpec(Icons.Filled.DriveFileMove, "Move") { moveOpen = true },
                         FileActionSpec(Icons.Filled.ContentCopy, "Copy") { copyOpen = true },
                         FileActionSpec(Icons.Filled.Info, "Info") { infoOpen = true },
+                        FileActionSpec(Icons.Filled.Delete, "Delete") { viewModel.requestDelete(item) },
                     ),
                 )
             }

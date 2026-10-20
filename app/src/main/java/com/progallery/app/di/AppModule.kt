@@ -27,7 +27,7 @@ object AppModule {
         Room.databaseBuilder(context, ProGalleryDatabase::class.java, "progallery.db")
             // Explicit migration: re-keys media references by URI and keeps
             // existing favourites, hidden items and album membership.
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
 
     @Provides fun provideFavouriteDao(db: ProGalleryDatabase): FavouriteDao = db.favouriteDao()

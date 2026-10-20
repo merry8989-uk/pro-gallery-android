@@ -60,6 +60,12 @@ data class TrashEntity(
     val displayName: String,
     val mimeType: String,
     val isVideo: Boolean,
+    /**
+     * The item's actual kind. Nullable so the migration can add it without a
+     * SQL default (which Room would have to match exactly); null means "infer
+     * from [isVideo]".
+     */
+    val mediaType: String? = null,
     val sizeBytes: Long,
     val originalBucketId: Long,
     val originalRelativePath: String?,

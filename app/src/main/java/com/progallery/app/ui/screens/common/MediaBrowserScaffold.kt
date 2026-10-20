@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.DropdownMenu
@@ -109,6 +110,12 @@ fun MediaBrowserScaffold(
                         }
                     },
                     actions = {
+                        // Bulk selection is discoverable without knowing to long-press.
+                        if (!state.selectionMode && state.items.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.selectAll() }) {
+                                Icon(Icons.Filled.SelectAll, contentDescription = "Select all")
+                            }
+                        }
                         IconButton(onClick = { viewModel.setViewMode(if (state.viewMode == ViewMode.GRID) ViewMode.LIST else ViewMode.GRID) }) {
                             Icon(
                                 imageVector = if (state.viewMode == ViewMode.GRID) Icons.Filled.ViewList else Icons.Filled.GridView,
@@ -137,8 +144,10 @@ fun MediaBrowserScaffold(
             if (state.selectionMode) {
                 SelectionToolbar(
                     count = state.selection.size,
+                    totalCount = state.items.size,
                     allFavourite = state.selectedItems.all { it.isFavourite },
                     onClose = { viewModel.clearSelection() },
+                    onSelectAll = { viewModel.selectAll() },
                     onShare = { viewModel.shareSelected() },
                     onFavourite = { viewModel.favouriteSelected() },
                     onEdit = {

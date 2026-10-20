@@ -62,7 +62,7 @@ fun FileActionBar(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .widthIn(min = 52.dp),
+                    .widthIn(min = 44.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 IconButton(onClick = spec.onClick, modifier = Modifier.size(48.dp)) {

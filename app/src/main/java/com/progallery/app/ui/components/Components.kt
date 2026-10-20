@@ -46,6 +46,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -325,8 +326,10 @@ private fun MediaListRow(
 @Composable
 fun SelectionToolbar(
     count: Int,
+    totalCount: Int,
     allFavourite: Boolean,
     onClose: () -> Unit,
+    onSelectAll: () -> Unit,
     onShare: () -> Unit,
     onFavourite: () -> Unit,
     onEdit: () -> Unit,
@@ -356,6 +359,9 @@ fun SelectionToolbar(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
+                if (count < totalCount) {
+                    TextButton(onClick = onSelectAll) { Text("Select all") }
+                }
             }
             // Same icon-and-label treatment as the full-screen viewer's action bar.
             Row(

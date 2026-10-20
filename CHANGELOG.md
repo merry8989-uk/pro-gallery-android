@@ -27,6 +27,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.3.1]
+### Fixed
+- **Deleting audio did nothing.** `MediaStore.createDeleteRequest` rejects a set that spans different collections or volumes and *throws*; that exception escaped the caller, so no consent prompt appeared and no message was shown. The request is now guarded, with a per-item fallback and an honest result. `createWriteRequest` had the same flaw (it also throws for files picked through SAF) and is guarded too.
+- **Non-video items restored into the wrong place.** The trash only recorded "video or not", so a deleted audio file was restored into `Pictures` as if it were an image — and on some devices that insert failed outright. Trash rows now store the real file kind (Room migration 2→3) and restore to Music, Documents or Downloads as appropriate.
+- Bulk selection had no visible way in — only long-press worked, and there was no Select-all at all.
+
+### Added
+- **Select all** in the browser top bar (enters bulk selection without long-pressing) plus a **Select all** action in the selection bar.
+- **Delete** in the audio player, using the same recoverable trash + consent flow as the rest of the app.
+- **"Open a PDF"** on the Documents screen: pick any PDF on the device and read it in the built-in viewer, independent of the All-files-access permission. (Move/Copy on a picked PDF need it to be in the media index, and the app reports that rather than pretending.)
+
 ## [1.3.0]
 ### Added
 - **Settings screen** with a clear split between **Basic** and **Advanced**: advanced sections stay hidden until you turn on Advanced mode. Includes a settings search, a live "active configuration" summary, an "Advanced mode" master switch, per-row helper text, and a Recommended/Experimental label.
