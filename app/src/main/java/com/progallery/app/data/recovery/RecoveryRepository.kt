@@ -53,10 +53,9 @@ class RecoveryRepository @Inject constructor(
         result: RecoveryResult,
         destinationLabel: String,
         outcome: RecoveryExportOutcome,
-    ) = withContext(Dispatchers.IO) {
-        // The history exists only if the user asked for it; with the setting off nothing
-        // is written, so the record cannot outlive the choice.
-        // The log records the attempt either way; only the history is optional.
+    ): Long = withContext(Dispatchers.IO) {
+        // The diagnostics log records the attempt either way; only the history is
+        // optional, so the log line comes first.
         diagnosticLog.record(
             event = when (outcome) {
                 is RecoveryExportOutcome.Success -> "Export succeeded"
@@ -66,7 +65,9 @@ class RecoveryRepository @Inject constructor(
             path = result.item.displayName,
         )
 
-        if (!settingsRepository.current().keepActivityHistory) return
+        // The history exists only if the user asked for it; with the setting off nothing
+        // is written, so a record cannot outlive the choice. 0L means "nothing stored".
+        if (!settingsRepository.current().keepActivityHistory) return@withContext 0L
 
         historyDao.add(
             RecoveryHistoryEntity(
