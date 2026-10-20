@@ -199,51 +199,60 @@ class TrashRepository @Inject constructor(
     private fun publishBack(file: File, entity: TrashEntity): Uri? {
         val (kind, directory, fallbackMime) = restoreTarget(entity)
         val mime = entity.mimeType.ifBlank { fallbackMime }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val collection = when (kind) {
-                MediaType.VIDEO -> MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                MediaType.AUDIO -> MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                MediaType.IMAGE -> MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                // Documents and everything else belong in the general Files
-                // collection, not in Images.
-                else -> MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            }
-            val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, entity.displayName)
-                put(MediaStore.MediaColumns.MIME_TYPE, mime)
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "$directory/ProGallery/Restored")
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }
-            val uri = context.contentResolver.insert(collection, values) ?: return null
-            try {
-                val out = context.contentResolver.openOutputStream(uri)
-                    ?: error("the destination could not be opened")
-                out.use { destination -> file.inputStream().use { it.copyTo(destination) } }
 
-                // Finalise, then verify. Publishing a row whose SIZE is zero would
-                // put a half-written file into the user's library.
-                values.clear()
-                values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                context.contentResolver.update(uri, values, null, null)
-
-                if (publishedSize(uri) <= 0L) error("the restored file came out empty")
-                uri
-            } catch (t: Throwable) {
-                // Remove the incomplete row rather than leave it visible.
-                runCatchingCancellable { context.contentResolver.delete(uri, null, null) }
-                if (t is CancellationException) throw t
-                null
-            }
-        } else {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            // Legacy path: ordinary external storage plus a media scan.
             val dir = File(
                 Environment.getExternalStoragePublicDirectory(directory),
                 "ProGallery/Restored",
             )
             if (!dir.exists() && !dir.mkdirs()) return null
             val dest = File(dir, entity.displayName)
-            file.copyTo(dest, overwrite = true)
-            MediaScannerConnection.scanFile(context, arrayOf(dest.absolutePath), arrayOf(mime), null)
-            return Uri.fromFile(dest)
+            return try {
+                file.copyTo(dest, overwrite = true)
+                MediaScannerConnection.scanFile(context, arrayOf(dest.absolutePath), arrayOf(mime), null)
+                Uri.fromFile(dest)
+            } catch (t: Throwable) {
+                dest.delete()
+                if (t is CancellationException) throw t
+                null
+            }
+        }
+
+        val collection = when (kind) {
+            MediaType.VIDEO -> MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            MediaType.AUDIO -> MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            MediaType.IMAGE -> MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            // Documents and everything else belong in the general Files
+            // collection, not in Images.
+            else -> MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        }
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, entity.displayName)
+            put(MediaStore.MediaColumns.MIME_TYPE, mime)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "$directory/ProGallery/Restored")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+
+        val uri = context.contentResolver.insert(collection, values) ?: return null
+        return try {
+            val out = context.contentResolver.openOutputStream(uri)
+                ?: error("the destination could not be opened")
+            out.use { destination -> file.inputStream().use { it.copyTo(destination) } }
+
+            // Finalise, then verify. Publishing a row whose SIZE is zero would put
+            // a half-written file into the user's library.
+            values.clear()
+            values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+            context.contentResolver.update(uri, values, null, null)
+
+            if (publishedSize(uri) <= 0L) error("the restored file came out empty")
+            uri
+        } catch (t: Throwable) {
+            // Remove the incomplete row rather than leave it visible.
+            runCatchingCancellable { context.contentResolver.delete(uri, null, null) }
+            if (t is CancellationException) throw t
+            null
         }
     }
 }
