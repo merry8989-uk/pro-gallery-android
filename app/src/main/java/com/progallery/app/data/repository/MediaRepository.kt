@@ -21,7 +21,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import com.progallery.app.data.mediastore.MediaStorePagingSource
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,6 +68,101 @@ class MediaRepository @Inject constructor(
     val settings: Flow<AppSettings> = settingsRepository.settings
 
     private val cache = MutableStateFlow<List<MediaItem>>(emptyList())
+
+    private companion object {
+        /** A ceiling for the viewer's full-list load, so a pathological index cannot exhaust memory. */
+        const val MAX_SNAPSHOT_ITEMS = 50_000
+    }
+
+    /**
+     * The media grid, paged.
+     *
+     * Keyed on the shape of the query — the enabled kinds, the sort and the search
+     * text — plus the hidden set, because a hidden item must not enter the pager at
+     * all. Favourites are deliberately **not** part of the key: toggling one must not
+     * throw away the user's scroll position, so the UI applies that flag as it
+     * renders (see [favouriteKeys]).
+     */
+    fun pagedMedia(
+        kinds: Set<MediaType>,
+        sort: SortOrder,
+        query: String,
+        favouritesOnly: Boolean = false,
+    ): Flow<PagingData<MediaItem>> {
+        // Hidden items always key the pager: they must not enter it at all. The
+        // favourite set only keys it for the Favourites screen — otherwise toggling a
+        // favourite would throw away the user's scroll position for nothing.
+        val base = combine(
+            hiddenDao.observeKeys(),
+            settingsRepository.settings,
+        ) { hidden, settings -> hidden.toHashSet() to settings }
+
+        val keyed: Flow<Triple<Set<String>, AppSettings, Set<String>>> = if (favouritesOnly) {
+            combine(base, favouriteDao.observeAll()) { (hidden, settings), favourites ->
+                Triple(hidden, settings, favourites.mapTo(HashSet()) { it.mediaKey })
+            }
+        } else {
+            base.map { (hidden, settings) -> Triple(hidden, settings, emptySet<String>()) }
+        }
+
+        return keyed.flatMapLatest { (hiddenSet, settings, favouriteSet) ->
+            Pager(
+                config = PagingConfig(
+                    pageSize = MediaStoreDataSource.DEFAULT_PAGE_ROWS,
+                    initialLoadSize = MediaStoreDataSource.DEFAULT_PAGE_ROWS * 2,
+                    prefetchDistance = MediaStoreDataSource.DEFAULT_PAGE_ROWS / 2,
+                    enablePlaceholders = false,
+                ),
+                pagingSourceFactory = {
+                    MediaStorePagingSource(
+                        dataSource = mediaStore,
+                        kinds = kinds,
+                        sort = sort,
+                        query = query,
+                        hiddenKeys = hiddenSet,
+                        requiredKeys = if (favouritesOnly) favouriteSet else null,
+                        sizeFilter = settings::acceptsSize,
+                    )
+                },
+            ).flow
+        }
+    }
+
+    /** Favourite keys, so the UI can flag paged items without reloading the pager. */
+    val favouriteKeys: Flow<Set<String>> = favouriteDao.observeAll()
+        .map { list -> list.mapTo(HashSet()) { it.mediaKey } }
+
+    /**
+     * The whole ordered list for the same query the pager used, decorated.
+     *
+     * The full-screen viewer needs every item in order to swipe through, so this is
+     * loaded when it is opened rather than being kept in memory for the grid — which
+     * is the point of paging the grid in the first place.
+     */
+    suspend fun snapshot(
+        kinds: Set<MediaType>,
+        sort: SortOrder,
+        query: String,
+    ): List<MediaItem> = withContext(Dispatchers.IO) {
+        val settings = settingsRepository.current()
+        val favourites = favouriteDao.allKeys().toHashSet()
+        val hidden = hiddenDao.allKeys().toHashSet()
+        val all = ArrayList<MediaItem>()
+
+        var row = 0
+        var exhausted = false
+        while (!exhausted && all.size < MAX_SNAPSHOT_ITEMS) {
+            val page = mediaStore.page(kinds, sort, query, row, MediaStoreDataSource.DEFAULT_BATCH_SIZE)
+            page.items.forEach { item ->
+                if (item.mediaKey in hidden) return@forEach
+                if (!settings.acceptsSize(item.sizeBytes)) return@forEach
+                all += item.copy(isFavourite = item.mediaKey in favourites)
+            }
+            row += page.rowsRead
+            exhausted = page.exhausted || page.rowsRead == 0
+        }
+        all
+    }
 
     /**
      * Reloads the MediaStore index into the in-memory cache.

@@ -78,6 +78,17 @@ rooted (a read-only `su` check) but does not read raw storage — that bypasses
 Android's security model and cannot honestly promise recovery of TRIMmed or
 encrypted data.
 
+## Testing
+
+- **Unit tests** cover the pure logic: sort/search mapping, confidence and status
+  rules, duplicate detection, undo checkpoints, thumbnail heuristics, the migration
+  chain and the SQL-versus-entity column check.
+- **Instrumented tests run on an emulator in CI**, which is where the migration is
+  executed against real SQLite and the surviving rows are asserted.
+- `tools/check_kotlin.py` catches the structural mistakes that have actually reached
+  CI here — unbalanced braces, missing icon imports, duplicate imports, an import
+  after code, a second `companion object`, and a project type used without an import.
+
 ## Platform
 
 - **Android 8.0 – 16.** `minSdk 26`, `compileSdk`/`targetSdk` **36**.

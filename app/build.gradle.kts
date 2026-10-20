@@ -37,10 +37,11 @@ android {
         applicationId = "com.progallery.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 23
-        versionName = "1.8.0"
+        versionCode = 24
+        versionName = "1.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
         vectorDrawables { useSupportLibrary = true }
     }
 
