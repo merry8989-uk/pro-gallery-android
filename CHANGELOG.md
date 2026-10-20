@@ -27,6 +27,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.4.1]
+### Added
+- **`tools/adb_export_android_data.sh` and `.ps1`** — copy `Android/data` (or one app's folder) off a non-rooted phone using the official ADB interface, then push it back into `Download/` for Deep Scan. Nothing is exploited; the phone is only read.
+- The **Android folders** screen now says where to go for another app's `Android/data`, with the script names, instead of leaving the user at a wall.
+
+### Notes
+- No app can read another app's `Android/data` on Android 11+. That is the OS rule, and it applies to every app equally — `MANAGE_EXTERNAL_STORAGE` does not change it and the folder picker refuses it. The only in-app alternative is root, which this project does not use.
+
 ## [1.4.0]
 ### Added
 - **"Android folders" screen** — access to the restricted `Android/` tree, stated honestly.
