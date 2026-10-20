@@ -109,7 +109,12 @@ fun ProGalleryNavHost() {
             ViewerScreen(
                 uri = entry.arguments?.getString("uri") ?: "",
                 onBack = { navController.popBackStack() },
-                onEdit = { navController.navigate(Routes.photoEditor(it)) },
+                onEdit = { targetUri, isVideo ->
+                    navController.navigate(
+                        if (isVideo) Routes.videoEditor(targetUri) else Routes.photoEditor(targetUri),
+                    )
+                },
+                onPlayVideo = { targetUri -> navController.navigate(Routes.videoPlayer(targetUri)) },
             )
         }
         composable(

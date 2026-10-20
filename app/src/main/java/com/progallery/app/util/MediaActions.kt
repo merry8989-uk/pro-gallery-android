@@ -81,4 +81,30 @@ class MediaActions @Inject constructor(
         }
         context.contentResolver.update(uri, values, null, null) > 0
     }.getOrDefault(false)
+
+    /**
+     * Write consent for renaming/moving. Shares the same platform flow as the
+     * delete request: the user approves, then the change is applied.
+     */
+    fun writeRequest(uris: List<Uri>): PendingIntent? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        return MediaStore.createWriteRequest(context.contentResolver, uris)
+    }
+
+    /**
+     * Moves a MediaStore item into another folder by changing its relative path.
+     * Supported from Android 11 (API 30); earlier versions cannot update
+     * RELATIVE_PATH and must copy instead, which this method deliberately does
+     * not fake.
+     */
+    fun applyMove(item: MediaItem, targetRelativePath: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        return runCatching {
+            val normalized = if (targetRelativePath.endsWith("/")) targetRelativePath else "$targetRelativePath/"
+            val values = android.content.ContentValues().apply {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, normalized)
+            }
+            context.contentResolver.update(item.uri, values, null, null) > 0
+        }.getOrDefault(false)
+    }
 }

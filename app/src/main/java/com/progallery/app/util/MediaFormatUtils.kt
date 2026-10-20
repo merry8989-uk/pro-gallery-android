@@ -39,6 +39,13 @@ object MediaFormatUtils {
         return String.format(Locale.US, "%.1f %s", value, units[unit])
     }
 
+    /** Formats an epoch-seconds timestamp as a local date/time string. */
+    fun formatDate(epochSeconds: Long, locale: Locale = Locale.getDefault()): String {
+        if (epochSeconds <= 0L) return "—"
+        val format = java.text.SimpleDateFormat("d MMM yyyy, HH:mm", locale)
+        return format.format(java.util.Date(epochSeconds * 1000L))
+    }
+
     /** Formats a duration in milliseconds as m:ss or h:mm:ss. */
     fun formatDuration(ms: Long): String {
         if (ms <= 0) return "0:00"

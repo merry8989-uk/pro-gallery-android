@@ -119,4 +119,15 @@ class MediaRepository @Inject constructor(
         }
 
     suspend fun currentSnapshot(): List<MediaItem> = cache.value
+
+    /**
+     * Distinct folders present in the index, as MediaStore relative paths
+     * (e.g. "Pictures/", "DCIM/Camera/"). Used as move targets.
+     */
+    suspend fun folders(): List<String> = withContext(Dispatchers.IO) {
+        cache.value.mapNotNull { it.relativePath }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+    }
 }

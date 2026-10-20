@@ -27,6 +27,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.0.2]
+### Added
+- Viewer controls revealed by tapping: share, edit, rename, move, delete and info, plus favourite in the top bar.
+- A play button on videos in the viewer, which opens the full-screen player.
+- "Move" now changes a MediaStore item's folder via `RELATIVE_PATH` on Android 11+ (reported plainly as unsupported on older versions).
+
+### Fixed
+- **Pinch-to-zoom.** Tap detection was on the same node as the transform gestures and swallowed them; tap detection now lives on the container and the transform on the image, so pinch works.
+- **Zoom/pan leaking between pages.** Pager pages are now keyed by item, and a page resets to fit when you leave it — no more images stuck mid-drag or snapping back.
+- The pager stops swiping while zoomed, so panning is not stolen by a page change.
+- Editing a video from the viewer now opens the video editor instead of the photo editor.
+
 ## [1.0.1]
 ### Added
 - Immersive full-screen media: the image viewer and video player hide the system bars, use a black background, reveal controls on tap, and support double-tap zoom. Bars are restored on exit, and a swipe reveals them transiently.

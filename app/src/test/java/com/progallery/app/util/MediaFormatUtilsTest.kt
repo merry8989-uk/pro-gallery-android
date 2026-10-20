@@ -45,6 +45,12 @@ class MediaFormatUtilsTest {
     }
 
     @Test
+    fun formatDate_handlesMissingAndValidValues() {
+        assertEquals("—", MediaFormatUtils.formatDate(0))
+        assertTrue(MediaFormatUtils.formatDate(1609459200L, java.util.Locale.US).isNotEmpty())
+    }
+
+    @Test
     fun extensionFor_mapsMimeTypes() {
         assertEquals("png", MediaFormatUtils.extensionFor("image/png"))
         assertEquals("mp4", MediaFormatUtils.extensionFor("video/mp4"))
