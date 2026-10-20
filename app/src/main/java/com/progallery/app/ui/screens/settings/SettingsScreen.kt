@@ -249,7 +249,7 @@ fun SettingsScreen(
                             )
                             // Restores this heading's rows only, so the control does
                             // exactly what the heading promises.
-                            TextButton(onClick = { onResetSection(section) }) {
+                            TextButton(onClick = { viewModel.resetSection(section) }) {
                                 Text("Reset")
                             }
                         }
