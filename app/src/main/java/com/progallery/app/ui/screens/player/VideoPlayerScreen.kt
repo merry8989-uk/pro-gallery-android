@@ -40,6 +40,8 @@ import com.progallery.app.ui.components.FileActionBar
 import com.progallery.app.ui.components.FileActionSpec
 import com.progallery.app.ui.components.sameUri
 import com.progallery.app.util.ImmersiveSystemBars
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 
 /**
  * Full-screen video playback with a swipe between videos.
@@ -48,6 +50,9 @@ import com.progallery.app.util.ImmersiveSystemBars
  * and that video starts playing. One ExoPlayer is reused: only the media item is
  * swapped, so there is no second player and no audio overlap.
  */
+// PlayerView and its setters are marked @UnstableApi by Media3; lint requires the
+// opt-in to be explicit.
+@OptIn(UnstableApi::class)
 @Composable
 fun VideoPlayerScreen(
     uri: String,

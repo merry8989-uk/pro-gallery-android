@@ -41,8 +41,12 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.progallery.app.edit.video.ResolutionPreset
 import com.progallery.app.util.MediaFormatUtils
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 
-@OptIn(ExperimentalMaterial3Api::class)
+// PlayerView is marked @UnstableApi by Media3, so the opt-in is listed alongside
+// the Material 3 one (a declaration may carry only one @OptIn).
+@OptIn(ExperimentalMaterial3Api::class, UnstableApi::class)
 @Composable
 fun VideoEditorScreen(
     uri: String,
