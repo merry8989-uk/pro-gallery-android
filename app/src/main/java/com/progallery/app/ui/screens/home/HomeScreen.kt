@@ -46,6 +46,7 @@ import com.progallery.app.ui.components.MediaCollection
 import com.progallery.app.ui.components.MediaPermissionGate
 import com.progallery.app.ui.navigation.Routes
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material.icons.filled.PlayArrow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,6 +103,13 @@ fun HomeScreen(
                         )
                     }
 
+                    DashboardTile(
+                        icon = Icons.Filled.PlayArrow,
+                        title = "Stream from a link",
+                        subtitle = "Play a direct media link",
+                        onClick = { onOpen(Routes.STREAM) },
+                    )
+
                     if (HomeEntries.showCollections(state.enabledKinds)) {
                         DashboardTile(
                             icon = Icons.Filled.Folder,
@@ -151,6 +159,13 @@ fun HomeScreen(
                                 }
                             }
                         }
+
+                    DashboardTile(
+                        icon = Icons.Filled.PlayArrow,
+                        title = "Stream from a link",
+                        subtitle = "Play a direct media link",
+                        onClick = { onOpen(Routes.STREAM) },
+                    )
 
                     if (HomeEntries.showCollections(state.enabledKinds)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
