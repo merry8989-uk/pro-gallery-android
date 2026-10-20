@@ -6,6 +6,26 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+// ---------------------------------------------------------------------------
+// Signing.
+//
+// CI writes keystore.properties (from encrypted repository secrets) pointing at
+// a single, stable keystore, so every build is signed with the SAME key and
+// updates install straight over the previous version. Without that file Gradle
+// falls back to the default debug key, which is regenerated per machine/run —
+// and a changed signer is what forces an uninstall.
+//
+// keystore.properties and the keystore itself are git-ignored and must never be
+// committed.
+// ---------------------------------------------------------------------------
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = java.util.Properties().apply {
+    if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
+}
+val signingStore: java.io.File? = keystoreProps.getProperty("storeFile")?.let { file(it) }
+val hasSigningConfig = signingStore?.exists() == true
+
+
 android {
     namespace = "com.progallery.app"
     compileSdk = 35
@@ -14,19 +34,34 @@ android {
         applicationId = "com.progallery.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    signingConfigs {
+        if (hasSigningConfig) {
+            create("progallery") {
+                storeFile = signingStore
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+                storeType = keystoreProps.getProperty("storeType") ?: "PKCS12"
+            }
+        }
     }
 
     buildTypes {
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
+            // Same key as release, so debug builds upgrade in place too.
+            if (hasSigningConfig) signingConfig = signingConfigs.getByName("progallery")
         }
         release {
+            if (hasSigningConfig) signingConfig = signingConfigs.getByName("progallery")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

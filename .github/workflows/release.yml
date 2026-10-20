@@ -41,6 +41,28 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Cache debug keystore (fallback when no signing secret is set)
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+
+      - name: Configure signing key
+        run: |
+          if [ -n "${{ secrets.PROGALLERY_KEYSTORE_BASE64 }}" ]; then
+            echo "Signing with the repository key (stable across builds)."
+            echo "${{ secrets.PROGALLERY_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/progallery.p12"
+            {
+              echo "storeFile=$RUNNER_TEMP/progallery.p12"
+              echo "storePassword=${{ secrets.PROGALLERY_STORE_PASSWORD }}"
+              echo "keyAlias=${{ secrets.PROGALLERY_KEY_ALIAS }}"
+              echo "keyPassword=${{ secrets.PROGALLERY_KEY_PASSWORD }}"
+              echo "storeType=PKCS12"
+            } > keystore.properties
+          else
+            echo "::warning::No signing secret configured - falling back to the default debug key; in-place upgrades may not work."
+          fi
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 

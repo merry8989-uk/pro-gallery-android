@@ -35,6 +35,9 @@ captures/
 # Keystores and signing (never commit)
 *.jks
 *.keystore
+*.p12
+*.p12.b64
+*.pepk
 keystore.properties
 
 # Log/OS files

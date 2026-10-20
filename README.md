@@ -104,22 +104,41 @@ sdk.dir=/path/to/Android/sdk
 
 The debug APK is written to `app/build/outputs/apk/debug/`.
 
-### Release build
+### Release build & signing
 
-Create a keystore and a `keystore.properties` (both git-ignored), then wire signing into `app/build.gradle.kts`:
+Signing is already wired up. `app/build.gradle.kts` reads `keystore.properties`
+(git-ignored) and, when it is present, signs **both** the debug and release
+builds with that key.
+
+CI supplies the key from encrypted repository secrets, so **every build from
+this repository is signed with the same certificate** and installs straight over
+the previous version — no uninstall needed between updates.
+
+To sign locally, create `keystore.properties` in the project root:
 
 ```properties
-storeFile=/absolute/path/release.jks
+storeFile=/absolute/path/progallery.p12
 storePassword=********
 keyAlias=progallery
 keyPassword=********
+storeType=PKCS12
 ```
 
+Generate a key if you need one:
+
 ```bash
-keytool -genkeypair -v -keystore release.jks -alias progallery \
-  -keyalg RSA -keysize 2048 -validity 10000
-./gradlew bundleRelease   # Play-ready AAB
+keytool -genkeypair -v -keystore progallery.p12 -storetype PKCS12 \
+  -alias progallery -keyalg RSA -keysize 2048 -validity 10000
+
+./gradlew assembleDebug      # signed with your key
+./gradlew bundleRelease      # Play-ready AAB
 ```
+
+If `keystore.properties` is absent, Gradle falls back to the default debug key —
+convenient, but that key differs per machine and per CI run, so builds signed
+with it will not upgrade in place over each other.
+
+**Never commit `keystore.properties` or the keystore.** Both are in `.gitignore`.
 
 ---
 
@@ -197,7 +216,8 @@ The UI never touches MediaStore directly: screens talk to a ViewModel, ViewModel
 
 ## Known limitations
 
-- The published APK is a **debug build**, signed with the Android debug key — fine for sideloading and testing, not for Play Store distribution. See [Release build](#release-build) for signing.
+- The published APK is a **debug build**. It is signed with the repository's stable key, so updates install in place; it is still a debug build, so it is for sideloading/testing rather than Play distribution.
+- If you have an older build signed with an earlier throwaway key, that one install may need a single uninstall first. Every build after that upgrades in place.
 - **Instrumented tests are not run in CI** (they need a connected device or emulator). Run `./gradlew connectedDebugAndroidTest` locally to exercise them.
 - The JVM unit tests and `assembleDebug` are verified by CI; runtime behaviour on a physical device (permissions across OEMs, codec support, editing output) still deserves a manual pass.
 - `Android/data` and `Android/obb` are often inaccessible on Android 11+ by design.
