@@ -20,12 +20,17 @@ object Routes {
     const val TRASH = "trash"
     const val DEEP_SCAN = "deep_scan"
     const val SEARCH = "search"
+    const val STREAM = "stream"
+    const val STREAM_PLAYER = "stream_player"
     const val VIEWER = "viewer"
     const val VIDEO_PLAYER = "video_player"
     const val PHOTO_EDITOR = "photo_editor"
     const val VIDEO_EDITOR = "video_editor"
     const val ALBUM_DETAIL = "album_detail"
     const val CUSTOM_ALBUM_DETAIL = "custom_album"
+
+    fun streamPlayer(url: String) =
+        "$STREAM_PLAYER?url=${java.net.URLEncoder.encode(url, "UTF-8")}"
 
     fun albumDetail(bucketId: Long, name: String) = "$ALBUM_DETAIL/$bucketId/${java.net.URLEncoder.encode(name, "UTF-8")}"
     fun customAlbumDetail(albumId: Long, name: String) = "$CUSTOM_ALBUM_DETAIL/$albumId/${java.net.URLEncoder.encode(name, "UTF-8")}"

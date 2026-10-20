@@ -27,6 +27,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.13.0]
+Stream from a link, and a sidebar.
+
+### Added
+- **Stream from a link.** Paste an address and play it, with a recent list that keeps the
+  last 20.
+  - **Only `http` and `https` are accepted.** A `file:`, `content:`, `javascript:` or
+    `ftp:` link is refused with a plain reason instead of being handed to the player,
+    where it would fail obscurely or mean something the user did not intend. A bare
+    address like `example.com/clip.mp4` gets `https://`, because that is what pasting one
+    usually means.
+  - **The kind is read from the path's extension, with the query string ignored** — signed
+    links are the normal case and a `?token=…` must not be mistaken for the file type.
+  - An unrecognised address is **not rejected**: Media3 sniffs the content, so it still
+    gets a fair chance.
+  - A **dedicated player**, not the local video player. That one carries trim, delete,
+    rename and a playlist built from the library, none of which mean anything for a
+    remote address; this one has the controls that do apply, and nothing that pretends to.
+    When a link cannot be played, Media3's own reason is shown next to the most likely
+    cause, instead of a spinner that never stops.
+  - The screen states the limit up front: the link must point straight at the media, and
+    a link to a web page will not play.
+- **A sidebar** with three groups — Library, Cloud and Tools — opened from the home
+  screen's menu button.
+
+### Cloud entries, stated plainly
+The sidebar offers **Google Drive, OneDrive, Box and Terabox**. Each opens the provider's
+own app when it is installed, and its website when it is not — decided by a pure rule that
+is unit tested.
+
+They are **not** in-app browsing of those services, and the sidebar says so rather than
+leaving it to be discovered. Reading a Drive, OneDrive or Box library inside another app
+needs OAuth with an application id issued to *that* app's developer, which means
+registering an app with each provider; those credentials cannot be invented here. Terabox
+is a different case: it publishes **no official API**, so there is nothing honest to build
+against, and the entry says that too.
+
+What does work today is a direct media link: the Stream screen plays an address straight
+from any of these services when the service gives one.
+
+### Tests
+- `StreamLinksTest` — http/https only, bare addresses, whitespace, extension reading
+  including uppercase and query strings, unknown types not rejected, and refusals for
+  `file:`/`content:`/`javascript:`/`mailto:`/`ftp:`, missing hosts and links with spaces.
+- `CloudProvidersTest` — the four providers are offered, the app is preferred when
+  installed, the target matches the plan, every entry says what it does, and Terabox says
+  there is no API rather than promising one.
+
 ## [1.12.0]
 Phase 3 complete: a screen that tells the truth about what the app can reach.
 

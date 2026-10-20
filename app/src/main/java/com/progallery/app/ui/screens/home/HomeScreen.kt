@@ -46,6 +46,16 @@ import com.progallery.app.ui.components.MediaCollection
 import com.progallery.app.ui.components.MediaPermissionGate
 import com.progallery.app.ui.navigation.Routes
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.progallery.app.ui.components.HomeDrawer
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,10 +74,22 @@ fun HomeScreen(
         DefaultGalleryPrompt(onDismiss = { viewModel.dismissDefaultGalleryPrompt() })
     }
 
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
+    HomeDrawer(
+        drawerState = drawerState,
+        onNavigate = onOpen,
+    ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("ProGallery") },
+                navigationIcon = {
+                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                    }
+                },
                 actions = {
                     IconButton(onClick = { onOpen(Routes.SEARCH) }) {
                         Icon(Icons.Filled.Search, contentDescription = "Search")
@@ -101,6 +123,13 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
+
+                    DashboardTile(
+                        icon = Icons.Filled.PlayArrow,
+                        title = "Stream from a link",
+                        subtitle = "Play a direct media link",
+                        onClick = { onOpen(Routes.STREAM) },
+                    )
 
                     if (HomeEntries.showCollections(state.enabledKinds)) {
                         DashboardTile(
@@ -151,6 +180,13 @@ fun HomeScreen(
                                 }
                             }
                         }
+
+                    DashboardTile(
+                        icon = Icons.Filled.PlayArrow,
+                        title = "Stream from a link",
+                        subtitle = "Play a direct media link",
+                        onClick = { onOpen(Routes.STREAM) },
+                    )
 
                     if (HomeEntries.showCollections(state.enabledKinds)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -224,6 +260,7 @@ fun HomeScreen(
             }
             }
         }
+    }
     }
 }
 

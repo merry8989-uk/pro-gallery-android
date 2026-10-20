@@ -122,6 +122,16 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6b. Streaming and cloud — v1.13.0
+
+**✅ Stream from a link** — real: pure link parsing, a bounded recent list, a dedicated
+player, and Media3's own reason shown on failure.
+
+**🔶 Cloud entries in the sidebar** — the four providers open their own app or website,
+which is real but is *not* in-app browsing, and the UI says so. In-app OAuth browsing for
+Drive / OneDrive / Box needs an application id registered by the user with each provider;
+Terabox publishes no official API at all. **Decision needed before building further.**
+
 ## 6a. Phase 5 (in progress) — emulator CI, Paging 3, settings completeness
 
 **✅ Done and verified (CI green, including a real emulator):**

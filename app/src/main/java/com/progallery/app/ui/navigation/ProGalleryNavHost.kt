@@ -32,6 +32,8 @@ import com.progallery.app.data.model.MediaType
 import com.progallery.app.ui.screens.viewer.ViewerScreen
 import com.progallery.app.ui.screens.videos.VideosScreen
 import com.progallery.app.ui.screens.diagnostics.PermissionDiagnosticsScreen
+import com.progallery.app.ui.screens.stream.StreamScreen
+import com.progallery.app.ui.screens.stream.StreamPlayerScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -169,6 +171,21 @@ fun ProGalleryNavHost(
                 // Adding a folder is where the folder picker already lives, so the fix
                 // takes the user to the real thing rather than a second copy of it.
                 onPickFolder = { navController.navigate(Routes.DEEP_SCAN) },
+            )
+        }
+        composable(Routes.STREAM) {
+            StreamScreen(
+                onBack = { navController.popBackStack() },
+                onPlay = { url -> navController.navigate(Routes.streamPlayer(url)) },
+            )
+        }
+        composable(
+            route = "${Routes.STREAM_PLAYER}?url={url}",
+            arguments = listOf(navArgument("url") { type = NavType.StringType }),
+        ) { entry ->
+            StreamPlayerScreen(
+                uri = entry.arguments?.getString("url") ?: "",
+                onBack = { navController.popBackStack() },
             )
         }
         composable(Routes.SEARCH) {
