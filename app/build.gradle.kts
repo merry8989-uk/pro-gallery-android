@@ -41,6 +41,12 @@ android {
         versionName = "1.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    // Room exports its schema to app/schemas; MigrationTestHelper reads it from the
+    // test assets, which is what lets a migration be validated on a device.
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -168,6 +174,7 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 
     // Instrumentation tests
+    androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.espresso.core)
