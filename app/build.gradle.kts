@@ -1,3 +1,6 @@
+import java.io.File
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -19,10 +22,10 @@ plugins {
 // committed.
 // ---------------------------------------------------------------------------
 val keystorePropsFile = rootProject.file("keystore.properties")
-val keystoreProps = java.util.Properties().apply {
+val keystoreProps = Properties().apply {
     if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
 }
-val signingStore: java.io.File? = keystoreProps.getProperty("storeFile")?.let { file(it) }
+val signingStore: File? = keystoreProps.getProperty("storeFile")?.let { file(it) }
 val hasSigningConfig = signingStore?.exists() == true
 
 
