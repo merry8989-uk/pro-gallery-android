@@ -11,6 +11,7 @@ import com.progallery.app.edit.photo.CropMath
 import com.progallery.app.edit.photo.CropRect
 import com.progallery.app.edit.photo.EditParams
 import com.progallery.app.edit.photo.ExportFormat
+import com.progallery.app.edit.photo.ExportResolution
 import com.progallery.app.edit.photo.PhotoEditState
 import com.progallery.app.edit.photo.PhotoExporter
 import com.progallery.app.util.MediaActions
@@ -35,6 +36,8 @@ data class PhotoEditorUiState(
     val exporting: Boolean = false,
     val format: ExportFormat = ExportFormat.JPEG,
     val quality: Int = 95,
+    /** Original by default, so a large photo is not silently shrunk. */
+    val resolution: ExportResolution = ExportResolution.ORIGINAL,
     val message: String? = null,
     val error: String? = null,
     /** MIME type of the file being edited, used to guard in-place overwrites. */
@@ -97,10 +100,25 @@ class PhotoEditorViewModel @Inject constructor(
         }
     }
 
-    /** Commits new params and re-renders the preview (debounced). */
+    /** A discrete edit: rotate, flip, filter, crop. One undoable step. */
     fun commit(params: EditParams) {
         _state.update { it.copy(editState = it.editState.commit(params)) }
         scheduleRender()
+    }
+
+    /** Live preview while a slider is dragged; the history is left untouched. */
+    fun preview(params: EditParams) {
+        _state.update { it.copy(editState = it.editState.preview(params)) }
+        scheduleRender()
+    }
+
+    /** Ends a slider drag, making the whole movement one undoable step. */
+    fun endPreview() {
+        _state.update { it.copy(editState = it.editState.endPreview()) }
+    }
+
+    fun setResolution(resolution: ExportResolution) {
+        _state.update { it.copy(resolution = resolution) }
     }
 
     fun setBrightness(value: Float) = commit(params.copy(brightness = value))
@@ -195,12 +213,40 @@ class PhotoEditorViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Decodes the source for export. If the full-size bitmap does not fit in the
+     * heap, falls back to a smaller render and says so rather than failing.
+     */
+    private suspend fun decodeForExport(uri: Uri?, maxDimension: Int): Bitmap? {
+        if (uri == null) return null
+        val full = runCatchingCancellable {
+            bitmapEditor.decodeOriented(context, uri, maxDimension = maxDimension)
+        }.getOrNull()
+        if (full != null) return full
+
+        val reduced = runCatchingCancellable {
+            bitmapEditor.decodeOriented(context, uri, maxDimension = ExportResolution.LARGE.maxDimension)
+        }.getOrNull()
+        if (reduced != null) {
+            _state.update {
+                it.copy(
+                    message = "Not enough memory for the full size — exported at " +
+                        "${ExportResolution.LARGE.label}",
+                )
+            }
+        }
+        return reduced
+    }
+
     private fun exportInternal(overwrite: Boolean) {
         val source = _state.value.source ?: return
         viewModelScope.launch {
             _state.update { it.copy(exporting = true) }
             // Re-render at full resolution from a fresh decode for maximum quality.
-            val full = sourceUri?.let { bitmapEditor.decodeOriented(context, it, maxDimension = 4096) } ?: source
+            // Decode at the resolution the user chose — Original by default, so a
+            // large photo is not silently reduced to 4096 px.
+            val wanted = _state.value.resolution.maxDimension
+            val full = decodeForExport(sourceUri, wanted) ?: source
             val rendered = bitmapEditor.render(full, _state.value.params)
             val name = "ProGallery_${System.currentTimeMillis()}"
             val uri = exporter.export(

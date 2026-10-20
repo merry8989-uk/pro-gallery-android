@@ -14,6 +14,7 @@ import com.progallery.app.data.model.MediaType
 import com.progallery.app.util.FileUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -109,11 +110,16 @@ class TrashRepository @Inject constructor(
      * Used when a delete is cancelled after the copy was made, so the trash
      * never holds duplicates of files that are still in the gallery.
      */
+    /**
+     * Rolls a trash entry back (used when the original could not be deleted).
+     *
+     * The row is kept when the file cannot be removed, so the bytes stay findable
+     * in Recently Deleted instead of becoming an orphan in app storage.
+     */
     suspend fun discard(trashIds: List<Long>) = withContext(Dispatchers.IO) {
         trashIds.forEach { id ->
             trashDao.byId(id)?.let { entity ->
-                runCatchingCancellable { File(Uri.parse(entity.trashUri).path ?: "").delete() }
-                trashDao.delete(id)
+                if (deleteTrashFile(entity)) trashDao.delete(id)
             }
         }
     }
@@ -130,21 +136,50 @@ class TrashRepository @Inject constructor(
         restored
     }
 
-    suspend fun deleteForever(entity: TrashEntity) = withContext(Dispatchers.IO) {
-        runCatchingCancellable { File(Uri.parse(entity.trashUri).path ?: "").delete() }
-        trashDao.delete(entity.id)
+    /**
+     * Permanently removes a trashed item.
+     *
+     * The row is only removed once the file is genuinely gone. Previously a failed
+     * file delete still dropped the row, leaving an orphaned file in app storage
+     * that nothing could find, restore or clean up.
+     *
+     * @return true when the item is gone, false when the file survived and can be retried.
+     */
+    suspend fun deleteForever(entity: TrashEntity): Boolean = withContext(Dispatchers.IO) {
+        val removed = deleteTrashFile(entity)
+        if (removed) trashDao.delete(entity.id)
+        removed
     }
 
     /** Removes trash entries older than [retentionDays] (default 30). */
     suspend fun purgeExpired(retentionDays: Int = 30): Int = withContext(Dispatchers.IO) {
         val cutoff = System.currentTimeMillis() - retentionDays * 24L * 60L * 60L * 1000L
-        val expired = trashDao.olderThan(cutoff)
-        expired.forEach { entity ->
-            runCatchingCancellable { File(Uri.parse(entity.trashUri).path ?: "").delete() }
-            trashDao.delete(entity.id)
+        var purged = 0
+        trashDao.olderThan(cutoff).forEach { entity ->
+            if (deleteTrashFile(entity)) {
+                trashDao.delete(entity.id)
+                purged++
+            }
         }
-        expired.size
+        purged
     }
+
+    /** Deletes a trash file. True when it is gone; the row may then be removed. */
+    private fun deleteTrashFile(entity: TrashEntity): Boolean {
+        val path = Uri.parse(entity.trashUri).path ?: return true
+        val file = File(path)
+        if (!file.exists()) return true
+        val deleted = runCatchingCancellable { file.delete() }.getOrDefault(false)
+        return deleted || !file.exists()
+    }
+
+    /** The size MediaStore recorded for a published row, or 0 when unknown. */
+    private fun publishedSize(uri: Uri): Long = runCatchingCancellable {
+        context.contentResolver
+            .query(uri, arrayOf(MediaStore.MediaColumns.SIZE), null, null, null)
+            ?.use { cursor -> if (cursor.moveToFirst()) cursor.getLong(0) else 0L }
+            ?: 0L
+    }.getOrDefault(0L)
 
     /** Where a restored file of this kind belongs. */
     private fun restoreTarget(entity: TrashEntity): Triple<MediaType, String, String> {
@@ -180,13 +215,25 @@ class TrashRepository @Inject constructor(
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
             val uri = context.contentResolver.insert(collection, values) ?: return null
-            context.contentResolver.openOutputStream(uri)?.use { out ->
-                file.inputStream().use { it.copyTo(out) }
+            try {
+                val out = context.contentResolver.openOutputStream(uri)
+                    ?: error("the destination could not be opened")
+                out.use { destination -> file.inputStream().use { it.copyTo(destination) } }
+
+                // Finalise, then verify. Publishing a row whose SIZE is zero would
+                // put a half-written file into the user's library.
+                values.clear()
+                values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                context.contentResolver.update(uri, values, null, null)
+
+                if (publishedSize(uri) <= 0L) error("the restored file came out empty")
+                uri
+            } catch (t: Throwable) {
+                // Remove the incomplete row rather than leave it visible.
+                runCatchingCancellable { context.contentResolver.delete(uri, null, null) }
+                if (t is CancellationException) throw t
+                null
             }
-            values.clear()
-            values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-            context.contentResolver.update(uri, values, null, null)
-            return uri
         } else {
             val dir = File(
                 Environment.getExternalStoragePublicDirectory(directory),

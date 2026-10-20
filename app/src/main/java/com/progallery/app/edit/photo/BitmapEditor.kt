@@ -138,21 +138,25 @@ class BitmapEditor @Inject constructor() {
         source.getPixels(pixels, 0, width, 0, 0, width, height)
         val temp = IntArray(width * height)
 
+        // Alpha is blurred along with colour. Forcing it to 0xFF turned every
+        // transparent pixel of a PNG/WebP opaque.
         // Horizontal pass
         for (y in 0 until height) {
-            var sumR = 0; var sumG = 0; var sumB = 0; var count = 0
+            var sumA = 0; var sumR = 0; var sumG = 0; var sumB = 0; var count = 0
             for (x in -r..r) {
                 val cx = x.coerceIn(0, width - 1)
                 val p = pixels[y * width + cx]
+                sumA += (p ushr 24) and 0xFF
                 sumR += (p shr 16) and 0xFF; sumG += (p shr 8) and 0xFF; sumB += p and 0xFF; count++
             }
             for (x in 0 until width) {
-                temp[y * width + x] = (0xFF shl 24) or ((sumR / count) shl 16) or
+                temp[y * width + x] = (((sumA / count) and 0xFF) shl 24) or ((sumR / count) shl 16) or
                     ((sumG / count) shl 8) or (sumB / count)
                 val outX = (x - r).coerceIn(0, width - 1)
                 val inX = (x + r + 1).coerceIn(0, width - 1)
                 val outP = pixels[y * width + outX]
                 val inP = pixels[y * width + inX]
+                sumA += ((inP ushr 24) and 0xFF) - ((outP ushr 24) and 0xFF)
                 sumR += ((inP shr 16) and 0xFF) - ((outP shr 16) and 0xFF)
                 sumG += ((inP shr 8) and 0xFF) - ((outP shr 8) and 0xFF)
                 sumB += (inP and 0xFF) - (outP and 0xFF)
@@ -160,19 +164,21 @@ class BitmapEditor @Inject constructor() {
         }
         // Vertical pass
         for (x in 0 until width) {
-            var sumR = 0; var sumG = 0; var sumB = 0; var count = 0
+            var sumA = 0; var sumR = 0; var sumG = 0; var sumB = 0; var count = 0
             for (y in -r..r) {
                 val cy = y.coerceIn(0, height - 1)
                 val p = temp[cy * width + x]
+                sumA += (p ushr 24) and 0xFF
                 sumR += (p shr 16) and 0xFF; sumG += (p shr 8) and 0xFF; sumB += p and 0xFF; count++
             }
             for (y in 0 until height) {
-                pixels[y * width + x] = (0xFF shl 24) or ((sumR / count) shl 16) or
+                pixels[y * width + x] = (((sumA / count) and 0xFF) shl 24) or ((sumR / count) shl 16) or
                     ((sumG / count) shl 8) or (sumB / count)
                 val outY = (y - r).coerceIn(0, height - 1)
                 val inY = (y + r + 1).coerceIn(0, height - 1)
                 val outP = temp[outY * width + x]
                 val inP = temp[inY * width + x]
+                sumA += ((inP ushr 24) and 0xFF) - ((outP ushr 24) and 0xFF)
                 sumR += ((inP shr 16) and 0xFF) - ((outP shr 16) and 0xFF)
                 sumG += ((inP shr 8) and 0xFF) - ((outP shr 8) and 0xFF)
                 sumB += (inP and 0xFF) - (outP and 0xFF)
@@ -205,22 +211,26 @@ class BitmapEditor @Inject constructor() {
                     val value = center * c - a * (up + down + left + right)
                     return value.toInt().coerceIn(0, 255)
                 }
-                out[idx] = (0xFF shl 24) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
+                // Sharpening changes brightness, never transparency: keep the
+                // source pixel's alpha so transparent images stay transparent.
+                val alpha = (src[idx] ushr 24) and 0xFF
+                out[idx] = (alpha shl 24) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
             }
         }
         return Bitmap.createBitmap(out, width, height, Bitmap.Config.ARGB_8888)
     }
 
     private fun applyExifOrientation(bitmap: Bitmap, orientation: Int): Bitmap {
+        val transform = ExifOrientation.transformFor(orientation)
+        if (transform.isIdentity) return bitmap
+
         val matrix = Matrix()
-        when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
-            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
-            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
-            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
-            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
-            else -> return bitmap
-        }
+        if (transform.rotationDegrees != 0f) matrix.postRotate(transform.rotationDegrees)
+        // Mirrored orientations (2, 4, 5, 7) need the flip as well as the rotation;
+        // previously transpose and transverse were not handled at all, so those
+        // photos came out sideways.
+        if (transform.mirrorHorizontally) matrix.postScale(-1f, 1f)
+
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
@@ -240,5 +250,46 @@ class BitmapEditor @Inject constructor() {
                 0f, 0f, 0f, 1f, 0f,
             ),
         )
+    }
+}
+
+/** The transform an EXIF orientation value implies. */
+data class OrientationTransform(
+    val rotationDegrees: Float,
+    val mirrorHorizontally: Boolean,
+) {
+    val isIdentity: Boolean get() = rotationDegrees == 0f && !mirrorHorizontally
+}
+
+/**
+ * Maps all eight EXIF orientation values to a rotation plus an optional horizontal
+ * mirror, and says whether the image's width and height swap.
+ *
+ * Kept pure (no `Bitmap`) so every case is unit testable — the mirrored values 5
+ * and 7 were the ones missing.
+ */
+object ExifOrientation {
+
+    fun transformFor(orientation: Int): OrientationTransform = when (orientation) {
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> OrientationTransform(0f, mirrorHorizontally = true)
+        ExifInterface.ORIENTATION_ROTATE_180 -> OrientationTransform(180f, mirrorHorizontally = false)
+        // Flip-vertical is a 180 rotation plus a horizontal mirror.
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> OrientationTransform(180f, mirrorHorizontally = true)
+        // Transpose mirrors across the main diagonal; transverse across the other.
+        ExifInterface.ORIENTATION_TRANSPOSE -> OrientationTransform(90f, mirrorHorizontally = true)
+        ExifInterface.ORIENTATION_ROTATE_90 -> OrientationTransform(90f, mirrorHorizontally = false)
+        ExifInterface.ORIENTATION_TRANSVERSE -> OrientationTransform(-90f, mirrorHorizontally = true)
+        ExifInterface.ORIENTATION_ROTATE_270 -> OrientationTransform(270f, mirrorHorizontally = false)
+        else -> OrientationTransform(0f, mirrorHorizontally = false)
+    }
+
+    /** True when the orientation exchanges width and height. */
+    fun swapsDimensions(orientation: Int): Boolean = when (orientation) {
+        ExifInterface.ORIENTATION_TRANSPOSE,
+        ExifInterface.ORIENTATION_ROTATE_90,
+        ExifInterface.ORIENTATION_TRANSVERSE,
+        ExifInterface.ORIENTATION_ROTATE_270,
+        -> true
+        else -> false
     }
 }

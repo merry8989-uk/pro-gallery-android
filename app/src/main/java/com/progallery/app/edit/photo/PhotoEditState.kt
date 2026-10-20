@@ -45,6 +45,8 @@ data class PhotoEditState(
     val current: EditParams = EditParams(),
     private val undoStack: List<EditParams> = emptyList(),
     private val redoStack: List<EditParams> = emptyList(),
+    /** The value a dragged control started from, held until the drag ends. */
+    private val dragBase: EditParams? = null,
 ) {
     val canUndo: Boolean get() = undoStack.isNotEmpty()
     val canRedo: Boolean get() = redoStack.isNotEmpty()
@@ -56,7 +58,25 @@ data class PhotoEditState(
             current = params,
             undoStack = undoStack + current,
             redoStack = emptyList(),
+            dragBase = null,
         )
+    }
+
+    /**
+     * Shows [params] while a slider is being dragged. The preview updates live but
+     * the history is left alone, so undo returns to a real edit instead of
+     * stepping back through every pixel of one movement.
+     */
+    fun preview(params: EditParams): PhotoEditState {
+        if (params == current) return this
+        return copy(current = params, dragBase = dragBase ?: current)
+    }
+
+    /** Ends a drag, turning the value it started from into a single undoable step. */
+    fun endPreview(): PhotoEditState {
+        val base = dragBase ?: return this
+        if (base == current) return copy(dragBase = null)
+        return copy(undoStack = undoStack + base, redoStack = emptyList(), dragBase = null)
     }
 
     fun undo(): PhotoEditState {
@@ -66,6 +86,7 @@ data class PhotoEditState(
             current = previous,
             undoStack = undoStack.dropLast(1),
             redoStack = redoStack + current,
+            dragBase = null,
         )
     }
 
@@ -76,6 +97,7 @@ data class PhotoEditState(
             current = next,
             undoStack = undoStack + current,
             redoStack = redoStack.dropLast(1),
+            dragBase = null,
         )
     }
 

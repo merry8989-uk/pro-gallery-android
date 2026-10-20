@@ -63,6 +63,36 @@ jobs:
             echo "::warning::No signing secret configured - falling back to the default debug key; in-place upgrades may not work."
           fi
 
+      - name: Resolve the release tag
+        id: release_tag
+        run: |
+          # A tag push must publish under the pushed tag; a manual run uses the
+          # supplied input. There is deliberately no fallback to a hard-coded
+          # version - that is what previously published a v1.5.x tag push as
+          # "v1.0.1".
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tag="${GITHUB_REF_NAME}"
+            echo "Triggered by tag push: ${tag}"
+          else
+            tag="${{ github.event.inputs.tag }}"
+            echo "Triggered manually with input: ${tag}"
+          fi
+
+          if [ -z "$tag" ]; then
+            echo "::error::No tag could be resolved. Push a 'v*' tag, or supply the 'tag' input on a manual run."
+            exit 1
+          fi
+
+          case "$tag" in
+            v*) ;;
+            *)
+              echo "::error::Tag '$tag' must start with 'v' (for example v1.5.1)."
+              exit 1
+              ;;
+          esac
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 
@@ -75,8 +105,8 @@ jobs:
       - name: Publish release with APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || 'v1.0.1' }}
-          name: ProGallery ${{ github.event.inputs.tag || 'v1.0.1' }} — debug APK
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          name: ProGallery ${{ steps.release_tag.outputs.tag }} — debug APK
           body: |
             Debug build of **ProGallery**, a native Android gallery app (Kotlin, Jetpack Compose, Material 3)
             with MediaStore indexing, deep SAF scanning, duplicate detection and photo/video editing.

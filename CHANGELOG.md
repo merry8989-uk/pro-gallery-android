@@ -27,6 +27,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.5.1]
+Phase 1 of the pending-work plan: correctness and data safety. No new features.
+
+### Fixed
+- **The release workflow could publish under the wrong tag.** A tag push fell back to a hard-coded `v1.0.1`; it now uses the pushed tag and fails loudly if none can be resolved.
+- **The video editor read the duration on the main thread**, freezing the screen on a large file. It now runs on an IO thread, and the preview appears immediately.
+- **Video export froze the UI and could leave debris.** Publishing the finished file to MediaStore ran on the Transformer's callback thread; it now runs on IO. A failed publish deletes the pending row, and the copy is verified before success is reported.
+- **A failed "delete forever" still removed the trash record**, leaving an orphaned file nothing could find or clean up. The row is now kept until the file is genuinely gone, and the result is returned so it can be retried. `discard` and the 30-day purge behave the same way.
+- **Restoring from the trash could publish a half-written file.** The copy is now verified and an incomplete row is removed instead of being shown in the library.
+- **A failed photo export left an orphaned pending MediaStore row.** Compression and the MediaStore write are both checked now, the row is finalised and verified, and it is deleted on any failure. Overwriting no longer reports success when the encoder failed.
+- **Blur and sharpen forced every pixel opaque**, turning transparent PNG/WebP images solid. Alpha is now blurred with the colour, and sharpening preserves the source alpha.
+- **Photo export was capped at 4096 px**, so a 50 MP photo exported smaller than the original. Export size is now a choice — **Original** (default), 4096 px or 2048 px — and if the full size does not fit in the heap the app falls back and says so.
+- **The PNG export dialog showed a quality slider that did nothing.** PNG is lossless, so the slider is replaced by a note.
+- **Undo recorded every pixel of a slider movement**, making it unusable. Dragging now previews live and records **one** undo step when released; discrete edits (rotate, flip, filter, crop) remain single steps.
+- **EXIF orientations 5 and 7 (transpose, transverse) were not handled**, so those photos exported sideways. All eight orientations are now mapped, with unit tests.
+- **An unexpected Deep Scan failure left the screen on "Scanning" for ever.** Errors are converted to a terminal `Failed` state with a message, in both the Deep Scan and the Android-folders scanners, with a second safety net in the view models.
+
+### Notes
+- The audit's Deep Scan grant item needed no change: a directory whose persisted permission fails is already rejected and reported, and never saved.
+- No device was available in this environment; these are verified by compilation, unit tests and code inspection, not by running the app.
+
 ## [1.5.0]
 ### Fixed
 - **"No installed app can open this" even with five apps installed.** Android 11+ hides other packages from `queryIntentActivities()` unless the app declares them, so the check returned an empty list and the app refused to show the chooser — for PDFs, Word, Excel, JSON, text, everything. The manifest now declares the intents it needs to resolve (`<queries>` for VIEW/EDIT/SEND).

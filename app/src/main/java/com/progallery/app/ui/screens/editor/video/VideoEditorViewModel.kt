@@ -12,7 +12,9 @@ import com.progallery.app.edit.MediaTrimmer
 import com.progallery.app.edit.TrimKind
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,25 +44,35 @@ class VideoEditorViewModel @Inject constructor(
 
     private var exportJob: Job? = null
 
+    /**
+     * Shows the preview immediately and reads the duration on an IO thread —
+     * `MediaMetadataRetriever` is synchronous and blocking it on the main thread
+     * froze the screen on a large file.
+     */
     fun load(uriString: String) {
         val uri = Uri.parse(java.net.URLDecoder.decode(uriString, "UTF-8"))
-        val duration = runCatchingCancellable {
-            val retriever = MediaMetadataRetriever()
-            try {
-                retriever.setDataSource(context, uri)
-                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-            } finally {
-                retriever.release()
+        _state.update { it.copy(uri = uri) }
+
+        viewModelScope.launch {
+            val duration = withContext(Dispatchers.IO) { readDurationMs(uri) }
+            _state.update {
+                it.copy(
+                    durationMs = duration,
+                    edit = it.edit.copy(trimStartMs = 0, trimEndMs = duration),
+                )
             }
-        }.getOrDefault(0L)
-        _state.update {
-            it.copy(
-                uri = uri,
-                durationMs = duration,
-                edit = VideoEditState(trimStartMs = 0, trimEndMs = duration),
-            )
         }
     }
+
+    private fun readDurationMs(uri: Uri): Long = runCatchingCancellable {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, uri)
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        } finally {
+            retriever.release()
+        }
+    }.getOrDefault(0L)
 
     fun setTrimRange(startMs: Long, endMs: Long) = _state.update {
         it.copy(edit = it.edit.copy(trimStartMs = startMs, trimEndMs = endMs))

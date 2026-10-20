@@ -15,8 +15,10 @@ import com.progallery.app.data.settings.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
@@ -98,6 +100,24 @@ class DeepScanRepository @Inject constructor(
 
     /** Recursively scans every authorised tree, emitting [ScanState] progress. */
     fun scanAll(): Flow<ScanState> = flow {
+        // Anything unexpected must surface as Failed. Without this an escaping
+        // exception ended the flow, the collector never saw a terminal state, and
+        // the screen sat on "Scanning" for ever.
+        try {
+            emitAll(scanInternal())
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (t: Throwable) {
+            emit(ScanState.Failed(describeFailure(t)))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    /** The failure text shown to the user, naming the type when there is no message. */
+    private fun describeFailure(t: Throwable): String =
+        t.message?.takeIf { it.isNotBlank() }
+            ?: "The scan stopped unexpectedly (${t::class.java.simpleName})."
+
+    private fun scanInternal(): Flow<ScanState> = flow {
         val settings = settingsRepository.current()
 
         if (!settings.deepScanEnabled && !settings.safScanEnabled) {
@@ -279,5 +299,5 @@ class DeepScanRepository @Inject constructor(
                 duplicates = duplicates,
             ),
         )
-    }.flowOn(Dispatchers.IO)
+    }
 }

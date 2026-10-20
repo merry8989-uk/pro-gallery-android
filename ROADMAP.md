@@ -5,7 +5,9 @@ Recovery master prompt, the Advanced Settings master prompt, your audit, and the
 UltData feature list used as a reference. Nothing here is invented — each item was
 checked against the current code, not remembered.
 
-**Current release:** v1.5.0 · `versionCode 19` · CI green · signed with the project key.
+**Current release:** v1.5.1 · `versionCode 20` · CI green · signed with the project key.
+
+**Phase 1 complete.** Next: the recovery engine (§4).
 
 ---
 
@@ -43,7 +45,11 @@ Your audit was written against v1.3.0. These findings are **fixed**; verified in
 
 ---
 
-## 3. Pending — Phase 1: correctness & data safety (small, highest value)
+## 3. Phase 1: correctness & data safety — ✅ DONE in v1.5.1
+
+All thirteen items are implemented, plus the release-workflow tag fix. Item 12
+needed no code change: a directory whose persisted permission fails was already
+rejected and reported rather than saved.
 
 | # | Item | Why it matters | Where |
 | --- | --- | --- | --- |
@@ -147,7 +153,7 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 | Release | Contents |
 | --- | --- |
-| **v1.5.1** | Phase 1 — the 13 correctness/safety items + the release-workflow tag fix |
+| ~~**v1.5.1**~~ | ✅ Phase 1 — the 13 correctness/safety items + the release-workflow tag fix (shipped) |
 | **v1.6.0** | Recovery engine A: Quick Scan, result browsing, `RecoveryThumbnail`, result cards with confidence/source/status |
 | **v1.7.0** | Recovery engine B: safe export workflow, recovery history, thumbnail/cache discovery |
 | **v1.8.0** | Phase 3 — settings completeness (export/import, resets, thumbnail cache, diagnostics, dependency registry) |

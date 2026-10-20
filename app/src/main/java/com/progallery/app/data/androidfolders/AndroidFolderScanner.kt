@@ -19,8 +19,10 @@ import com.progallery.app.util.PermissionUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.io.File
@@ -66,6 +68,21 @@ class AndroidFolderScanner @Inject constructor(
     )
 
     fun scan(targets: List<AndroidFolderTarget>): Flow<ScanState> = flow {
+        try {
+            emitAll(scanInternal(targets))
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (t: Throwable) {
+            emit(
+                ScanState.Failed(
+                    t.message?.takeIf { it.isNotBlank() }
+                        ?: "The scan stopped unexpectedly (${t::class.java.simpleName}).",
+                ),
+            )
+        }
+    }.flowOn(Dispatchers.IO)
+
+    private fun scanInternal(targets: List<AndroidFolderTarget>): Flow<ScanState> = flow {
         val settings = settingsRepository.current()
         val allowed = reachability().filter { it.reachable }.map { it.target }
         val requested = targets.filter { it in allowed }
@@ -206,5 +223,5 @@ class AndroidFolderScanner @Inject constructor(
                 duplicates = duplicates,
             ),
         )
-    }.flowOn(Dispatchers.IO)
+    }
 }
