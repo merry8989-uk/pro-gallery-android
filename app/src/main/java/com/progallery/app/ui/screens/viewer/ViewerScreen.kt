@@ -7,9 +7,11 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,10 +23,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -71,11 +73,41 @@ import com.progallery.app.util.ImmersiveSystemBars
 import com.progallery.app.util.MediaFormatUtils
 
 /**
+ * Holds the zoom/pan for the visible page. A single instance is shared by the
+ * viewer so the gesture handlers always read current values (a plain captured
+ * `Float` would go stale inside a long-lived `pointerInput` block).
+ */
+private class ZoomState {
+    var scale by mutableFloatStateOf(1f)
+    var offset by mutableStateOf(Offset.Zero)
+
+    val isZoomed: Boolean get() = scale > 1f
+
+    fun reset() {
+        scale = 1f
+        offset = Offset.Zero
+    }
+
+    fun apply(zoomChange: Float, panChange: Offset) {
+        val newScale = (scale * zoomChange).coerceIn(1f, 6f)
+        scale = newScale
+        offset = if (newScale <= 1f) Offset.Zero else offset + panChange
+    }
+}
+
+/** Compares a MediaStore URI with a navigation argument, tolerating double-encoding. */
+private fun sameUri(itemUri: String, passed: String): Boolean {
+    if (itemUri == passed) return true
+    val decoded = runCatching { java.net.URLDecoder.decode(passed, "UTF-8") }.getOrNull()
+    return decoded != null && itemUri == decoded
+}
+
+/**
  * Full-screen photo/video viewer.
  *
- * Gestures: single tap toggles the controls, double tap zooms in/out, pinch
- * zooms, and drag pans while zoomed. While zoomed the pager stops swiping so
- * panning is not stolen by page changes; leaving a page resets it to fit.
+ * Gestures: single tap toggles the controls, double tap zooms in/out, two-finger
+ * pinch zooms, and one-finger drag pans — but only while zoomed, so a horizontal
+ * swipe still changes page when the image is at its natural size.
  */
 @Composable
 fun ViewerScreen(
@@ -91,14 +123,27 @@ fun ViewerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val decodedUri = java.net.URLDecoder.decode(uri, "UTF-8")
-    val initialIndex = items.indexOfFirst { it.uri.toString() == decodedUri }.coerceAtLeast(0)
-    val pagerState = rememberPagerState(
-        initialPage = initialIndex,
-        pageCount = { items.size.coerceAtLeast(1) },
-    )
+    val zoom = remember { ZoomState() }
+
+    // Start at page 0 and jump to the tapped item once the library has loaded.
+    // (An initialPage computed here would always be 0, because the media list is
+    // still empty on the first composition.)
+    val pagerState = rememberPagerState(pageCount = { items.size.coerceAtLeast(1) })
+    var didJump by remember { mutableStateOf(false) }
+    LaunchedEffect(items) {
+        if (!didJump && items.isNotEmpty()) {
+            val index = items.indexOfFirst { sameUri(it.uri.toString(), decodedUri) }
+            if (index >= 0) {
+                pagerState.scrollToPage(index)
+                didJump = true
+            }
+        }
+    }
+
+    // A page always opens at its natural size.
+    LaunchedEffect(pagerState.currentPage) { zoom.reset() }
 
     var controlsVisible by remember { mutableStateOf(false) }
-    var zoomed by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<MediaItem?>(null) }
     var moveTarget by remember { mutableStateOf<MediaItem?>(null) }
     var infoTarget by remember { mutableStateOf<MediaItem?>(null) }
@@ -137,42 +182,61 @@ fun ViewerScreen(
         if (items.isEmpty()) {
             CircularProgressIndicator(color = Color.White, modifier = Modifier.align(Alignment.Center))
         } else {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                // Stable key per item: without this the pager reuses a page's
-                // composition for a different photo and zoom/pan leaks across.
-                key = { page -> items.getOrNull(page)?.uri?.toString() ?: "page-$page" },
-                userScrollEnabled = !zoomed,
-            ) { page ->
-                val item = items.getOrNull(page)
-                if (item != null) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        ZoomableImage(
-                            model = item.uri,
-                            description = item.displayName,
-                            resetKey = item.uri.toString(),
-                            isActive = page == pagerState.currentPage,
+            // Tap detection sits on an ancestor of the pager. Ancestors receive
+            // pointer events after their descendants, so this can never swallow
+            // the swipe before the pager sees it — which is what broke paging.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures(
                             onTap = { controlsVisible = !controlsVisible },
-                            onZoomChanged = { isZoomed ->
-                                if (page == pagerState.currentPage) zoomed = isZoomed
+                            onDoubleTap = {
+                                if (zoom.isZoomed) zoom.reset() else zoom.scale = 2.5f
                             },
                         )
-                        // Videos open in the player rather than sitting as a still frame.
-                        if (item.isVideo) {
-                            IconButton(
-                                onClick = { onPlayVideo(item.uri.toString()) },
+                    },
+            ) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    key = { page -> items.getOrNull(page)?.uri?.toString() ?: "page-$page" },
+                    // Panning needs the drag; paging gets it back at natural size.
+                    userScrollEnabled = !zoom.isZoomed,
+                ) { page ->
+                    val item = items.getOrNull(page)
+                    if (item != null) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            AsyncImage(
+                                model = item.uri,
+                                contentDescription = item.displayName,
+                                contentScale = ContentScale.Fit,
                                 modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(72.dp)
-                                    .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.PlayArrow,
-                                    contentDescription = "Play video",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(40.dp),
-                                )
+                                    .fillMaxSize()
+                                    .graphicsLayer(
+                                        scaleX = zoom.scale,
+                                        scaleY = zoom.scale,
+                                        translationX = zoom.offset.x,
+                                        translationY = zoom.offset.y,
+                                    )
+                                    .zoomGestures(zoom),
+                            )
+                            // Videos open in the player rather than sitting as a still frame.
+                            if (item.isVideo) {
+                                IconButton(
+                                    onClick = { onPlayVideo(item.uri.toString()) },
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(72.dp)
+                                        .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.PlayArrow,
+                                        contentDescription = "Play video",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(40.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -231,6 +295,27 @@ fun ViewerScreen(
 
     infoTarget?.let { item ->
         InfoDialog(item = item, onDismiss = { infoTarget = null })
+    }
+}
+
+/**
+ * Two-finger pinch always zooms; one-finger drag pans only while zoomed.
+ * At natural size the gesture is left unconsumed so the pager can page.
+ */
+private fun Modifier.zoomGestures(zoom: ZoomState): Modifier = pointerInput(Unit) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        do {
+            val event = awaitPointerEvent()
+            val pressedCount = event.changes.count { it.pressed }
+            val zoomChange = event.calculateZoom()
+            val panChange = event.calculatePan()
+            val handle = pressedCount > 1 || zoom.isZoomed
+            if (handle && (zoomChange != 1f || panChange != Offset.Zero)) {
+                zoom.apply(zoomChange, panChange)
+                event.changes.forEach { it.consume() }
+            }
+        } while (event.changes.any { it.pressed })
     }
 }
 
@@ -304,79 +389,7 @@ private fun ViewerAction(icon: ImageVector, label: String, onClick: () -> Unit) 
         IconButton(onClick = onClick) {
             Icon(icon, contentDescription = label, tint = Color.White)
         }
-        Text(
-            text = label,
-            color = Color.White,
-            style = MaterialTheme.typography.labelSmall,
-        )
-    }
-}
-
-/**
- * A zoomable, pannable image. Tap detection lives on the container while the
- * transform gestures live on the image itself — keeping them on separate nodes
- * is what lets pinch work without the tap detector swallowing it.
- */
-@Composable
-private fun ZoomableImage(
-    model: Any?,
-    description: String,
-    resetKey: Any?,
-    isActive: Boolean,
-    onTap: () -> Unit,
-    onZoomChanged: (Boolean) -> Unit,
-) {
-    var scale by remember(resetKey) { mutableFloatStateOf(1f) }
-    var offset by remember(resetKey) { mutableStateOf(Offset.Zero) }
-
-    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        val newScale = (scale * zoomChange).coerceIn(1f, 6f)
-        scale = newScale
-        offset = if (newScale <= 1f) Offset.Zero else offset + panChange
-    }
-
-    // Report zoom so the pager can stop stealing horizontal drags.
-    LaunchedEffect(scale) { onZoomChanged(scale > 1f) }
-
-    // Returning to a page always shows the whole image again.
-    LaunchedEffect(isActive) {
-        if (!isActive) {
-            scale = 1f
-            offset = Offset.Zero
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(resetKey) {
-                detectTapGestures(
-                    onTap = { onTap() },
-                    onDoubleTap = {
-                        if (scale > 1f) {
-                            scale = 1f
-                            offset = Offset.Zero
-                        } else {
-                            scale = 2.5f
-                        }
-                    },
-                )
-            },
-    ) {
-        AsyncImage(
-            model = model,
-            contentDescription = description,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer(
-                    scaleX = scale,
-                    scaleY = scale,
-                    translationX = offset.x,
-                    translationY = offset.y,
-                )
-                .transformable(transformState),
-        )
+        Text(text = label, color = Color.White, style = MaterialTheme.typography.labelSmall)
     }
 }
 
@@ -497,10 +510,6 @@ private fun InfoRow(label: String, value: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(end = 12.dp),
         )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.weight(1f),
-        )
+        Text(text = value, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
     }
 }

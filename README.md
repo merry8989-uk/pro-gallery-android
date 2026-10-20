@@ -16,7 +16,7 @@ A native Android gallery: a fast, Material 3 photo and video browser with **deep
 - Search by file name, album/folder name and MIME type.
 - Multi-select with a contextual action bar (share, favourite, hide, edit, delete).
 - **Immersive full-screen viewer and player**: system bars hidden, black background, swipe-to-reveal so you are never trapped, and bars restored on exit.
-- **Viewer gestures**: tap to show/hide the controls, double-tap to zoom, pinch to zoom, drag to pan while zoomed. While zoomed the pager stops swiping; leaving a page resets it to fit.
+- **Viewer gestures**: tap to show/hide the controls, double-tap to zoom, pinch to zoom, and drag to pan *only while zoomed* so a swipe still changes page at natural size. Leaving a page resets it to fit.
 - **Viewer actions** (revealed by tapping): share, edit, rename, move, delete and info, plus favourite. Videos show a play button that opens the player.
 - Media extends into display cutouts on notched devices.
 - Empty states, loading indicators, error handling, and a permission gate.
