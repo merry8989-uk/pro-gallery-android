@@ -27,6 +27,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 
 data class PdfUiState(
     val item: MediaItem? = null,
@@ -84,6 +85,7 @@ class PdfViewerViewModel @Inject constructor(
                     )
                 }
             } catch (t: Throwable) {
+                if (t is CancellationException) throw t
                 _state.update {
                     it.copy(loading = false, error = "This file could not be read as a PDF")
                 }
@@ -131,6 +133,7 @@ class PdfViewerViewModel @Inject constructor(
                     bitmap
                 }
             } catch (t: Throwable) {
+                if (t is CancellationException) throw t
                 null
             }
         }

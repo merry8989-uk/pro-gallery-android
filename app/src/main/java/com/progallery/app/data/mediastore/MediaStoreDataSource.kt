@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.util.runCatchingCancellable
 
 /**
  * Reads files from the platform [MediaStore].
@@ -63,7 +64,9 @@ class MediaStoreDataSource @Inject constructor(
     suspend fun loadMedia(kinds: Set<MediaType> = DEFAULT_KINDS): List<MediaItem> =
         withContext(Dispatchers.IO) {
             val results = ArrayList<MediaItem>()
-            runCatching {
+            // Cancellable: a cancelled query must throw, not return a
+            // half-populated library that looks like a complete one.
+            runCatchingCancellable {
                 context.contentResolver.query(
                     collection, projection, null, null,
                     "${MediaStore.MediaColumns.DATE_MODIFIED} DESC",

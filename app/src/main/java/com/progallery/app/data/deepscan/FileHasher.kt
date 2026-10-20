@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 
 /**
  * Streams a content URI through SHA-256. Files are read in small chunks so
@@ -32,6 +33,7 @@ class FileHasher @Inject constructor(
                 digest.digest().joinToString("") { "%02x".format(it) }
             }
         } catch (t: Throwable) {
+            if (t is CancellationException) throw t
             null
         }
     }

@@ -16,6 +16,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.CancellationException
 
 /**
  * Applies [EditParams] to a bitmap. Everything is done on a downscaled working
@@ -54,6 +55,7 @@ class BitmapEditor @Inject constructor() {
 
             applyExifOrientation(bitmap, orientation)
         } catch (t: Throwable) {
+            if (t is CancellationException) throw t
             null
         }
     }

@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.util.runCatchingCancellable
 
 /**
  * A real, app-managed "Recently Deleted" system. Deletion moves a copy of the
@@ -79,7 +80,7 @@ class TrashRepository @Inject constructor(
     suspend fun discard(trashIds: List<Long>) = withContext(Dispatchers.IO) {
         trashIds.forEach { id ->
             trashDao.byId(id)?.let { entity ->
-                runCatching { File(Uri.parse(entity.trashUri).path ?: "").delete() }
+                runCatchingCancellable { File(Uri.parse(entity.trashUri).path ?: "").delete() }
                 trashDao.delete(id)
             }
         }
@@ -98,7 +99,7 @@ class TrashRepository @Inject constructor(
     }
 
     suspend fun deleteForever(entity: TrashEntity) = withContext(Dispatchers.IO) {
-        runCatching { File(Uri.parse(entity.trashUri).path ?: "").delete() }
+        runCatchingCancellable { File(Uri.parse(entity.trashUri).path ?: "").delete() }
         trashDao.delete(entity.id)
     }
 
@@ -107,7 +108,7 @@ class TrashRepository @Inject constructor(
         val cutoff = System.currentTimeMillis() - retentionDays * 24L * 60L * 60L * 1000L
         val expired = trashDao.olderThan(cutoff)
         expired.forEach { entity ->
-            runCatching { File(Uri.parse(entity.trashUri).path ?: "").delete() }
+            runCatchingCancellable { File(Uri.parse(entity.trashUri).path ?: "").delete() }
             trashDao.delete(entity.id)
         }
         expired.size

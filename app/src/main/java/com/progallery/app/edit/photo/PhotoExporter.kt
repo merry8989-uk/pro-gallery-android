@@ -15,6 +15,7 @@ import java.io.File
 import java.io.OutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.util.runCatchingCancellable
 
 /** Output format + quality the user chose for an export. */
 enum class ExportFormat(val mimeType: String, val extension: String) {
@@ -45,7 +46,7 @@ class PhotoExporter @Inject constructor(
             ExportFormat.PNG -> Bitmap.CompressFormat.PNG
             ExportFormat.WEBP -> Bitmap.CompressFormat.WEBP
         }
-        runCatching {
+        runCatchingCancellable {
             if (overwriteUri != null) {
                 context.contentResolver.openOutputStream(overwriteUri)?.use { out ->
                     bitmap.compress(compressFormat, quality, out)

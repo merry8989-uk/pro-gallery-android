@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.progallery.app.util.runCatchingCancellable
 
 data class VideoEditorUiState(
     val uri: Uri? = null,
@@ -43,7 +44,7 @@ class VideoEditorViewModel @Inject constructor(
 
     fun load(uriString: String) {
         val uri = Uri.parse(java.net.URLDecoder.decode(uriString, "UTF-8"))
-        val duration = runCatching {
+        val duration = runCatchingCancellable {
             val retriever = MediaMetadataRetriever()
             try {
                 retriever.setDataSource(context, uri)

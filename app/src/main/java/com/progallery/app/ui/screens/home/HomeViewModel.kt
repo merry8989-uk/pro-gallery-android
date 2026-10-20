@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.progallery.app.util.runCatchingCancellable
 
 data class HomeUiState(
     val photos: Int = 0,
@@ -44,7 +45,7 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            runCatching { repository.refresh() }
+            runCatchingCancellable { repository.refresh() }
             repository.observeMedia(MediaType.ALL).collect { items ->
                 _state.update {
                     it.copy(
@@ -79,7 +80,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch { runCatching { repository.refresh() } }
+        viewModelScope.launch { runCatchingCancellable { repository.refresh() } }
     }
 
     /** Remembers that the one-time prompt has been shown. */
