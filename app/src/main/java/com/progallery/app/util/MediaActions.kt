@@ -56,19 +56,20 @@ class MediaActions @Inject constructor(
         context.startActivity(shareChooser(items))
     }
 
-    /** Intent that hands a file to whatever app can display it. */
-    fun openIntent(item: MediaItem): Intent =
+    /** MIME to use when handing a file to another app. */
+    private fun mimeFor(uri: Uri, mimeType: String): String = mimeType.ifBlank {
+        runCatching { context.contentResolver.getType(uri) }.getOrNull() ?: "*/*"
+    }
+
+    private fun viewIntent(uri: Uri, mimeType: String): Intent =
         Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(item.uri, item.mimeType.ifBlank { "*/*" })
+            setDataAndType(uri, mimeFor(uri, mimeType))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
-    /** MIME to use when handing a file to another app. */
-    private fun mimeFor(uri: Uri, mimeType: String): String = mimeType.ifBlank {
-        val type = runCatching { context.contentResolver.getType(uri) }.getOrNull()
-        type ?: "*/*"
-    }
+    /** Intent that hands a file to whatever app can display it. */
+    fun openIntent(item: MediaItem): Intent = viewIntent(item.uri, item.mimeType)
 
     private fun editIntent(uri: Uri, mimeType: String, grantWrite: Boolean): Intent =
         Intent(Intent.ACTION_EDIT).apply {
@@ -79,69 +80,21 @@ class MediaActions @Inject constructor(
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
-    /** True when an installed app can edit this file. */
-    fun canAdvancedEdit(uri: Uri, mimeType: String): Boolean = runCatching {
-        context.packageManager
-            .queryIntentActivities(editIntent(uri, mimeType, grantWrite = false), 0)
-            .isNotEmpty()
+    /** True when at least one installed app can handle this intent. */
+    private fun canHandle(intent: Intent): Boolean = runCatching {
+        context.packageManager.queryIntentActivities(intent, 0).isNotEmpty()
     }.getOrDefault(false)
 
-    /**
-     * Hands a photo or video to another app for **advanced** editing — Snapseed,
-     * Photoshop Express, CapCut and the like — while the in-app editor stays for
-     * the basic adjustments.
-     *
-     * Prefers ACTION_EDIT; when no editor is installed it falls back to opening
-     * the file, and returns false when nothing on the device can handle it so the
-     * caller can say so instead of showing an empty chooser.
-     */
-    fun launchAdvancedEdit(
-        uri: Uri,
-        mimeType: String,
-        chooserTitle: String = "Advanced edit",
-    ): Boolean {
-        if (canAdvancedEdit(uri, mimeType)) {
-            val launched = runCatching {
-                context.startActivity(
-                    Intent.createChooser(editIntent(uri, mimeType, grantWrite = true), chooserTitle)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                )
-                true
-            }.getOrDefault(false)
-            if (launched) return true
-
-            // Some URIs cannot be granted write access; retry read-only.
-            return runCatching {
-                context.startActivity(
-                    Intent.createChooser(editIntent(uri, mimeType, grantWrite = false), chooserTitle)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                )
-                true
-            }.getOrDefault(false)
-        }
-        return launchOpen(
-            MediaItem(
-                id = 0,
-                uri = uri,
-                displayName = "",
-                mimeType = mimeFor(uri, mimeType),
-                sizeBytes = 0,
-                dateModifiedSeconds = 0,
-                width = 0,
-                height = 0,
-                durationMs = 0,
-                bucketId = 0,
-                bucketName = "",
-                relativePath = null,
-            ),
-            chooserTitle,
+    /** Shows a chooser. Returns false only if the chooser itself could not start. */
+    private fun launchChooser(intent: Intent, title: String): Boolean = runCatching {
+        context.startActivity(
+            Intent.createChooser(intent, title).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
-    }
+        true
+    }.getOrDefault(false)
 
     /** True when at least one installed app can view this file. */
-    fun canOpen(item: MediaItem): Boolean = runCatching {
-        context.packageManager.queryIntentActivities(openIntent(item), 0).isNotEmpty()
-    }.getOrDefault(false)
+    fun canOpen(item: MediaItem): Boolean = canHandle(openIntent(item))
 
     /**
      * Hands the file to another app through a chooser, so the user picks among
@@ -151,20 +104,41 @@ class MediaActions @Inject constructor(
      * so instead of showing an empty chooser.
      */
     fun launchOpen(item: MediaItem, chooserTitle: String = "Open with"): Boolean {
-        if (!canOpen(item)) return false
-        return runCatching {
-            context.startActivity(
-                Intent.createChooser(openIntent(item), chooserTitle)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
-            true
-        }.getOrDefault(false)
+        val target = openIntent(item)
+        if (!canHandle(target)) return false
+        return launchChooser(target, chooserTitle)
     }
 
+    /** True when an installed app can edit this file. */
+    fun canAdvancedEdit(uri: Uri, mimeType: String): Boolean =
+        canHandle(editIntent(uri, mimeType, grantWrite = false))
+
     /**
-     * Returns a delete-consent [PendingIntent] on Android 11+, or null when the
-     * caller should delete directly (older versions / app-owned files).
+     * Hands a photo or video to another app for **advanced** editing — Snapseed,
+     * Photoshop Express, CapCut and the like — while the in-app editor stays for
+     * the basic adjustments.
+     *
+     * Prefers ACTION_EDIT. When no editor is installed it falls back to simply
+     * opening the file, and returns false when nothing on the device can handle
+     * it, so the caller can say so instead of showing an empty chooser.
      */
+    fun launchAdvancedEdit(
+        uri: Uri,
+        mimeType: String,
+        chooserTitle: String = "Advanced edit",
+    ): Boolean {
+        if (canAdvancedEdit(uri, mimeType)) {
+            // Try with a write grant first; some URIs cannot be granted write
+            // access, so retry read-only before giving up.
+            if (launchChooser(editIntent(uri, mimeType, grantWrite = true), chooserTitle)) return true
+            return launchChooser(editIntent(uri, mimeType, grantWrite = false), chooserTitle)
+        }
+
+        val fallback = viewIntent(uri, mimeType)
+        if (!canHandle(fallback)) return false
+        return launchChooser(fallback, chooserTitle)
+    }
+
     /**
      * Consent request for deleting MediaStore entries (Android 11+).
      *
