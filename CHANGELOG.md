@@ -27,6 +27,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.3.4]
+### Added
+- **File size range: 1 byte to unlimited.** Every file the app can see is shown regardless of size — APKs, images, videos, documents, archives, anything.
+  - The displayed size now has a floor of **1 B**, so a real file never reads "0 B". A size the provider did not report shows as **Unknown** rather than a misleading number.
+  - The range is explicit and adjustable in **Settings → Scan limits** (Advanced): minimum 1 B / 1 KB / 100 KB / 1 MB, maximum Unlimited / 100 MB / 1 GB / 10 GB. The default is 1 B – unlimited, i.e. nothing is filtered.
+  - A size that cannot be read is **never** treated as too small. SAF reports 0 for "unknown" as well as for "empty", so dropping on that basis would have hidden real files.
+  - The range is applied by the deep scan and by the main list, and the scan summary reports how many files it skipped if you narrow it.
+
 ## [1.3.3]
 ### Added
 - **Advanced editing in another app.** Basic adjustments stay in the app; heavy editing now hands the file to whichever editor is installed:

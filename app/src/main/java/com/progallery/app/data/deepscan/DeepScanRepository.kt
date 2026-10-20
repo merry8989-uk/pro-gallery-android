@@ -133,6 +133,7 @@ class DeepScanRepository @Inject constructor(
         var filesExamined = 0
         var signatureIdentified = 0
         var truncated = false
+        var skippedBySize = 0
         var lastProgressAt = 0
 
         for (entity in directories) {
@@ -181,6 +182,15 @@ class DeepScanRepository @Inject constructor(
                     if (!settings.includeExtensionlessFiles && extension.isEmpty()) continue
 
                     filesExamined++
+
+                    // Size range: 1 byte by default with no upper limit, so a
+                    // file is only ever skipped when the user narrows the range.
+                    val fileSize = child.length()
+                    if (!settings.acceptsSize(fileSize)) {
+                        skippedBySize++
+                        continue
+                    }
+
                     val uri = child.uri
                     if (!visited.add(uri.toString())) continue
 
@@ -210,7 +220,7 @@ class DeepScanRepository @Inject constructor(
                         uri = uri,
                         displayName = name,
                         mimeType = mime,
-                        sizeBytes = child.length(),
+                        sizeBytes = fileSize,
                         dateModifiedSeconds = child.lastModified() / 1000,
                         width = 0,
                         height = 0,
@@ -246,6 +256,11 @@ class DeepScanRepository @Inject constructor(
 
         // Hashing is the expensive part, so it is skipped entirely when the
         // user turns duplicate detection off.
+        if (skippedBySize > 0) {
+            errors += "Skipped $skippedBySize file(s) outside the configured size range " +
+                "(${settings.sizeRangeLabel})."
+        }
+
         val duplicates = if (settings.duplicateDetectionEnabled) {
             detector.findDuplicates(found)
         } else {

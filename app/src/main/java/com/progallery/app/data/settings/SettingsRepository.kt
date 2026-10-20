@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.progallery.app.data.model.SortOrder
@@ -91,6 +92,8 @@ class SettingsRepository @Inject constructor(
         val maxRecursionDepth = intPreferencesKey("max_recursion_depth")
         val maxScanResults = intPreferencesKey("max_scan_results")
         val signatureReadBytes = intPreferencesKey("signature_read_bytes")
+        val minFileSize = longPreferencesKey("min_file_size_bytes")
+        val maxFileSize = longPreferencesKey("max_file_size_bytes")
 
         val performanceMode = stringPreferencesKey("performance_mode")
         val maxConcurrentTasks = intPreferencesKey("max_concurrent_tasks")
@@ -130,6 +133,8 @@ class SettingsRepository @Inject constructor(
             maxRecursionDepth = p[Keys.maxRecursionDepth] ?: d.maxRecursionDepth,
             maxScanResults = p[Keys.maxScanResults] ?: d.maxScanResults,
             signatureReadBytes = p[Keys.signatureReadBytes] ?: d.signatureReadBytes,
+            minFileSizeBytes = p[Keys.minFileSize] ?: d.minFileSizeBytes,
+            maxFileSizeBytes = p[Keys.maxFileSize] ?: d.maxFileSizeBytes,
             performanceMode = enumOrDefault(p[Keys.performanceMode], PerformanceMode.entries, d.performanceMode),
             maxConcurrentTasks = p[Keys.maxConcurrentTasks] ?: d.maxConcurrentTasks,
             pauseWhenBackgrounded = p[Keys.pauseWhenBackgrounded] ?: d.pauseWhenBackgrounded,
@@ -164,6 +169,8 @@ class SettingsRepository @Inject constructor(
         p[Keys.maxRecursionDepth] = s.maxRecursionDepth
         p[Keys.maxScanResults] = s.maxScanResults
         p[Keys.signatureReadBytes] = s.signatureReadBytes
+        p[Keys.minFileSize] = s.minFileSizeBytes
+        p[Keys.maxFileSize] = s.maxFileSizeBytes
         p[Keys.performanceMode] = s.performanceMode.name
         p[Keys.maxConcurrentTasks] = s.maxConcurrentTasks
         p[Keys.pauseWhenBackgrounded] = s.pauseWhenBackgrounded

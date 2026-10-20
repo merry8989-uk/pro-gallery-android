@@ -25,10 +25,19 @@ object MediaFormatUtils {
         mime != null && (mime.startsWith(VIDEO_MIME_PREFIX) || mime in SUPPORTED_VIDEO_MIME)
 
     /** Human-readable size using binary units. */
+    /**
+     * Human-readable size.
+     *
+     * A negative value means the provider did not report a size, and is shown as
+     * "Unknown". A real file is always at least 1 B — the app accepts every file
+     * from 1 byte upward with no upper limit, so a tile never reads "0 B".
+     */
     fun formatBytes(bytes: Long): String {
-        if (bytes < 1024) return "$bytes B"
+        if (bytes < 0) return "Unknown"
+        val size = if (bytes == 0L) 1L else bytes
+        if (size < 1024) return "$size B"
         val units = arrayOf("KB", "MB", "GB", "TB")
-        var value = bytes.toDouble() / 1024
+        var value = size.toDouble() / 1024
         var unit = 0
         while (value >= 1024 && unit < units.lastIndex) {
             value /= 1024

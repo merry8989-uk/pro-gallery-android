@@ -39,6 +39,19 @@ A native Android gallery: a fast, Material 3 photo and video browser with **deep
 
 ---
 
+## File size range
+
+Every file is shown from **1 byte upward, with no upper limit** — APKs, images,
+videos, documents, archives, unknown types. Size never hides a file.
+
+- The displayed size floors at **1 B**, so a real file never reads "0 B"; a size
+  the provider did not report shows as **Unknown**.
+- A size that cannot be read is never treated as "too small" — SAF reports `0`
+  for unknown as well as for empty, so filtering on that would drop real files.
+- If you want to narrow it, **Settings → Scan limits** (Advanced) offers a
+  minimum of 1 B / 1 KB / 100 KB / 1 MB and a maximum of Unlimited / 100 MB /
+  1 GB / 10 GB. The default is 1 B – unlimited.
+
 ## Settings
 
 Open Settings from the home screen's top bar.
