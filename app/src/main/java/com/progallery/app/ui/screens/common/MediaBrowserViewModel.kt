@@ -30,6 +30,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 
 data class BrowserUiState(
     val type: MediaType = MediaType.ALL,
@@ -42,6 +44,15 @@ data class BrowserUiState(
     val columns: Int = 3,
     /** Selected items, keyed by [MediaItem.mediaKey] (the content URI). */
     val selection: Set<String> = emptySet(),
+    /**
+     * The selected items themselves, recorded when they are picked.
+     *
+     * The grid is paged, so what is on screen is not the whole library and a selection
+     * can outlive the page it was made on. Keeping the objects alongside the keys is
+     * what lets share, delete, hide and "add to album" act on something the user
+     * selected earlier and then scrolled away from.
+     */
+    val selectionItems: Map<String, MediaItem> = emptyMap(),
     val loading: Boolean = true,
     /** True only while a pull-to-refresh is in flight. */
     val refreshing: Boolean = false,
@@ -56,16 +67,6 @@ data class BrowserUiState(
     val message: String? = null,
 ) {
     val selectionMode: Boolean get() = selection.isNotEmpty()
-
-    /**
-     * The selected items themselves, recorded when they are picked.
-     *
-     * The grid is paged, so the items on screen are not the whole library and a
-     * selection can outlive the page it was made on. Keeping the objects with the
-     * keys is what lets share, delete, hide and "add to album" work on something the
-     * user selected earlier and then scrolled away from.
-     */
-    val selectionItems: Map<String, MediaItem> = emptyMap()
 
     val selectedItems: List<MediaItem>
         get() = selection.mapNotNull { selectionItems[it] }
