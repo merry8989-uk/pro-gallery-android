@@ -20,6 +20,7 @@ import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.progallery.app.data.settings.SettingsDependencies
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -119,8 +120,20 @@ class SettingsViewModel @Inject constructor(
     private val _rootStatus = MutableStateFlow<String?>(null)
     val rootStatus: StateFlow<String?> = _rootStatus.asStateFlow()
 
+    /**
+     * Applies a change and, when the dependency rules had to switch something off with
+     * it, says so. A switch that flips on its own without explanation looks like a bug.
+     */
     fun update(transform: (AppSettings) -> AppSettings) {
-        viewModelScope.launch { settingsRepository.update(transform) }
+        viewModelScope.launch {
+            val before = settingsRepository.current()
+            settingsRepository.update(transform)
+            val after = settingsRepository.current()
+            val notes = SettingsDependencies.explain(before, after)
+            if (notes.isNotEmpty()) {
+                _settingsMessage.value = notes.joinToString(" ")
+            }
+        }
     }
 
     fun resetToDefaults() {

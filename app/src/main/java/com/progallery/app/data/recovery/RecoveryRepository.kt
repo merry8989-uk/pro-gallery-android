@@ -57,9 +57,11 @@ class RecoveryRepository @Inject constructor(
                 destinationLabel = destinationLabel,
                 outcome = when (outcome) {
                     is RecoveryExportOutcome.Success -> "Exported"
+                    is RecoveryExportOutcome.Skipped -> "Skipped"
                     is RecoveryExportOutcome.Failed -> "Failed"
                 },
-                detail = (outcome as? RecoveryExportOutcome.Failed)?.message,
+                detail = (outcome as? RecoveryExportOutcome.Failed)?.message
+                    ?: (outcome as? RecoveryExportOutcome.Skipped)?.reason,
                 sizeBytes = (outcome as? RecoveryExportOutcome.Success)?.sizeBytes ?: 0L,
             ),
         )

@@ -119,5 +119,14 @@ sealed interface RecoveryScanState {
 /** The outcome of exporting one result. */
 sealed interface RecoveryExportOutcome {
     data class Success(val displayName: String, val sizeBytes: Long) : RecoveryExportOutcome
+
+    /**
+     * Nothing was copied, and that was the intended outcome.
+     *
+     * Kept separate from [Failed] so the history does not report a deliberate skip as
+     * something that went wrong.
+     */
+    data class Skipped(val displayName: String, val reason: String) : RecoveryExportOutcome
+
     data class Failed(val message: String) : RecoveryExportOutcome
 }

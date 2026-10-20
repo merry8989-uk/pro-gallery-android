@@ -13,6 +13,7 @@ import com.progallery.app.data.repository.MediaRepository
 import com.progallery.app.data.repository.ViewerContext
 import com.progallery.app.data.settings.LayoutMode
 import com.progallery.app.data.settings.SettingsRepository
+import com.progallery.app.data.settings.ThumbnailPolicy
 import com.progallery.app.data.repository.TrashRepository
 import com.progallery.app.util.MediaActions
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -58,9 +59,11 @@ data class BrowserUiState(
     val refreshing: Boolean = false,
     val error: String? = null,
     /** Display flags driven by Settings. */
-    val generateThumbnails: Boolean = true,
+    val thumbnailPolicy: ThumbnailPolicy = ThumbnailPolicy(),
     val showFileNames: Boolean = false,
     val showFileSize: Boolean = false,
+    /** Pixel size and duration on tiles, where they are known. */
+    val showResolution: Boolean = false,
     val pendingDelete: PendingIntent? = null,
     /** Trash rows created for the delete awaiting consent, so they can be rolled back. */
     val pendingTrashIds: List<Long> = emptyList(),
@@ -137,9 +140,10 @@ class MediaBrowserViewModel @Inject constructor(
             settingsRepository.settings.collect { settings ->
                 _state.update { current ->
                     val withFlags = current.copy(
-                        generateThumbnails = settings.generateThumbnails,
+                        thumbnailPolicy = ThumbnailPolicy.from(settings),
                         showFileNames = settings.showFileNames,
                         showFileSize = settings.showFileSize,
+                        showResolution = settings.showResolution,
                     )
                     if (layoutDefaultsApplied) {
                         withFlags

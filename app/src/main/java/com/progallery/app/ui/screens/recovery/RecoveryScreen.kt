@@ -135,6 +135,7 @@ fun RecoveryScreen(
                 when (val scan = state.scanState) {
                     RecoveryScanState.Idle -> IdlePane(
                         selectedMode = state.mode,
+                        allowedModes = state.allowedModes,
                         onMode = { viewModel.setMode(it) },
                         onScan = { viewModel.startScan() },
                         onAddFolder = { folderPicker.launch(null) },
@@ -176,6 +177,7 @@ fun RecoveryScreen(
     state.previewing?.let { result ->
         PreviewDialog(
             result = result,
+            exportAllowed = state.exportEnabled,
             onDismiss = { viewModel.preview(null) },
             onExport = {
                 viewModel.clearSelection()
@@ -198,6 +200,7 @@ fun RecoveryScreen(
 @Composable
 private fun IdlePane(
     selectedMode: RecoveryScanMode,
+    allowedModes: Set<RecoveryScanMode>,
     onMode: (RecoveryScanMode) -> Unit,
     onScan: () -> Unit,
     onAddFolder: () -> Unit,
@@ -232,7 +235,7 @@ private fun IdlePane(
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                RecoveryScanMode.entries.forEach { mode ->
+                RecoveryScanMode.entries.filter { it in allowedModes }.forEach { mode ->
                     FilterChip(
                         onClick = { onMode(mode) },
                         selected = selectedMode == mode,
@@ -360,6 +363,7 @@ private fun CompletedPane(
                 count = state.selection.size,
                 exportable = state.exportableSelection.size,
                 exporting = state.exporting,
+                exportAllowed = state.exportEnabled,
                 onExport = onExport,
                 onShare = {
                     state.selectedResults.firstOrNull()?.let { viewModel.share(it) }
@@ -386,7 +390,7 @@ private fun CompletedPane(
                 items(state.visible, key = { it.id }) { result ->
                     RecoveryThumbnail(
                         result = result,
-                        generateThumbnails = state.generateThumbnails,
+                        policy = state.thumbnailPolicy,
                         showName = true,
                         showSize = true,
                         modifier = Modifier.combinedClickable(
@@ -437,7 +441,10 @@ private fun SelectionBar(
                 TextButton(onClick = onClose) { Text("Clear") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onExport, enabled = exportable > 0 && !exporting) {
+                Button(
+                    onClick = onExport,
+                    enabled = exportable > 0 && !exporting && exportAllowed,
+                ) {
                     Icon(Icons.Filled.FolderOpen, contentDescription = null)
                     Text("  Export $exportable")
                 }
@@ -500,6 +507,7 @@ private fun PreviewDialog(
     onDismiss: () -> Unit,
     onExport: () -> Unit,
     onShare: () -> Unit,
+    exportAllowed: Boolean,
 ) {
     val item = result.item
     AlertDialog(
@@ -544,7 +552,7 @@ private fun PreviewDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onExport, enabled = result.canExport) { Text("Export") }
+            Button(onClick = onExport, enabled = result.canExport && exportAllowed) { Text("Export") }
         },
         dismissButton = {
             Row {

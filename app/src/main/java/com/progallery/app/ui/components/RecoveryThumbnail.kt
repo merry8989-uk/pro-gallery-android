@@ -35,6 +35,7 @@ import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.recovery.RecoveryResult
 import com.progallery.app.data.recovery.RecoveryStatus
 import com.progallery.app.util.MediaFormatUtils
+import com.progallery.app.data.settings.ThumbnailPolicy
 
 /**
  * A preview for one recovery result.
@@ -48,7 +49,7 @@ import com.progallery.app.util.MediaFormatUtils
 fun RecoveryThumbnail(
     result: RecoveryResult,
     modifier: Modifier = Modifier,
-    generateThumbnails: Boolean = true,
+    policy: ThumbnailPolicy = ThumbnailPolicy(),
     showName: Boolean = false,
     showSize: Boolean = false,
 ) {
@@ -60,12 +61,14 @@ fun RecoveryThumbnail(
             .background(MaterialTheme.colorScheme.surfaceVariant),
     ) {
         when {
-            item.isPreviewable && generateThumbnails -> ThumbnailOrFallback(item)
+            // Only images and videos have pixels of their own here; audio artwork and
+            // document pages are the browsing grid's job, not a recovery result's.
+            item.isPreviewable && policy.allows(item) -> ThumbnailOrFallback(item)
 
             else -> FormatIcon(item)
         }
 
-        if (item.isVideo && item.isPreviewable && generateThumbnails) {
+        if (item.isVideo && item.isPreviewable && policy.allows(item)) {
             Icon(
                 imageVector = Icons.Filled.PlayCircle,
                 contentDescription = "Video",

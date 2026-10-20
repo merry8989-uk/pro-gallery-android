@@ -18,6 +18,7 @@ import com.progallery.app.data.recovery.RecoveryScanState
 import com.progallery.app.data.recovery.RecoverySort
 import com.progallery.app.data.recovery.RecoveryTab
 import com.progallery.app.data.settings.SettingsRepository
+import com.progallery.app.data.settings.ThumbnailPolicy
 import com.progallery.app.util.MediaActions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -39,7 +40,11 @@ data class RecoveryUiState(
     val viewMode: ViewMode = ViewMode.GRID,
     val query: String = "",
     val selection: Set<String> = emptySet(),
-    val generateThumbnails: Boolean = true,
+    val thumbnailPolicy: ThumbnailPolicy = ThumbnailPolicy(),
+    /** Which scan modes Settings allows; the screen offers only those. */
+    val allowedModes: Set<RecoveryScanMode> = RecoveryScanMode.entries.toSet(),
+    /** Export can be switched off entirely in Settings. */
+    val exportEnabled: Boolean = true,
     val mode: RecoveryScanMode = RecoveryScanMode.QUICK,
     val previewing: RecoveryResult? = null,
     val exporting: Boolean = false,
@@ -85,7 +90,20 @@ class RecoveryViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             settingsRepository.settings.collect { settings ->
-                _uiState.update { it.copy(generateThumbnails = settings.generateThumbnails) }
+                _uiState.update { current ->
+                    val allowed = buildSet {
+                        if (settings.recoveryQuickScanEnabled) add(RecoveryScanMode.QUICK)
+                        if (settings.recoveryThumbnailCacheEnabled) add(RecoveryScanMode.THUMBNAIL_CACHE)
+                    }
+                    current.copy(
+                        thumbnailPolicy = ThumbnailPolicy.from(settings),
+                        allowedModes = allowed,
+                        exportEnabled = settings.exportEnabled,
+                        // Never leave the screen pointing at a mode that is no longer
+                        // offered, or the scan button would do nothing.
+                        mode = if (current.mode in allowed) current.mode else allowed.firstOrNull() ?: current.mode,
+                    )
+                }
             }
         }
     }
@@ -176,16 +194,19 @@ class RecoveryViewModel @Inject constructor(
             _uiState.update { it.copy(exporting = true) }
             val outcomes = exporter.exportAll(targets, destinationTree)
             val succeeded = outcomes.count { it is RecoveryExportOutcome.Success }
-            val failed = outcomes.size - succeeded
+            val skipped = outcomes.count { it is RecoveryExportOutcome.Skipped }
+            val failed = outcomes.size - succeeded - skipped
             val firstFailure = outcomes.filterIsInstance<RecoveryExportOutcome.Failed>().firstOrNull()
             _uiState.update {
                 it.copy(
                     exporting = false,
                     selection = emptySet(),
                     message = when {
-                        failed == 0 -> "Exported $succeeded file(s)"
-                        succeeded == 0 -> "Export failed: ${firstFailure?.message ?: "unknown reason"}"
-                        else -> "Exported $succeeded, $failed failed"
+                        failed == 0 && skipped == 0 -> "Exported $succeeded file(s)"
+                        failed == 0 -> "Exported $succeeded, skipped $skipped already present"
+                        succeeded == 0 && skipped == 0 ->
+                            "Export failed: ${firstFailure?.message ?: "unknown reason"}"
+                        else -> "Exported $succeeded, skipped $skipped, $failed failed"
                     },
                 )
             }

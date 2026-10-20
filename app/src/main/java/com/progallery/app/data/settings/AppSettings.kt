@@ -11,6 +11,17 @@ enum class PerformanceMode(val label: String) {
 }
 
 /** App theme selection. */
+/**
+ * What export does when the destination already holds a file of that name.
+ *
+ * Overwriting is deliberately **not** offered: silently replacing a file the user
+ * already has is not something a recovery tool should do.
+ */
+enum class ExportDuplicatePolicy(val label: String) {
+    RENAME("Keep both (add a number)"),
+    SKIP("Skip the file"),
+}
+
 enum class ThemeMode(val label: String) {
     SYSTEM("System"),
     LIGHT("Light"),
@@ -113,6 +124,48 @@ data class AppSettings(
     val gridSize: GridSize = GridSize.MEDIUM,
     val defaultSort: SortOrder = SortOrder.DATE_NEWEST,
 
+    /** Show a real frame for videos. Off leaves the type icon. */
+    val videoThumbnails: Boolean = true,
+
+    /** Show embedded album art for audio. Off leaves the type icon. */
+    val audioArtwork: Boolean = true,
+
+    /** Show a first-page preview for documents. Off leaves the type icon. */
+    val documentPreviews: Boolean = true,
+
+    /** Show pixel size and duration on list rows, where they are known. */
+    val showResolution: Boolean = false,
+
+    /** Offer the Quick Scan on the Recovery screen. */
+    val recoveryQuickScanEnabled: Boolean = true,
+
+    /** Offer the thumbnail-and-cache scan. It finds preview artefacts, never originals. */
+    val recoveryThumbnailCacheEnabled: Boolean = false,
+
+    /** Allow recovered items to be written to a folder you choose. */
+    val exportEnabled: Boolean = true,
+
+    /** Check the copy against the source size before reporting success. */
+    val exportVerifyAfterCopy: Boolean = true,
+
+    /** What to do when the destination already has a file of that name. */
+    val exportDuplicatePolicy: ExportDuplicatePolicy = ExportDuplicatePolicy.RENAME,
+
+    /** How many files may be copied at once. */
+    val exportMaxConcurrentJobs: Int = 2,
+
+    /** Keep a local record of recent scans so they can be reviewed. */
+    val keepScanHistory: Boolean = false,
+
+    /** Write a local diagnostics log. Nothing is ever sent anywhere. */
+    val saveDiagnosticLogs: Boolean = false,
+
+    /** Include file paths in the diagnostics log. Off by default, because a log is a file you may share. */
+    val includePathsInLogs: Boolean = false,
+
+    /** How long diagnostics are kept before they are cleared automatically. */
+    val autoClearLogsAfterDays: Int = 7,
+
     // ---- First run ------------------------------------------------------
     val hasSeenDefaultGalleryPrompt: Boolean = false,
 ) {
@@ -209,6 +262,8 @@ data class AppSettings(
             maxConcurrentTasks = maxConcurrentTasks.coerceIn(1, 16),
             thumbnailCacheLimitMb = thumbnailCacheLimitMb.coerceIn(32, 4096),
             scanBatchSize = scanBatchSize.coerceIn(100, 5_000),
+            exportMaxConcurrentJobs = exportMaxConcurrentJobs.coerceIn(1, 8),
+            autoClearLogsAfterDays = autoClearLogsAfterDays.coerceIn(1, 365),
             // Experimental and root-related features stay off unless explicitly
             // enabled by the user; a sanitized copy never turns them on.
             experimentalMethodsEnabled = experimentalMethodsEnabled,
@@ -245,6 +300,18 @@ data class AppSettings(
             thumbnailCacheLimitMb = Defaults.thumbnailCacheLimitMb,
             showFileNames = Defaults.showFileNames,
             showFileSize = Defaults.showFileSize,
+            videoThumbnails = Defaults.videoThumbnails,
+            audioArtwork = Defaults.audioArtwork,
+            documentPreviews = Defaults.documentPreviews,
+            showResolution = Defaults.showResolution,
+        )
+        "Recovery & export" -> copy(
+            recoveryQuickScanEnabled = Defaults.recoveryQuickScanEnabled,
+            recoveryThumbnailCacheEnabled = Defaults.recoveryThumbnailCacheEnabled,
+            exportEnabled = Defaults.exportEnabled,
+            exportVerifyAfterCopy = Defaults.exportVerifyAfterCopy,
+            exportDuplicatePolicy = Defaults.exportDuplicatePolicy,
+            exportMaxConcurrentJobs = Defaults.exportMaxConcurrentJobs,
         )
         "Appearance" -> copy(
             themeMode = Defaults.themeMode,
@@ -270,7 +337,13 @@ data class AppSettings(
             scanBatchSize = Defaults.scanBatchSize,
             pauseWhenBackgrounded = Defaults.pauseWhenBackgrounded,
         )
-        "Diagnostics & experimental" -> copy(showRootStatus = Defaults.showRootStatus)
+        "Diagnostics & experimental" -> copy(
+            showRootStatus = Defaults.showRootStatus,
+            keepScanHistory = Defaults.keepScanHistory,
+            saveDiagnosticLogs = Defaults.saveDiagnosticLogs,
+            includePathsInLogs = Defaults.includePathsInLogs,
+            autoClearLogsAfterDays = Defaults.autoClearLogsAfterDays,
+        )
         else -> this
     }
 

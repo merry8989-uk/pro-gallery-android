@@ -67,6 +67,11 @@ import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.ViewMode
 import com.progallery.app.util.MediaFormatUtils
 import androidx.paging.compose.LazyPagingItems
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.ImageBitmap
+import com.progallery.app.data.settings.ThumbnailPolicy
 
 /**
  * A single grid thumbnail.
@@ -84,9 +89,10 @@ fun MediaThumbnail(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
-    generateThumbnails: Boolean = true,
+    policy: ThumbnailPolicy = ThumbnailPolicy(),
     showName: Boolean = false,
     showSize: Boolean = false,
+    showDetails: Boolean = false,
 ) {
     val context = LocalContext.current
     Box(
@@ -96,28 +102,8 @@ fun MediaThumbnail(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
-        if (item.isPreviewable && generateThumbnails) {
-            val request = ImageRequest.Builder(context)
-                .data(item.uri)
-                .apply { if (item.isVideo) videoFrameMillis(1000) }
-                .crossfade(true)
-                .build()
-            AsyncImage(
-                model = request,
-                contentDescription = item.displayName,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            if (item.isVideo) {
-                Icon(
-                    imageVector = Icons.Filled.PlayCircle,
-                    contentDescription = "Video",
-                    tint = androidx.compose.ui.graphics.Color.White,
-                    modifier = Modifier.align(Alignment.Center).size(36.dp),
-                )
-            }
-        } else {
-            // No thumbnail (or thumbnails disabled): show what the file *is*.
+        /** What the file *is*, when no real preview is available. Never a blank tile. */
+        fun typeIcon() {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = item.mediaType.icon(),
@@ -134,6 +120,51 @@ fun MediaThumbnail(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(2.dp),
                 )
             }
+        }
+
+        when {
+            // Audio artwork and a PDF first page do not come from the file's pixels, so
+            // they are produced separately and may legitimately be unavailable.
+            policy.needsEmbeddedPreview(item) -> {
+                val preview by produceState<ImageBitmap?>(null, item.uri, policy) {
+                    value = MediaPreviews.load(context, item)
+                }
+                val image = preview
+                if (image != null) {
+                    Image(
+                        bitmap = image,
+                        contentDescription = item.displayName,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    typeIcon()
+                }
+            }
+
+            policy.allows(item) -> {
+                val request = ImageRequest.Builder(context)
+                    .data(item.uri)
+                    .apply { if (item.isVideo) videoFrameMillis(1000) }
+                    .crossfade(true)
+                    .build()
+                AsyncImage(
+                    model = request,
+                    contentDescription = item.displayName,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                if (item.isVideo) {
+                    Icon(
+                        imageVector = Icons.Filled.PlayCircle,
+                        contentDescription = "Video",
+                        tint = androidx.compose.ui.graphics.Color.White,
+                        modifier = Modifier.align(Alignment.Center).size(36.dp),
+                    )
+                }
+            }
+
+            else -> typeIcon()
         }
 
         Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
@@ -177,6 +208,22 @@ fun MediaThumbnail(
                         .padding(horizontal = 4.dp, vertical = 1.dp),
                 )
             }
+            // Only where the values are actually known, so the line is never invented.
+            if (showName && showDetails) {
+                val detail = detailLine(item)
+                if (detail != null) {
+                    Text(
+                        text = detail,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = androidx.compose.ui.graphics.Color.White,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.55f))
+                            .padding(horizontal = 4.dp, vertical = 1.dp),
+                    )
+                }
+            }
         }
 
         if (item.isFavourite) {
@@ -199,6 +246,18 @@ fun MediaThumbnail(
     }
 }
 
+/**
+ * Pixel size and duration, when the app actually knows them.
+ *
+ * Returns null rather than a placeholder, so the line is never a made-up value.
+ */
+private fun detailLine(item: MediaItem): String? {
+    val parts = ArrayList<String>(2)
+    if (item.width > 0 && item.height > 0) parts += "${item.width}×${item.height}"
+    if (item.durationMs > 0) parts += MediaFormatUtils.formatDuration(item.durationMs)
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+}
+
 /** Grid or list rendering of a media collection. */
 /**
  * The paged sibling of [MediaCollection].
@@ -219,7 +278,8 @@ fun PagedMediaCollection(
     onLongClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(4.dp),
-    generateThumbnails: Boolean = true,
+    policy: ThumbnailPolicy = ThumbnailPolicy(),
+    showDetails: Boolean = false,
     showNames: Boolean = false,
     showSize: Boolean = false,
 ) {
@@ -244,7 +304,8 @@ fun PagedMediaCollection(
                     selectionMode = selectionMode,
                     onClick = { onClick(item) },
                     onLongClick = { onLongClick(item) },
-                    generateThumbnails = generateThumbnails,
+                    policy = policy,
+                    showDetails = showDetails,
                     showName = showNames,
                     showSize = showSize,
                 )
@@ -267,7 +328,8 @@ fun PagedMediaCollection(
                     selectionMode = selectionMode,
                     onClick = { onClick(item) },
                     onLongClick = { onLongClick(item) },
-                    generateThumbnails = generateThumbnails,
+                    policy = policy,
+                    showDetails = showDetails,
                     showName = showNames,
                     showSize = showSize,
                 )
@@ -287,7 +349,8 @@ fun MediaCollection(
     onLongClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(4.dp),
-    generateThumbnails: Boolean = true,
+    policy: ThumbnailPolicy = ThumbnailPolicy(),
+    showDetails: Boolean = false,
     showNames: Boolean = false,
     showSize: Boolean = false,
 ) {
@@ -306,7 +369,8 @@ fun MediaCollection(
                     selectionMode = selectionMode,
                     onClick = { onClick(item) },
                     onLongClick = { onLongClick(item) },
-                    generateThumbnails = generateThumbnails,
+                    policy = policy,
+                    showDetails = showDetails,
                     showName = showNames,
                     showSize = showSize,
                 )
@@ -325,7 +389,8 @@ fun MediaCollection(
                     selectionMode = selectionMode,
                     onClick = { onClick(item) },
                     onLongClick = { onLongClick(item) },
-                    generateThumbnails = generateThumbnails,
+                    policy = policy,
+                    showDetails = showDetails,
                     showName = showNames,
                     showSize = showSize,
                 )
@@ -342,7 +407,8 @@ private fun MediaListRow(
     selectionMode: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    generateThumbnails: Boolean,
+    policy: ThumbnailPolicy = ThumbnailPolicy(),
+    showDetails: Boolean = false,
     showName: Boolean,
     showSize: Boolean,
 ) {
@@ -364,7 +430,8 @@ private fun MediaListRow(
                 onClick = onClick,
                 onLongClick = onLongClick,
                 modifier = Modifier.size(56.dp),
-                generateThumbnails = generateThumbnails,
+                policy = policy,
+                showDetails = showDetails,
             )
             Column(
                 modifier = Modifier
