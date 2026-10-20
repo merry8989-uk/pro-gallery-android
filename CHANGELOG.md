@@ -27,6 +27,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.3.2]
+### Added
+- **"Open with" for documents and other files.** PDFs, Word, PowerPoint, Excel, archives, audio and any other file without an in-app preview can now be handed to the app you already use for them:
+  - Tapping a document in any list opens the system chooser.
+  - A single selected file shows **Open in** in the selection bar.
+  - The PDF viewer has an **Open with** action, so a PDF can go to your own reader instead.
+  The chooser only appears when at least one installed app can actually handle the file; otherwise the app says so plainly instead of showing an empty list.
+
+### Changed
+- The PDF viewer's **Upload** action now uses the same handler check, so it can no longer offer an empty chooser.
+
 ## [1.3.1]
 ### Fixed
 - **Deleting audio did nothing.** `MediaStore.createDeleteRequest` rejects a set that spans different collections or volumes and *throws*; that exception escaped the caller, so no consent prompt appeared and no message was shown. The request is now guarded, with a per-item fallback and an honest result. `createWriteRequest` had the same flaw (it also throws for files picked through SAF) and is guarded too.

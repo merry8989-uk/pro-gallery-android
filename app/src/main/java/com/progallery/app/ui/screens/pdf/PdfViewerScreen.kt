@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
@@ -181,6 +182,10 @@ fun PdfViewerScreen(
                     FileActionSpec(Icons.Filled.ContentCopy, "Copy") { copyOpen = true },
                     FileActionSpec(Icons.Filled.DriveFileMove, "Move") { moveOpen = true },
                     FileActionSpec(Icons.Filled.CloudUpload, "Upload") { viewModel.upload(item) },
+                    FileActionSpec(Icons.Filled.OpenInNew, "Open with") {
+                        val opened = viewModel.openWithOtherApp(item)
+                        if (!opened) viewModel.reportNoApp(item)
+                    },
                     FileActionSpec(Icons.Filled.Print, "Print") {
                         val started = PdfPrinter.print(context, item.uri, item.displayName)
                         if (!started) {

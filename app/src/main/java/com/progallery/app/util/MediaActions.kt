@@ -56,19 +56,6 @@ class MediaActions @Inject constructor(
         context.startActivity(shareChooser(items))
     }
 
-    /**
-     * Offers the file to another app under a custom chooser title. Used for
-     * "Upload", where this app has no server of its own and simply hands the
-     * file to an app that does (Drive, Gmail, …).
-     */
-    fun launchOpenWithChooser(item: MediaItem, title: String): Boolean = runCatching {
-        context.startActivity(
-            Intent.createChooser(openIntent(item), title)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-        )
-        true
-    }.getOrDefault(false)
-
     /** Intent that hands a file to whatever app can display it. */
     fun openIntent(item: MediaItem): Intent =
         Intent(Intent.ACTION_VIEW).apply {
@@ -77,12 +64,28 @@ class MediaActions @Inject constructor(
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
+    /** True when at least one installed app can view this file. */
+    fun canOpen(item: MediaItem): Boolean = runCatching {
+        context.packageManager.queryIntentActivities(openIntent(item), 0).isNotEmpty()
+    }.getOrDefault(false)
+
     /**
-     * Opens a file with the system. Returns false when nothing can handle it,
-     * so the caller can tell the user instead of failing silently.
+     * Hands the file to another app through a chooser, so the user picks among
+     * the apps they already have (their PDF reader, office suite, video player…).
+     *
+     * Returns false when nothing on the device can open it — the caller then says
+     * so instead of showing an empty chooser.
      */
-    fun launchOpen(item: MediaItem): Boolean =
-        runCatching { context.startActivity(openIntent(item)) }.isSuccess
+    fun launchOpen(item: MediaItem, chooserTitle: String = "Open with"): Boolean {
+        if (!canOpen(item)) return false
+        return runCatching {
+            context.startActivity(
+                Intent.createChooser(openIntent(item), chooserTitle)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            true
+        }.getOrDefault(false)
+    }
 
     /**
      * Returns a delete-consent [PendingIntent] on Android 11+, or null when the
