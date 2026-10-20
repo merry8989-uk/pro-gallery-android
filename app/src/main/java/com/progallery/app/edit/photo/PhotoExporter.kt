@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -16,6 +17,19 @@ import java.io.OutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.progallery.app.util.runCatchingCancellable
+
+/**
+ * How large an export may be.
+ *
+ * [ORIGINAL] keeps the source's own dimensions, so a 50 MP photo is not silently
+ * shrunk. The smaller options exist because re-rendering a very large bitmap can
+ * exhaust the heap.
+ */
+enum class ExportResolution(val label: String, val maxDimension: Int) {
+    ORIGINAL("Original", Int.MAX_VALUE),
+    LARGE("4096 px", 4096),
+    MEDIUM("2048 px", 2048),
+}
 
 /** Output format + quality the user chose for an export. */
 enum class ExportFormat(val mimeType: String, val extension: String) {
@@ -47,17 +61,30 @@ class PhotoExporter @Inject constructor(
             ExportFormat.WEBP -> Bitmap.CompressFormat.WEBP
         }
         runCatchingCancellable {
-            if (overwriteUri != null) {
-                context.contentResolver.openOutputStream(overwriteUri)?.use { out ->
-                    bitmap.compress(compressFormat, quality, out)
-                }
-                overwriteUri
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                writeToMediaStore(bitmap, compressFormat, quality, displayName, format)
-            } else {
-                writeLegacy(bitmap, compressFormat, quality, displayName, format)
+            when {
+                overwriteUri != null -> overwrite(bitmap, compressFormat, quality, overwriteUri)
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+                    writeToMediaStore(bitmap, compressFormat, quality, displayName, format)
+                else -> writeLegacy(bitmap, compressFormat, quality, displayName, format)
             }
         }.getOrNull()
+    }
+
+    /**
+     * Writes into an existing entry. Returns null when compression fails, so the
+     * caller does not report a successful overwrite of a file that was not written.
+     */
+    private fun overwrite(
+        bitmap: Bitmap,
+        compressFormat: Bitmap.CompressFormat,
+        quality: Int,
+        overwriteUri: Uri,
+    ): Uri? {
+        val out = context.contentResolver.openOutputStream(overwriteUri, "wt")
+            ?: error("the file could not be opened for writing")
+        val wrote = out.use { bitmap.compress(compressFormat, quality, it) }
+        if (!wrote) error("the image could not be encoded")
+        return overwriteUri
     }
 
     private fun writeToMediaStore(
@@ -75,13 +102,34 @@ class PhotoExporter @Inject constructor(
         }
         val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val uri = context.contentResolver.insert(collection, values) ?: return null
-        val stream: OutputStream = context.contentResolver.openOutputStream(uri) ?: return null
-        stream.use { bitmap.compress(compressFormat, quality, it) }
-        values.clear()
-        values.put(MediaStore.Images.Media.IS_PENDING, 0)
-        context.contentResolver.update(uri, values, null, null)
-        return uri
+        try {
+            val stream: OutputStream = context.contentResolver.openOutputStream(uri)
+                ?: error("the destination could not be opened")
+            val wrote = stream.use { bitmap.compress(compressFormat, quality, it) }
+            if (!wrote) error("the image could not be encoded")
+
+            // Finalise, then verify: a row left pending (or finalised empty) is an
+            // orphan the user can neither see nor clean up.
+            values.clear()
+            values.put(MediaStore.Images.Media.IS_PENDING, 0)
+            context.contentResolver.update(uri, values, null, null)
+
+            if (publishedSize(uri) <= 0L) error("the exported file came out empty")
+            return uri
+        } catch (t: Throwable) {
+            runCatchingCancellable { context.contentResolver.delete(uri, null, null) }
+            if (t is CancellationException) throw t
+            return null
+        }
     }
+
+    /** The size MediaStore recorded for a published row, or 0 when unknown. */
+    private fun publishedSize(uri: Uri): Long = runCatchingCancellable {
+        context.contentResolver
+            .query(uri, arrayOf(MediaStore.Images.Media.SIZE), null, null, null)
+            ?.use { cursor -> if (cursor.moveToFirst()) cursor.getLong(0) else 0L }
+            ?: 0L
+    }.getOrDefault(0L)
 
     private fun writeLegacy(
         bitmap: Bitmap,
@@ -93,8 +141,15 @@ class PhotoExporter @Inject constructor(
         val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "ProGallery")
         if (!dir.exists() && !dir.mkdirs()) return null
         val file = File(dir, "$displayName.${format.extension}")
-        file.outputStream().use { bitmap.compress(compressFormat, quality, it) }
-        MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf(format.mimeType), null)
-        return Uri.fromFile(file)
+        try {
+            val wrote = file.outputStream().use { bitmap.compress(compressFormat, quality, it) }
+            if (!wrote || file.length() <= 0L) error("the image could not be encoded")
+            MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf(format.mimeType), null)
+            return Uri.fromFile(file)
+        } catch (t: Throwable) {
+            file.delete()
+            if (t is CancellationException) throw t
+            return null
+        }
     }
 }

@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.progallery.app.edit.photo.ExportFormat
+import com.progallery.app.edit.photo.ExportResolution
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -169,6 +170,7 @@ fun PhotoEditorScreen(
             state = state,
             onFormat = viewModel::setFormat,
             onQuality = viewModel::setQuality,
+            onResolution = viewModel::setResolution,
             onDismiss = { showExport = false },
             onSaveCopy = {
                 viewModel.export(overwriteOriginal = false)
@@ -184,11 +186,41 @@ fun PhotoEditorScreen(
 
 @Composable
 private fun AdjustTab(viewModel: PhotoEditorViewModel, state: PhotoEditorUiState) {
-    LabeledSlider("Brightness", state.params.brightness, -1f..1f) { viewModel.setBrightness(it) }
-    LabeledSlider("Contrast", state.params.contrast, 0f..2f) { viewModel.setContrast(it) }
-    LabeledSlider("Saturation", state.params.saturation, 0f..2f) { viewModel.setSaturation(it) }
-    LabeledSlider("Warmth", state.params.warmth, -1f..1f) { viewModel.setWarmth(it) }
-    LabeledSlider("Exposure", state.params.exposure, -1f..1f) { viewModel.setExposure(it) }
+    LabeledSlider(
+        label = "Brightness",
+        value = state.params.brightness,
+        range = -1f..1f,
+        onChange = { viewModel.preview(state.params.copy(brightness = it)) },
+        onChangeFinished = { viewModel.endPreview() },
+    )
+    LabeledSlider(
+        label = "Contrast",
+        value = state.params.contrast,
+        range = 0f..2f,
+        onChange = { viewModel.preview(state.params.copy(contrast = it)) },
+        onChangeFinished = { viewModel.endPreview() },
+    )
+    LabeledSlider(
+        label = "Saturation",
+        value = state.params.saturation,
+        range = 0f..2f,
+        onChange = { viewModel.preview(state.params.copy(saturation = it)) },
+        onChangeFinished = { viewModel.endPreview() },
+    )
+    LabeledSlider(
+        label = "Warmth",
+        value = state.params.warmth,
+        range = -1f..1f,
+        onChange = { viewModel.preview(state.params.copy(warmth = it)) },
+        onChangeFinished = { viewModel.endPreview() },
+    )
+    LabeledSlider(
+        label = "Exposure",
+        value = state.params.exposure,
+        range = -1f..1f,
+        onChange = { viewModel.preview(state.params.copy(exposure = it)) },
+        onChangeFinished = { viewModel.endPreview() },
+    )
 }
 
 @Composable
@@ -201,8 +233,20 @@ private fun FiltersTab(viewModel: PhotoEditorViewModel, state: PhotoEditorUiStat
         Text("Sepia", modifier = Modifier.weight(1f))
         Switch(checked = state.params.sepia, onCheckedChange = { viewModel.toggleSepia() })
     }
-    LabeledSlider("Blur", state.params.blurRadius, 0f..25f) { viewModel.setBlur(it) }
-    LabeledSlider("Sharpen", state.params.sharpenAmount, 0f..1f) { viewModel.setSharpen(it) }
+    LabeledSlider(
+        label = "Blur",
+        value = state.params.blurRadius,
+        range = 0f..25f,
+        onChange = { viewModel.preview(state.params.copy(blurRadius = it)) },
+        onChangeFinished = { viewModel.endPreview() },
+    )
+    LabeledSlider(
+        label = "Sharpen",
+        value = state.params.sharpenAmount,
+        range = 0f..1f,
+        onChange = { viewModel.preview(state.params.copy(sharpenAmount = it)) },
+        onChangeFinished = { viewModel.endPreview() },
+    )
 }
 
 @Composable
@@ -243,10 +287,18 @@ private fun LabeledSlider(
     value: Float,
     range: ClosedFloatingPointRange<Float>,
     onChange: (Float) -> Unit,
+    onChangeFinished: () -> Unit = {},
 ) {
     Column {
         Text("$label: ${"%.2f".format(value)}", style = MaterialTheme.typography.bodySmall)
-        Slider(value = value, onValueChange = onChange, valueRange = range)
+        Slider(
+            value = value,
+            onValueChange = onChange,
+            valueRange = range,
+            // Dragging previews live; releasing records ONE undo step, so undo
+            // returns to a real edit instead of every pixel of the movement.
+            onValueChangeFinished = onChangeFinished,
+        )
     }
 }
 
@@ -255,6 +307,7 @@ private fun ExportDialog(
     state: PhotoEditorUiState,
     onFormat: (ExportFormat) -> Unit,
     onQuality: (Int) -> Unit,
+    onResolution: (ExportResolution) -> Unit,
     onDismiss: () -> Unit,
     onSaveCopy: () -> Unit,
     onOverwrite: () -> Unit,
@@ -274,12 +327,32 @@ private fun ExportDialog(
                         )
                     }
                 }
-                Text("Quality: ${state.quality}", style = MaterialTheme.typography.titleSmall)
-                Slider(
-                    value = state.quality.toFloat(),
-                    onValueChange = { onQuality(it.toInt()) },
-                    valueRange = 10f..100f,
-                )
+                Text("Size", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ExportResolution.entries.forEach { resolution ->
+                        FilterChip(
+                            onClick = { onResolution(resolution) },
+                            selected = state.resolution == resolution,
+                            label = { Text(resolution.label) },
+                        )
+                    }
+                }
+
+                if (state.format == ExportFormat.PNG) {
+                    // PNG is lossless: a quality slider here would do nothing.
+                    Text(
+                        text = "PNG is lossless, so quality does not apply.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text("Quality: ${state.quality}", style = MaterialTheme.typography.titleSmall)
+                    Slider(
+                        value = state.quality.toFloat(),
+                        onValueChange = { onQuality(it.toInt()) },
+                        valueRange = 10f..100f,
+                    )
+                }
                 Text(
                     text = if (state.canOverwrite) {
                         "Saving a copy keeps the original. Overwriting replaces the file in place and keeps its name."

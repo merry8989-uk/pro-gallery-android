@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -85,9 +86,21 @@ class DeepScanViewModel @Inject constructor(
                         )
                     }
 
-                else -> repository.scanAll().collect { scanState ->
-                    _state.update { it.copy(scanState = scanState) }
-                }
+                else -> repository.scanAll()
+                    // Belt and braces: even if the flow itself failed, the screen
+                    // must reach a terminal state rather than stay on "Scanning".
+                    .catch { t ->
+                        _state.update {
+                            it.copy(
+                                scanState = ScanState.Failed(
+                                    t.message ?: "The scan stopped unexpectedly.",
+                                ),
+                            )
+                        }
+                    }
+                    .collect { scanState ->
+                        _state.update { it.copy(scanState = scanState) }
+                    }
             }
         }
     }

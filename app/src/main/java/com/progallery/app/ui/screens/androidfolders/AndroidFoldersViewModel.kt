@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -69,7 +70,16 @@ class AndroidFoldersViewModel @Inject constructor(
         if (targets.isEmpty()) return
         scanJob = viewModelScope.launch {
             _uiState.update { it.copy(scanning = true) }
-            scanner.scan(targets).collect { state ->
+            scanner.scan(targets)
+                .catch { t ->
+                    _uiState.update {
+                        it.copy(
+                            scanState = ScanState.Failed(t.message ?: "The scan stopped unexpectedly."),
+                            scanning = false,
+                        )
+                    }
+                }
+                .collect { state ->
                 _uiState.update {
                     it.copy(
                         scanState = state,

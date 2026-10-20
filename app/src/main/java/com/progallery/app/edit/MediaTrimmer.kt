@@ -30,10 +30,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import com.progallery.app.util.runCatchingCancellable
 
 /** What kind of media an export produces, which decides where it is published. */
 enum class TrimKind { VIDEO, AUDIO }
@@ -87,13 +89,20 @@ class MediaTrimmer @Inject constructor(
         val transformer = builder
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
-                    val uri = publishToMediaStore(outputFile, outputName, kind)
-                    if (uri != null) {
-                        trySend(MediaExportState.Success(uri))
-                    } else {
-                        trySend(MediaExportState.Failure("Could not publish the exported file"))
+                    // Publishing copies the finished file into MediaStore. That is
+                    // file IO and used to run on the Transformer's callback thread,
+                    // which froze the UI on a large export.
+                    launch {
+                        val uri = withContext(Dispatchers.IO) {
+                            publishToMediaStore(outputFile, outputName, kind)
+                        }
+                        if (uri != null) {
+                            trySend(MediaExportState.Success(uri))
+                        } else {
+                            trySend(MediaExportState.Failure("Could not publish the exported file"))
+                        }
+                        close()
                     }
-                    close()
                 }
 
                 override fun onError(
@@ -135,6 +144,14 @@ class MediaTrimmer @Inject constructor(
         }
     }.flowOn(Dispatchers.Default)
 
+    /** The size MediaStore recorded for a published row, or 0 when unknown. */
+    private fun publishedSize(uri: Uri): Long = runCatchingCancellable {
+        context.contentResolver
+            .query(uri, arrayOf(MediaStore.MediaColumns.SIZE), null, null, null)
+            ?.use { cursor -> if (cursor.moveToFirst()) cursor.getLong(0) else 0L }
+            ?: 0L
+    }.getOrDefault(0L)
+
     /** Clips to the trimmed range; leaves the end open when it is not set. */
     private fun buildClipping(edit: VideoEditState): MediaItem.ClippingConfiguration {
         val builder = MediaItem.ClippingConfiguration.Builder()
@@ -175,18 +192,26 @@ class MediaTrimmer @Inject constructor(
                 put(MediaStore.MediaColumns.RELATIVE_PATH, "$directory/ProGallery")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
-            val uri = context.contentResolver.insert(collection, values)
-            if (uri == null) {
-                null
-            } else {
-                context.contentResolver.openOutputStream(uri)?.use { out ->
-                    file.inputStream().use { it.copyTo(out) }
-                }
+            val uri = context.contentResolver.insert(collection, values) ?: return null
+            try {
+                val out = context.contentResolver.openOutputStream(uri)
+                    ?: error("the destination could not be opened")
+                out.use { destination -> file.inputStream().use { it.copyTo(destination) } }
+
+                // Finalise, then verify: a row whose SIZE is zero would appear in
+                // the gallery as an empty file.
                 values.clear()
                 values.put(MediaStore.MediaColumns.IS_PENDING, 0)
                 context.contentResolver.update(uri, values, null, null)
+
+                if (publishedSize(uri) <= 0L) error("the copied file came out empty")
                 file.delete()
                 uri
+            } catch (t: Throwable) {
+                // Never leave an orphaned pending row behind.
+                runCatchingCancellable { context.contentResolver.delete(uri, null, null) }
+                if (t is CancellationException) throw t
+                null
             }
         } else {
             val dir = File(Environment.getExternalStoragePublicDirectory(directory), "ProGallery")
