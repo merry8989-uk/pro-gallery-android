@@ -122,6 +122,36 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6a. Phase 5 (in progress) — emulator CI, Paging 3, settings completeness
+
+**✅ Done and verified (CI green, including a real emulator):**
+- An **emulator CI job** runs the instrumented suite on API 35. It needed a retry
+  step because the runner intermittently caches a truncated SDK package
+  ("Error on ZipFile unknown archive"); clearing the SDK temp dir and retrying
+  gets past it.
+- **`MigrationInstrumentedTest`** migrates a real v3 SQLite database holding a row
+  in every user-facing table, runs `MIGRATION_3_4`, and asserts the favourites,
+  albums, album covers, membership, hidden items, trash and granted folders all
+  survive and that `recovery_history` starts empty. It is self-contained: Room only
+  exports the schema of the version being compiled, so `3.json` does not exist, and
+  the v3 database is therefore built from explicit DDL. The exported schemas are now
+  uploaded as a CI artifact so future migrations can validate against Room's
+  expected schema too.
+
+**🔶 Paging 3 — engine built, grid switch outstanding:**
+- Done: `MediaQuery` (SQL sort + escaped search, unit tested), a windowed
+  `MediaStoreDataSource.page()` sharing one `RowReader` with the other two read
+  paths so classification can never diverge, `MediaStorePagingSource` (fills a page
+  by reading windows until it has enough matching items), and
+  `MediaRepository.pagedMedia()` / `snapshot()`.
+- Outstanding: the grid still renders from the index cache. Switching
+  `MediaBrowserScaffold` to `LazyPagingItems` touches seven screens plus selection,
+  counts, "select all", the viewer playlist and `favouritesOnly` (which has to key
+  the pager, since favourites are a Room set rather than a MediaStore column). That
+  is the next piece of work, and it is deliberately not rushed.
+
+**🔶 Phase 3 (settings completeness) — not started.**
+
 ## 6. Phase 4 — performance & platform — ✅ mostly DONE in v1.8.0
 
 Shipped: targetSdk 36 (AGP 8.9.3), MediaStore ContentObserver + quiet refresh on resume,
