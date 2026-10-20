@@ -64,6 +64,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import com.progallery.app.util.runCatchingCancellable
+import androidx.media3.common.MediaItem
 
 data class AudioEditorUiState(
     val uri: Uri? = null,
@@ -158,11 +159,11 @@ class AudioEditorViewModel @Inject constructor(
         }
     }
 
-    private fun clipped(uri: Uri, startMs: Long, endMs: Long): androidx.media3.common.MediaItem {
-        val builder = androidx.media3.common.MediaItem.Builder()
+    private fun clipped(uri: Uri, startMs: Long, endMs: Long): MediaItem {
+        val builder = MediaItem.Builder()
             .setUri(uri)
             .setClippingConfiguration(
-                androidx.media3.common.MediaItem.ClippingConfiguration.Builder()
+                MediaItem.ClippingConfiguration.Builder()
                     .setStartPositionMs(startMs)
                     .setEndPositionMs(if (endMs > 0) endMs else Long.MAX_VALUE)
                     .build(),

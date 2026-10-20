@@ -9,6 +9,7 @@ import com.progallery.app.data.local.entity.CustomAlbumEntity
 import com.progallery.app.data.local.entity.CustomAlbumItemEntity
 import com.progallery.app.data.local.entity.FavouriteEntity
 import com.progallery.app.data.local.entity.HiddenEntity
+import com.progallery.app.data.local.entity.RecoveryHistoryEntity
 import com.progallery.app.data.local.entity.ScanDirectoryEntity
 import com.progallery.app.data.local.entity.TrashEntity
 import kotlinx.coroutines.flow.Flow
