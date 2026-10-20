@@ -612,6 +612,19 @@ private fun buildRows(
             onChange = { value -> update { it.copy(maxConcurrentTasks = value) } },
         ),
     )
+
+    add(
+        SettingsRow.Slider(
+            title = "Index batch size",
+            subtitle = "How many files are read before the library is published again. " +
+                "Smaller shows results sooner; larger does fewer passes.",
+            section = "Performance",
+            advanced = true,
+            value = settings.scanBatchSize,
+            range = 100..5000,
+            onChange = { value -> update { it.copy(scanBatchSize = value) } },
+        ),
+    )
     add(
         SettingsRow.Switch(
             title = "Pause scanning in the background",

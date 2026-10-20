@@ -2,6 +2,7 @@ package com.progallery.app.util
 
 import android.Manifest
 import android.content.Context
+import android.provider.MediaStore
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -90,3 +91,23 @@ object PermissionUtils {
     private fun granted(context: Context, permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 }
+
+    /**
+     * The system photo picker, used to change which photos a **partial** grant
+     * covers.
+     *
+     * On Android 14+ a user can share only selected photos. The documented way to
+     * let them add more is to launch the picker again with a maximum selection —
+     * the system then extends the app's access to what they choose. Returns null
+     * below Android 14, where partial access does not exist.
+     */
+    fun reselectMediaIntent(): Intent? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return null
+        return Intent(MediaStore.ACTION_PICK_IMAGES).apply {
+            type = "image/*"
+            putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, RESELECT_LIMIT)
+        }
+    }
+
+    /** How many photos the picker may return when widening a partial grant. */
+    private const val RESELECT_LIMIT = 100

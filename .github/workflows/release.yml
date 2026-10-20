@@ -102,6 +102,14 @@ jobs:
           find app/build/outputs/apk -name '*.apk' -exec cp {} out/pro-gallery-debug.apk \;
           ls -la out
 
+      - name: Build signed release bundle (Play-ready AAB)
+        run: ./gradlew bundleRelease --stacktrace --no-daemon
+
+      - name: Collect AAB
+        run: |
+          find app/build/outputs/bundle -name '*.aab' -exec cp {} out/pro-gallery-release.aab \;
+          ls -la out
+
       - name: Publish release with APK
         uses: softprops/action-gh-release@v2
         with:
@@ -114,8 +122,17 @@ jobs:
             **Install:** download `pro-gallery-debug.apk` below and open it on your Android 8.0+ device
             (you will need to allow installs from this source).
 
-            This is a debug build, signed with the Android debug key — fine for testing and sideloading,
-            not for Play Store distribution. See the README for release-signing instructions.
-          files: out/pro-gallery-debug.apk
+            **Two files are attached:**
+
+            * `pro-gallery-debug.apk` — the build that is exercised by the automated tests. Sideload
+              this one. It is a debug build, so it is not for Play Store distribution.
+            * `pro-gallery-release.aab` — a signed release bundle (minified with R8), built for Play.
+              It compiles and signs in CI, but it has **not** been run on a device: R8 has not been
+              exercised at runtime here. Treat it as ready to test, not as verified.
+
+            See the README for release-signing instructions.
+          files: |
+            out/pro-gallery-debug.apk
+            out/pro-gallery-release.aab
           draft: false
           prerelease: false

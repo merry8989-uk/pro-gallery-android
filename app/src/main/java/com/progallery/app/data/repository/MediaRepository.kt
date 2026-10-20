@@ -6,19 +6,24 @@ import com.progallery.app.data.local.dao.HiddenDao
 import com.progallery.app.data.local.entity.FavouriteEntity
 import com.progallery.app.data.local.entity.HiddenEntity
 import com.progallery.app.data.mediastore.MediaStoreDataSource
+import com.progallery.app.data.mediastore.MediaStoreObserver
 import com.progallery.app.data.model.Album
 import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.SortOrder
 import com.progallery.app.data.settings.AppSettings
 import com.progallery.app.data.settings.SettingsRepository
+import com.progallery.app.util.runCatchingCancellable
+import com.progallery.app.di.ApplicationScope
 import com.progallery.app.domain.SortComparators
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,7 +44,19 @@ class MediaRepository @Inject constructor(
     private val favouriteDao: FavouriteDao,
     private val hiddenDao: HiddenDao,
     private val settingsRepository: SettingsRepository,
+    private val mediaStoreObserver: MediaStoreObserver,
+    @ApplicationScope private val applicationScope: CoroutineScope,
 ) {
+
+    init {
+        // The system's index changes while the app is open — a photo taken, a file
+        // deleted elsewhere, a rename. Follow it so the UI is never stale.
+        applicationScope.launch {
+            mediaStoreObserver.changes().collect {
+                runCatchingCancellable { refresh() }
+            }
+        }
+    }
 
     /** Live settings, so the UI can react to toggles. */
     val settings: Flow<AppSettings> = settingsRepository.settings
@@ -58,9 +75,14 @@ class MediaRepository @Inject constructor(
             cache.value = emptyList()
             return 0
         }
-        val items = mediaStore.loadMedia(current.enabledKinds)
-        cache.value = items
-        return items.size
+        // Read the index in batches and publish each one, so the grid can paint
+        // after the first batch instead of waiting for the whole library.
+        val accumulated = ArrayList<MediaItem>()
+        mediaStore.loadMediaBatches(current.enabledKinds, current.scanBatchSize).collect { batch ->
+            accumulated += batch
+            cache.value = accumulated.toList()
+        }
+        return accumulated.size
     }
 
     /**

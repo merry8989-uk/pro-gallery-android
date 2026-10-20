@@ -33,6 +33,8 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.progallery.app.util.PermissionUtils
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 /**
  * Gates media content behind the runtime permissions for the running Android
@@ -69,10 +71,18 @@ fun MediaPermissionGate(content: @Composable () -> Unit) {
                 )
             }
             if (partial && !visualGranted) {
+                val reselect = rememberLauncherForActivityResult(
+                    ActivityResultContracts.StartActivityForResult(),
+                ) { /* The system applies the new selection; the refresh below picks it up. */ }
+
                 PermissionBanner(
                     message = "Limited access: only the photos you selected are shown.",
                     action = "Grant full access",
                     onAction = { permissionsState.launchMultiplePermissionRequest() },
+                    secondaryAction = "Choose more".takeIf { PermissionUtils.reselectMediaIntent() != null },
+                    onSecondaryAction = {
+                        PermissionUtils.reselectMediaIntent()?.let { reselect.launch(it) }
+                    },
                 )
             }
             content()
@@ -150,7 +160,13 @@ fun AllFilesAccessCard() {
 }
 
 @Composable
-private fun PermissionBanner(message: String, action: String, onAction: () -> Unit) {
+private fun PermissionBanner(
+    message: String,
+    action: String,
+    onAction: () -> Unit,
+    secondaryAction: String? = null,
+    onSecondaryAction: (() -> Unit)? = null,
+) {
     Surface(color = MaterialTheme.colorScheme.secondaryContainer) {
         Row(
             modifier = Modifier
@@ -163,6 +179,9 @@ private fun PermissionBanner(message: String, action: String, onAction: () -> Un
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.weight(1f),
             )
+            if (secondaryAction != null && onSecondaryAction != null) {
+                TextButton(onClick = onSecondaryAction) { Text(secondaryAction) }
+            }
             TextButton(onClick = onAction) { Text(action) }
         }
     }

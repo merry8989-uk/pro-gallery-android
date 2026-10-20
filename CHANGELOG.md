@@ -27,6 +27,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.8.0]
+Phase 4: platform and performance.
+
+### Changed
+- **Targets Android 16 (API 36).** `compileSdk`/`targetSdk` 35 → 36 with **AGP 8.9.3** (compileSdk 36 needs AGP 8.9+). Play requires API 36 for new apps and updates from 31 August 2026. No orientation lock exists in the manifest, so the API 36 large-screen change does not affect the app.
+- **The index is no longer stale.** A `MediaStoreObserver` watches the system's media index while the app runs, so a photo taken in the camera app, a file deleted elsewhere or a rename appears without a manual refresh. Signals are debounced (2 s) and conflated, because one change fires several callbacks. Screens also reload quietly when they come back to the foreground — without a spinner, since nothing was pulled.
+- **The library loads incrementally.** Rows are read from the cursor in batches (default 500, configurable under Performance → *Index batch size*) and the index is published after each one, so the grid paints after the first batch instead of waiting for the whole library. This is the "load from the cursor in batches" strategy the audit asked for; see the note on Paging 3 below.
+- **A signed release bundle is built for Play.** The release workflow now also runs `bundleRelease` and attaches `pro-gallery-release.aab` alongside the debug APK. **It compiles and signs in CI but has not been run on a device** — R8 has not been exercised at runtime here — and the release notes say so.
+- **Android lint runs in CI**, with its report uploaded as an artifact.
+
+### Added
+- **"Choose more" for limited photo access.** On Android 14+ a user can share only selected photos. Re-requesting permission was the only option before; the app now also launches the system photo picker (`ACTION_PICK_IMAGES` with a selection limit) so they can widen the selection, which is the documented way to do it.
+- **`MigrationCoverageTest`** — a device-free guard on the upgrade path: the `@Database` version must equal the newest migration's target, every version gap must have a migration, steps must be contiguous, and the newest migration's SQL must create exactly the columns its entity declares (checked both ways). This is the check that catches "bumped the version but forgot the migration", which is how a user loses their favourites or albums.
+- Migration SQL and the schema version are now constants (`MigrationSql`, `DatabaseVersion`, `MigrationSteps`) so a test can read them.
+
+### Notes on what was deliberately not done
+- **Full Paging 3 was not adopted.** The library's sort, search and favourites/hidden decoration are all applied in memory today; moving to `PagingSource` would push sorting and searching into SQL and decorate page by page, which is a rewrite of the core data path that every screen and the viewer's playlist depend on. The audit's own wording — *"load data from the cursor in batches"* — is what was implemented instead: same data model, incremental load, no regression risk to a working app. Paging 3 remains available as a separate, opt-in piece of work.
+- **Instrumented tests still do not run in CI** (they need an emulator). `MigrationCoverageTest` covers the migration logic that can be checked without one; the SQL itself is only exercised on a device.
+
 ## [1.7.0]
 Phase 2B: the rest of the recovery engine.
 
