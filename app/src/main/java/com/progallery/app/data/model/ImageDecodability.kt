@@ -10,6 +10,15 @@ enum class DecoderSupport {
     /** The platform can decode it, but only from the given API level. */
     FROM_API,
 
+    /**
+     * The platform has no decoder, but the app ships one.
+     *
+     * A separate answer from [ALWAYS] on purpose: it says the preview depends on a library this
+     * app carries, not on the operating system — which is the difference between a format that
+     * works on every device and one that works because of a decision made here.
+     */
+    BY_APP,
+
     /** No decoder exists on Android for this format. */
     NEVER,
 }

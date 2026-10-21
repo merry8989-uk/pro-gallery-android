@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import coil.decode.SvgDecoder
 
 /**
  * Application entry point. Configures Hilt and a shared Coil [ImageLoader] tuned
@@ -99,6 +100,10 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
                     @Suppress("DEPRECATION")
                     add(GifDecoder.Factory())
                 }
+                // Android's platform decoder cannot render SVG at all — it is a vector format,
+                // not a bitmap. The app ships a decoder so those files show a picture instead
+                // of a blank tile, which is what "listed but never shown" looked like.
+                add(SvgDecoder.Factory())
             }
             .memoryCache {
                 MemoryCache.Builder(this)

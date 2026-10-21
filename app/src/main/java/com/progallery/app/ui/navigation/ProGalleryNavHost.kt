@@ -48,6 +48,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.progallery.app.data.usage.UsageEvent
 import com.progallery.app.data.usage.featureForRoute
 import com.progallery.app.data.usage.rememberUsageStore
+import com.progallery.app.ui.screens.stickers.StickerScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -132,6 +133,21 @@ fun ProGalleryNavHost(
             AllFilesScreen(
                 onBack = { navController.popBackStack() },
                 onOpen = openItem,
+            )
+        }
+        composable(Routes.STICKERS) {
+            StickerScreen(
+                onBack = { navController.popBackStack() },
+                onOpen = { entry, inPlayer ->
+                    if (inPlayer) {
+                        navController.navigate(Routes.videoPlayer(entry.item.uri.toString()))
+                    } else {
+                        navController.navigate(
+                            Routes.viewer(entry.item.uri.toString(), entry.item.mediaType.name),
+                        )
+                    }
+                },
+                onScanAndroidMedia = { navController.navigate(Routes.ANDROID_FOLDERS) },
             )
         }
         composable(Routes.APP_MEDIA) {
