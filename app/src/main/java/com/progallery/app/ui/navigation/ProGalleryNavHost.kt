@@ -39,6 +39,7 @@ import com.progallery.app.ui.screens.webdav.WebDavPlayerScreen
 import com.progallery.app.data.cloud.CloudKind
 import com.progallery.app.ui.screens.cloud.CloudScreen
 import com.progallery.app.ui.screens.cloud.CloudImageViewerScreen
+import com.progallery.app.ui.screens.text.TextViewerScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -54,6 +55,11 @@ fun ProGalleryNavHost(
             item.isAudio -> navController.navigate(Routes.audioPlayer(item.uri.toString()))
             item.isVideo -> navController.navigate(Routes.videoPlayer(item.uri.toString()))
             item.isPdf -> navController.navigate(Routes.pdfViewer(item.uri.toString()))
+            // The app's own reader for text, JSON, CSV and code. Without it these went to
+            // "open with another app", which often found nothing.
+            item.isTextReadable -> navController.navigate(
+                Routes.textViewer(item.uri.toString(), item.displayName),
+            )
         }
     }
 
@@ -176,6 +182,19 @@ fun ProGalleryNavHost(
                 // Adding a folder is where the folder picker already lives, so the fix
                 // takes the user to the real thing rather than a second copy of it.
                 onPickFolder = { navController.navigate(Routes.DEEP_SCAN) },
+            )
+        }
+        composable(
+            route = "${Routes.TEXT_VIEWER}?uri={uri}&title={title}",
+            arguments = listOf(
+                navArgument("uri") { type = NavType.StringType },
+                navArgument("title") { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) { entry ->
+            TextViewerScreen(
+                uri = entry.arguments?.getString("uri") ?: "",
+                title = entry.arguments?.getString("title").orEmpty().ifBlank { "Text" },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(Routes.CLOUD) {

@@ -22,6 +22,7 @@ object Routes {
     const val SEARCH = "search"
     const val STREAM = "stream"
     const val STREAM_PLAYER = "stream_player"
+    const val TEXT_VIEWER = "text_viewer"
     const val CLOUD = "cloud"
     const val CLOUD_VIEWER = "cloud_viewer"
     const val WEBDAV = "webdav"
@@ -36,6 +37,10 @@ object Routes {
     fun webDavPlayer(serverId: String, url: String) =
         "$WEBDAV_PLAYER?server=${java.net.URLEncoder.encode(serverId, "UTF-8")}" +
             "&url=${java.net.URLEncoder.encode(url, "UTF-8")}"
+
+    fun textViewer(uri: String, title: String) =
+        "$TEXT_VIEWER?uri=${java.net.URLEncoder.encode(uri, "UTF-8")}" +
+            "&title=${java.net.URLEncoder.encode(title, "UTF-8")}"
 
     fun cloudViewer(uri: String, title: String) =
         "$CLOUD_VIEWER?uri=${java.net.URLEncoder.encode(uri, "UTF-8")}" +
