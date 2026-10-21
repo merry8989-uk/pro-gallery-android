@@ -47,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.progallery.app.data.usage.UsageEvent
 import com.progallery.app.data.usage.featureForRoute
+import com.progallery.app.data.usage.rememberUsageStore
 
 @Composable
 fun ProGalleryNavHost(

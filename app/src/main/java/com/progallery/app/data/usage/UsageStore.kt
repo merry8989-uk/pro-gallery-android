@@ -64,13 +64,19 @@ class UsageStore @Inject constructor(
         mutex.withLock { file().delete(); Unit }
     }
 
-    suspend fun recordEvent(event: UsageEvent) = mutate { it.events.merge(event, 1) { a, b -> a + b } }
+    // UsageDay is immutable, so each recording returns a new one. That is deliberate: a day
+    // that could be mutated in place could be half-updated when a write fails.
+    suspend fun recordEvent(event: UsageEvent) = mutate { day ->
+        day.copy(events = day.events + (event to (day.events[event] ?: 0) + 1))
+    }
 
-    suspend fun recordFeature(feature: FeatureId) =
-        mutate { it.features.merge(feature, 1) { a, b -> a + b } }
+    suspend fun recordFeature(feature: FeatureId) = mutate { day ->
+        day.copy(features = day.features + (feature to (day.features[feature] ?: 0) + 1))
+    }
 
-    suspend fun recordPerformance(operation: PerfOperation, millis: Long) = mutate {
-        it.performance[operation] = (it.performance[operation] ?: PerfTotals()).plus(millis)
+    suspend fun recordPerformance(operation: PerfOperation, millis: Long) = mutate { day ->
+        val totals = (day.performance[operation] ?: PerfTotals()).plus(millis)
+        day.copy(performance = day.performance + (operation to totals))
     }
 
     /**
@@ -84,8 +90,8 @@ class UsageStore @Inject constructor(
     suspend fun recordCrash(throwable: Throwable) = withContext(Dispatchers.IO) {
         mutex.withLock {
             val days = readUnlocked().toMutableList()
-            val today = todayIn(days)
-            today.crashes.add(CrashSanitizer.record(throwable, BuildConfig.VERSION_NAME))
+            val record = CrashSanitizer.record(throwable, BuildConfig.VERSION_NAME)
+            replaceToday(days) { day -> day.copy(crashes = day.crashes + record) }
             write(days)
         }
     }
@@ -95,21 +101,20 @@ class UsageStore @Inject constructor(
 
         mutex.withLock {
             val days = readUnlocked().toMutableList()
-            val today = todayIn(days)
-            val index = days.indexOf(today)
-            days[index] = block(today)
+            replaceToday(days, block)
             write(days)
         }
     }
 
-    /** Today's day, added to [days] if it is not there yet. */
-    private fun todayIn(days: MutableList<UsageDay>): UsageDay {
+    /** Replaces today's entry with [block] applied to it, adding the day if it is new. */
+    private fun replaceToday(days: MutableList<UsageDay>, block: (UsageDay) -> UsageDay) {
         val today = LocalDate.now()
-        val existing = days.firstOrNull { it.day == today }
-        if (existing != null) return existing
-        val fresh = UsageDay(day = today)
-        days.add(fresh)
-        return fresh
+        val index = days.indexOfFirst { it.day == today }
+        if (index < 0) {
+            days.add(block(UsageDay(day = today)))
+        } else {
+            days[index] = block(days[index])
+        }
     }
 
     private fun write(days: List<UsageDay>) {

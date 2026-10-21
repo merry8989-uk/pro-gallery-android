@@ -17,6 +17,10 @@ import com.progallery.app.data.memories.MemoriesScheduler
 import com.progallery.app.data.usage.UsageEvent
 import com.progallery.app.data.usage.UsageStore
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Application entry point. Configures Hilt and a shared Coil [ImageLoader] tuned
@@ -32,6 +36,9 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var memoriesScheduler: MemoriesScheduler
     @Inject lateinit var usageStore: UsageStore
+
+    /** For recording that must never hold up startup. */
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Records a crash so a fault can be found, then lets the process die as it would have.
@@ -66,8 +73,11 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
         // WorkManager keeps it across reboots.
         runCatching { memoriesScheduler.ensureScheduled() }
 
-        // Counted, not described: the event has no field that could hold a filename.
-        runCatching { usageStore.recordEvent(UsageEvent.APP_OPENED) }
+        // Counted, not described: the event has no field that could hold a filename. Launched
+        // rather than awaited, because recording must never delay the app starting.
+        applicationScope.launch {
+            runCatching { usageStore.recordEvent(UsageEvent.APP_OPENED) }
+        }
 
         installCrashRecorder()
         thumbnailCacheLimitMb = runCatching {
