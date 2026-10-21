@@ -217,19 +217,31 @@ class IndexedPagingTest {
     fun aPartiallyTakenReadAheadIsResumedWithoutRepeating() {
         // The other half of the same property: when a window leaves items in hand, the next
         // window must pick up from the first one left, not from the start of the read.
-        val rows = (1..10).map { item("s$it", date = (100 - it).toLong()) }
+        //
+        // A partial take happens when the app's index supplies an item that belongs between two
+        // of the system's, so the merge takes fewer than it was given.
+        val rows = listOf(
+            item("s1", date = 990),
+            item("s2", date = 980),
+            item("s3", date = 970),
+        )
+        val indexed = listOf(item("i1", date = 985, source = MediaSource.DEEP_SCAN))
         val cursor = FakeCursor(rows, 10)
 
         val first = runBlocking {
-            IndexedPaging.load(IndexedPaging.Cursor.START, 2, emptyList(), newest, cursor::read)
+            IndexedPaging.load(IndexedPaging.Cursor.START, 2, indexed, newest, cursor::read)
         }
-        assertEquals(listOf("s1", "s2"), first.items.map { it.displayName })
-        assertTrue(first.next!!.consumedFromBatch > 0)
+        assertEquals(listOf("s1", "i1"), first.items.map { it.displayName })
+        assertTrue("an item was left in hand", first.next!!.consumedFromBatch > 0)
 
         val second = runBlocking {
-            IndexedPaging.load(first.next!!, 2, emptyList(), newest, cursor::read)
+            IndexedPaging.load(first.next!!, 2, indexed, newest, cursor::read)
         }
-        assertEquals(listOf("s3", "s4"), second.items.map { it.displayName })
+        assertEquals(
+            "the second window picks up from the first item left, not the start of the read",
+            listOf("s2", "s3"),
+            second.items.map { it.displayName },
+        )
     }
 
     @Test
