@@ -106,9 +106,14 @@ class MemoriesNotifier @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .build()
 
-        return runCatching {
+        return try {
             NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
             true
-        }.getOrDefault(false)
+        } catch (t: SecurityException) {
+            // The permission can be withdrawn between the check above and this call — by the
+            // user, or by the system. A reminder that cannot be posted is not an error worth
+            // surfacing; it simply does not happen.
+            false
+        }
     }
 }
