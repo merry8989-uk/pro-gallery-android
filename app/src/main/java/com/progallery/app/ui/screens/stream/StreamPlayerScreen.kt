@@ -142,7 +142,9 @@ fun StreamPlayerScreen(
             val code = failure
             if (code != null) {
                 Text(
-                    text = PlaybackFailure.message(code, title),
+                    // Always a link here, so a container failure is explained as an
+                    // address that returned a page rather than as a codec problem.
+                    text = PlaybackFailure.message(code, title, isLink = true),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.fillMaxWidth().padding(12.dp),

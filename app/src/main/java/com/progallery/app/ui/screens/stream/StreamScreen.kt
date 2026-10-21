@@ -34,6 +34,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.progallery.app.data.stream.StreamLink
+import com.progallery.app.data.stream.StreamLinkPage
+import com.progallery.app.data.stream.StreamLinks
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.runtime.remember
 
 /**
  * Paste a link and play it.
@@ -49,6 +54,13 @@ fun StreamScreen(
     viewModel: StreamViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Whether the address just entered is a page rather than a file. Knowable in advance, so
+    // the user is told before a black screen tells them instead.
+    val pageWarning = remember(state.input) {
+        StreamLinks.parse(state.input).getOrNull()
+            ?.takeIf { StreamLinkPage.looksLikeAPage(it.url) }
+            ?.let { StreamLinkPage.warning(it.url) }
+    }
     val recent by viewModel.recent.collectAsStateWithLifecycle()
     val pending by viewModel.play.collectAsStateWithLifecycle()
 
@@ -130,6 +142,27 @@ fun StreamScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+
+            // Named service where it is known, and said before playback rather than after a
+            // black screen. A warning, never a refusal: the guess may be wrong, and a link
+            // that works must not be blocked by one.
+            pageWarning?.let { warning ->
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                        ),
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    ) {
+                        Text(
+                            text = warning,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(12.dp),
+                        )
+                    }
+                }
             }
 
             if (recent.isNotEmpty()) {

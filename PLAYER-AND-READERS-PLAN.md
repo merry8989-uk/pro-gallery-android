@@ -152,6 +152,10 @@ then *tells* you that `.wmv` needs another app, rather than failing when you try
 
 ### Part D — The formats Media3 cannot parse ⬜ **decision needed**
 
+**Adaptive streaming is now done (v1.20.0):** HLS, DASH, RTSP and SmoothStreaming are on the
+classpath, so `.m3u8` and `.mpd` — the SD/HD adaptive streams — play. What remains in this part
+is the containers Android has no parser for at all.
+
 `.mpg`/`.mpeg` (MPEG program stream), `.wmv`/`.asf`, `.swf`, RealMedia. Two honest options:
 
 1. **Hand off** to another app (what the app does today, now with a clear message). No new

@@ -27,6 +27,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.20.0]
+Adaptive streams actually play — and a page link no longer gets blamed on the container.
+
+### Fixed
+- **HLS, DASH, RTSP and SmoothStreaming were never on the classpath.** The app's own text told
+  the user that "an HLS/DASH stream (.m3u8 / .mpd)" would play, and `StreamLink` classified
+  those addresses as a stream Media3 assembles as it plays — **neither was true**. The modules
+  that make it so were simply never added, so every `.m3u8` and `.mpd` address failed. This is
+  what adaptive SD/HD streams are, so the formats that most needed to work could not. The
+  modules are now dependencies, and the promise is true.
+- **A link to a page is no longer described as an unreadable container.** A `youtu.be` address
+  was pasted into "Stream from link", and the app answered "The container is not one Android
+  can read. MPEG program streams (.mpg), Windows Media (.wmv) and Flash (.swf) have no support
+  on Android at all." Every word of that was wrong for the situation: the address was a web
+  page. The same mistake as the codec one, in a new place.
+  - A pasted link is now **recognised as a page before playback is attempted**, so the answer
+    arrives without a black screen first.
+  - The service is **named** when it is known — "This is a link to a YouTube page, not to a
+    video file" — and the explanation says a page is shown by a browser, and that the service's
+    own sign-in is involved, which **no codec pack changes**.
+  - It is a **warning, never a refusal**: the classifier can be wrong about an unusual address,
+    and a link that works must never be blocked by a guess. The card says so.
+  - A container failure on a link now explains the page case first; a container failure on a
+    **local file** keeps the original explanation, which is right for it.
+
+### Tests
+- `StreamLinkPageTest` — short video links, subdomains, page-shaped paths on any host, direct
+  file links, the query string not confusing it, a bare host not being a page, the warning
+  naming the service, the warning saying what *would* work, the warning never forbidding a try,
+  an unknown host still getting a useful warning, and case-insensitivity.
+- One of those tests pins a mistake the classifier made on its first version: it decided on the
+  host alone, so `vimeo.com/download/clip.mp4` — a perfectly playable file — was called a page.
+  **An explicit media extension now outweighs the host's reputation.**
+
 ## [1.19.0]
 A reader for text, JSON, CSV, logs and code — pending work, Part G.
 
