@@ -35,11 +35,10 @@ data class CloudProvider(
  * **Why they are not browsed in-app.** Reading a Drive, OneDrive or Box library inside
  * another app needs OAuth with an application id issued to *that* app's developer, which
  * means registering an app with each provider. Those credentials cannot be invented here.
- * Terabox is a different case: it publishes **no official API**, so there is nothing
- * honest to build against — the entry opens it and says so.
  *
  * **What does work in-app, today**, is a direct media link: the Stream screen plays an
- * address straight from any of these services when the service gives one.
+ * address straight from any of these services when the service gives one. And WebDAV
+ * browsing works fully in-app, with no registration at all — see the WebDAV entries.
  *
  * Pure, so which plan applies is unit tested without a device.
  */
@@ -79,14 +78,5 @@ object CloudProviders {
         note = "Opens Box. To play something from it, share a direct link and use Stream.",
     )
 
-    val TERABOX = CloudProvider(
-        id = "terabox",
-        name = "Terabox",
-        packageName = "com.dubox.drive",
-        webUrl = "https://www.terabox.com",
-        note = "Opens Terabox. Terabox publishes no official API, so there is no in-app " +
-            "browsing to offer.",
-    )
-
-    val ALL: List<CloudProvider> = listOf(GOOGLE_DRIVE, ONE_DRIVE, BOX, TERABOX)
+    val ALL: List<CloudProvider> = listOf(GOOGLE_DRIVE, ONE_DRIVE, BOX)
 }

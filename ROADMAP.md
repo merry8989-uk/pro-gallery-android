@@ -127,10 +127,13 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 **✅ Stream from a link** — real: pure link parsing, a bounded recent list, a dedicated
 player, and Media3's own reason shown on failure.
 
-**🔶 Cloud entries in the sidebar** — the four providers open their own app or website,
-which is real but is *not* in-app browsing, and the UI says so. In-app OAuth browsing for
-Drive / OneDrive / Box needs an application id registered by the user with each provider;
-Terabox publishes no official API at all. **Decision needed before building further.**
+**✅ WebDAV browsing — DONE in v1.14.0.** Chosen by the user: it works today with no
+registration. Browse, play, credentials kept out of the settings export and the log.
+
+**🔶 In-app OAuth browsing for Drive / OneDrive / Box** — not built. It needs an
+application id registered by the user with each provider, which cannot be invented here.
+The entries currently open the provider's own app or website and say so. **Terabox was
+removed** at the user's request: no official API exists.
 
 ## 6a. Phase 5 (in progress) — emulator CI, Paging 3, settings completeness
 

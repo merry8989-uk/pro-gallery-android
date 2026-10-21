@@ -27,6 +27,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.14.0]
+WebDAV — cloud browsing that works without registering anything.
+
+### Added
+- **Browse a WebDAV server inside the app.** Add an address (Nextcloud, ownCloud, a NAS,
+  Box over WebDAV), sign in, and walk the folders. Folders come first and files show their
+  type and size, exactly as a file browser is read.
+  - **No new dependency.** `HttpURLConnection` speaks `PROPFIND` and Basic authentication,
+    and `javax.xml` reads the reply — so nothing large was added for this.
+  - **The reply parser is tolerant in the ways real servers require.** Elements are matched
+    by local name, so `d:response`, `D:response`, `lp1:response` and an unprefixed reply all
+    work; absolute-path, full-URL and relative `href`s are all resolved; a `propstat`
+    without a `200` status is still read when no `200` one exists.
+  - **A file plays straight off the server**, with the sign-in attached to the player's own
+    HTTP source — so the password never becomes part of a URL, a navigation argument, or a
+    saved-state bundle.
+  - **The password lives in its own store**, separate from settings, so it cannot reach the
+    settings export, and it is never written to the diagnostics log. The line-based format
+    strips tabs and newlines from every field, so a value cannot break the format it lives
+    in — and a corrupted line costs one entry, not all of them.
+  - Limits are stated rather than discovered: **Basic authentication only**, and a
+    **self-signed certificate is refused** rather than waved through. The app does not
+    weaken TLS to make a server connect.
+- **Terabox was removed from the sidebar**, at the user's request. It publishes no official
+  API, so the only honest entry for it was a browser link, which is not what was wanted.
+
+### Tests
+- `WebDavXmlTest` — a Nextcloud-shaped reply, an Apache-shaped reply with full-URL `href`s
+  and no displayname, an unprefixed reply, a `404` propstat ignored in favour of the `200`
+  one, malformed XML refused with a readable reason, an empty folder as an empty list,
+  href resolution for all three shapes, and folder-walking that stops at the root. Plus two
+  about dates: a server sending the **wrong weekday** still yields a timestamp (strict
+  parsing alone would throw it away), and an unreadable date yields **no** date rather than
+  an invented one.
+- `WebDavServerCodecTest` — the round trip, several servers, a password with spaces, and a
+  **newline or tab inside a value** not breaking the format or shifting the fields.
+
 ## [1.13.0]
 Stream from a link, and a sidebar.
 

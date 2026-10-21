@@ -11,9 +11,11 @@ import org.junit.Test
 class CloudProvidersTest {
 
     @Test
-    fun theFourRequestedProvidersAreOffered() {
+    fun theProvidersThatCanBeOpenedAreOffered() {
+        // Terabox was removed at the user's request: it publishes no official API, so the
+        // only honest entry for it was a browser link, and that is not what was wanted.
         assertEquals(
-            listOf("Google Drive", "OneDrive", "Box", "Terabox"),
+            listOf("Google Drive", "OneDrive", "Box"),
             CloudProviders.ALL.map { it.name },
         )
     }
@@ -56,13 +58,6 @@ class CloudProvidersTest {
                 provider.note.startsWith("Opens ${provider.name}"),
             )
         }
-    }
-
-    @Test
-    fun teraboxSaysThereIsNoApiRatherThanPromisingOne() {
-        val note = CloudProviders.TERABOX.note
-        assertTrue("the absence of an API must be stated", note.contains("no official API"))
-        assertTrue("and it must not promise in-app browsing", note.contains("no in-app browsing"))
     }
 
     @Test

@@ -97,6 +97,16 @@ rather than left claiming to be active, and the screen explains what changed. Se
 can be exported and imported as versioned JSON that holds **only your choices** — no
 paths, no URIs, no grants — and each section can be reset on its own.
 
+## Cloud
+
+- **WebDAV** is browsed inside the app: add an address and sign in. Basic authentication
+  only, and a self-signed certificate is refused rather than waved through. The password is
+  kept in the app's private storage, never in the settings export, and never in a log.
+- **Google Drive, OneDrive and Box** entries open the service's own app, or its website.
+  Browsing them *inside* another app needs OAuth with an application id issued to that app,
+  which means registering an app with each provider.
+- **Stream from a link** plays a direct media address from any of them.
+
 ## Access
 
 Settings → Diagnostics & experimental → **Access diagnostics** explains every access the
