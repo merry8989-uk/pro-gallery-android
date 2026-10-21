@@ -11,7 +11,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import android.os.Build
-import coil.decode.AnimatedImageDecoder
+import coil.decode.ImageDecoderDecoder
 import coil.decode.GifDecoder
 
 /**
@@ -47,7 +47,7 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
                 // useful. ImageDecoder is the platform's animated path from Android 9; below
                 // that only GIF can be animated, and only through the legacy decoder.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    add(AnimatedImageDecoder.Factory())
+                    add(ImageDecoderDecoder.Factory())
                 } else {
                     @Suppress("DEPRECATION")
                     add(GifDecoder.Factory())

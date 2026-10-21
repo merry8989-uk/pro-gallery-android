@@ -84,6 +84,9 @@ import com.progallery.app.util.MediaFormatUtils
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.ui.text.style.TextAlign
 import com.progallery.app.data.model.ImageDecodability
+import androidx.compose.foundation.Image
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
 
 /**
  * Full-screen photo/video viewer.
@@ -194,28 +197,33 @@ fun ViewerScreen(
                     val item = items.getOrNull(page)
                     if (item != null) {
                         Box(modifier = Modifier.fillMaxSize()) {
-                            AsyncImage(
-                                model = item.uri,
-                                contentDescription = item.displayName,
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer(
-                                        scaleX = zoom.scale,
-                                        scaleY = zoom.scale,
-                                        translationX = zoom.offset.x,
-                                        translationY = zoom.offset.y,
-                                    )
-                                    .zoomGestures(zoom),
+                            // The painter's state is watched rather than Coil's `error`
+                            // slot, because that slot takes a Painter and the point here is
+                            // to say something in words.
+                            val painter = rememberAsyncImagePainter(model = item.uri)
+                            if (painter.state is AsyncImagePainter.State.Error) {
                                 // A blank screen tells the user nothing. If the picture
                                 // cannot be drawn, say why and offer the way out.
-                                error = {
-                                    NoPreviewCard(
-                                        item = item,
-                                        onOpenWith = { viewModel.openWith(item) },
-                                    )
-                                },
-                            )
+                                NoPreviewCard(
+                                    item = item,
+                                    onOpenWith = { viewModel.openWith(item) },
+                                )
+                            } else {
+                                Image(
+                                    painter = painter,
+                                    contentDescription = item.displayName,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer(
+                                            scaleX = zoom.scale,
+                                            scaleY = zoom.scale,
+                                            translationX = zoom.offset.x,
+                                            translationY = zoom.offset.y,
+                                        )
+                                        .zoomGestures(zoom),
+                                )
+                            }
                             // Videos open in the player rather than sitting as a still frame.
                             if (item.isVideo) {
                                 IconButton(
