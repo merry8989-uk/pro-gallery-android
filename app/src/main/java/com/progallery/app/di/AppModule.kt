@@ -19,6 +19,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import com.progallery.app.data.local.MIGRATION_4_5
+import com.progallery.app.data.local.dao.IndexedMediaDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -30,7 +32,7 @@ object AppModule {
         Room.databaseBuilder(context, ProGalleryDatabase::class.java, "progallery.db")
             // Explicit migration: re-keys media references by URI and keeps
             // existing favourites, hidden items and album membership.
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .build()
 
     @Provides fun provideFavouriteDao(db: ProGalleryDatabase): FavouriteDao = db.favouriteDao()
@@ -39,6 +41,10 @@ object AppModule {
     @Provides fun provideTrashDao(db: ProGalleryDatabase): TrashDao = db.trashDao()
     @Provides fun provideHiddenDao(db: ProGalleryDatabase): HiddenDao = db.hiddenDao()
     @Provides fun provideScanDirectoryDao(db: ProGalleryDatabase): ScanDirectoryDao = db.scanDirectoryDao()
+
+    /** The app's own index, which the gallery merges into the system's rows. */
+    @Provides fun provideIndexedMediaDao(db: ProGalleryDatabase): IndexedMediaDao =
+        db.indexedMediaDao()
 
     @Provides fun provideRecoveryHistoryDao(db: ProGalleryDatabase): RecoveryHistoryDao =
         db.recoveryHistoryDao()

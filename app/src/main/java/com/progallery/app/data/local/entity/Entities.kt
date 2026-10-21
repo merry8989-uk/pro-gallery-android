@@ -110,3 +110,33 @@ data class RecoveryHistoryEntity(
     val sizeBytes: Long = 0,
     val exportedAt: Long = System.currentTimeMillis(),
 )
+
+/**
+ * A file the app found itself, outside the system's index.
+ *
+ * This is what makes the gallery able to show media that MediaStore does not hand over — the
+ * photos and videos messaging apps keep under `Android/media`, which is where the user's
+ * WhatsApp pictures live. The scan writes them here, and the grid merges them into its own
+ * order, so they appear where their date puts them rather than in a separate list.
+ *
+ * Every column is a plain value: no paths are exposed beyond the file's own URI, and nothing
+ * here carries an access grant.
+ */
+@Entity(tableName = "indexed_media")
+data class IndexedMediaEntity(
+    @PrimaryKey val mediaKey: String,
+    val uri: String,
+    val displayName: String,
+    val mimeType: String,
+    val sizeBytes: Long,
+    val dateModifiedSeconds: Long,
+    val dateTakenSeconds: Long,
+    val width: Int,
+    val height: Int,
+    val durationMs: Long,
+    val bucketId: Long,
+    val bucketName: String,
+    val relativePath: String?,
+    val mediaType: String,
+    val indexedAt: Long = System.currentTimeMillis(),
+)

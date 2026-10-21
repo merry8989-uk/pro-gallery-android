@@ -24,7 +24,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
-import com.progallery.app.data.mediastore.MediaStorePagingSource
+import com.progallery.app.data.index.IndexedMediaRepository
+import com.progallery.app.data.index.IndexedPagingSource
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -55,6 +56,7 @@ class MediaRepository @Inject constructor(
     private val mediaStoreObserver: MediaStoreObserver,
     @ApplicationScope private val applicationScope: CoroutineScope,
     private val usageStore: UsageStore,
+    private val indexedMedia: IndexedMediaRepository,
 ) {
 
     init {
@@ -109,6 +111,13 @@ class MediaRepository @Inject constructor(
         }
 
         return keyed.flatMapLatest { (hiddenSet, settings, favouriteSet) ->
+            // The app's own index is read here, once per query shape, because the factory below
+            // cannot suspend. It is small enough to hold, which is what lets the grid merge it
+            // into whatever sort the user chose rather than only the date orders. With the
+            // switch off it is empty, and the source behaves exactly as the plain one did — the
+            // same path, not a second one to differ.
+            val extra = indexedMedia.all()
+
             Pager(
                 config = PagingConfig(
                     pageSize = MediaStoreDataSource.DEFAULT_PAGE_ROWS,
@@ -117,8 +126,9 @@ class MediaRepository @Inject constructor(
                     enablePlaceholders = false,
                 ),
                 pagingSourceFactory = {
-                    MediaStorePagingSource(
+                    IndexedPagingSource(
                         dataSource = mediaStore,
+                        indexed = extra,
                         kinds = kinds,
                         sort = sort,
                         query = query,

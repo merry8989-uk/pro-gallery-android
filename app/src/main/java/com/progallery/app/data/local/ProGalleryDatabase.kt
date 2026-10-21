@@ -17,6 +17,8 @@ import com.progallery.app.data.local.entity.HiddenEntity
 import com.progallery.app.data.local.entity.RecoveryHistoryEntity
 import com.progallery.app.data.local.entity.ScanDirectoryEntity
 import com.progallery.app.data.local.entity.TrashEntity
+import com.progallery.app.data.local.dao.IndexedMediaDao
+import com.progallery.app.data.local.entity.IndexedMediaEntity
 
 @Database(
     entities = [
@@ -28,6 +30,7 @@ import com.progallery.app.data.local.entity.TrashEntity
         HiddenEntity::class,
         ScanDirectoryEntity::class,
         RecoveryHistoryEntity::class,
+        IndexedMediaEntity::class,
     ],
     version = DatabaseVersion.CURRENT,
     exportSchema = true,
@@ -40,4 +43,7 @@ abstract class ProGalleryDatabase : RoomDatabase() {
     abstract fun hiddenDao(): HiddenDao
     abstract fun scanDirectoryDao(): ScanDirectoryDao
     abstract fun recoveryHistoryDao(): RecoveryHistoryDao
+
+    /** The app's own index of files the system's does not hand over. */
+    abstract fun indexedMediaDao(): IndexedMediaDao
 }

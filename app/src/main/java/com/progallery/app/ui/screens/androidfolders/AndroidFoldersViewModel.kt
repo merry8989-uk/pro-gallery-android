@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.progallery.app.data.index.IndexedMediaRepository
 
 data class AndroidFoldersUiState(
     val reachability: List<Reachability> = emptyList(),
@@ -31,6 +32,7 @@ data class AndroidFoldersUiState(
 class AndroidFoldersViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val scanner: AndroidFolderScanner,
+    private val indexedMedia: IndexedMediaRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AndroidFoldersUiState())
@@ -85,6 +87,14 @@ class AndroidFoldersViewModel @Inject constructor(
                         scanState = state,
                         scanning = state is ScanState.Scanning,
                     )
+                }
+
+                // What the scan found becomes the app's own index, so these files appear in
+                // the gallery among the photos rather than only on this screen. Replaced
+                // rather than appended: a scan is a statement about what is there now, so a
+                // file the user deleted must leave the index with it.
+                if (state is ScanState.Completed) {
+                    runCatching { indexedMedia.replaceFromScan(state.media) }
                 }
             }
             _uiState.update { it.copy(scanning = false) }
