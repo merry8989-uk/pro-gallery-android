@@ -94,7 +94,7 @@ class WebDavViewModel @Inject constructor(
             _state.update { it.copy(folderUrl = WebDavXml.asCollection(entry.url)) }
             load()
         } else {
-            diagnosticLog.record("WebDAV file opened", entry.mimeType)
+            viewModelScope.launch { diagnosticLog.record("WebDAV file opened", entry.mimeType) }
             _play.value = server.id to entry.url
         }
     }

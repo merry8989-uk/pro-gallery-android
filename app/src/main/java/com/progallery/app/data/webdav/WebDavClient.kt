@@ -30,6 +30,8 @@ class WebDavClient @Inject constructor() {
         const val CONNECT_TIMEOUT_MS = 15_000
         const val READ_TIMEOUT_MS = 30_000
 
+        const val HTTP_MULTI_STATUS = 207
+
         /** Ask only for what the app shows. */
         val PROPFIND_BODY = """
             <?xml version="1.0" encoding="utf-8"?>
@@ -102,5 +104,4 @@ class WebDavClient @Inject constructor() {
         return "Basic " + Base64.getEncoder().encodeToString(raw)
     }
 
-    private const val HTTP_MULTI_STATUS = 207
 }
