@@ -122,6 +122,11 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6i. Update check fixed — v1.21.0
+
+**✅** The dialog had no call site, so "Check for updates" opened nothing; and the check now
+reads the Atom feed rather than the rate-limited API.
+
 ## 6h. Adaptive streams and page links — v1.20.0
 
 **✅** HLS/DASH/RTSP/SmoothStreaming modules added, so `.m3u8` and `.mpd` actually play; and a

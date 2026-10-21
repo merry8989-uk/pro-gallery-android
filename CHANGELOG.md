@@ -27,6 +27,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.21.0]
+Check for updates actually opens — and no longer depends on a budget it cannot see.
+
+### Fixed
+- **The dialog was never rendered.** The settings row set its flag and started the check, but
+  the block that draws the result **had no call site** — so pressing "Check" opened nothing at
+  all. It compiled, it passed lint, and every unit test passed: the only trace was a private
+  function nobody called. The call site is back.
+- **The check no longer depends on a rate limit it cannot see.** It asked the GitHub **API**,
+  which allows only a small number of unauthenticated requests per hour **per address** — and
+  mobile networks in India put thousands of subscribers behind one address, so the allowance is
+  often already spent by strangers. The app then reported "rate-limiting this device", which is
+  a confusing way to say "someone else used it up".
+  - The **releases Atom feed** is now the first source. It is an ordinary web page rather than
+    an API call, so it is not subject to that budget at all.
+  - The API remains as a **fallback**, because it carries the asset list.
+  - The APK's address is **derived from the tag**, so the feed does not need to list assets —
+    a release's download URL is deterministic.
+  - A 403 now reads "The update server is busy with other requests from this network", and a
+    **"Try again"** button is offered on any failure, so a retry does not mean closing the
+    dialog and finding the row again.
+
+### Added — a check that would have caught this
+- **`tools/check_kotlin.py` now flags a private function that nothing calls.** That is exactly
+  what this bug looked like from the outside: a declared, correct, never-invoked dialog. The
+  rule was verified by deleting the call site again and confirming it fires.
+
+### Tests
+- `ReleaseAtomTest` — the newest entry is read (the feed is newest first, and reading the last
+  would offer an older version), the APK address is derived from the tag, the notes arrive as
+  readable text rather than markup (entities and tags included), a feed with no entries is
+  refused with a readable reason, malformed XML is refused, an entry with no link is refused, a
+  namespace-prefixed feed is read, and the tag is read from the **address** rather than guessed
+  from a title someone typed.
+
 ## [1.20.0]
 Adaptive streams actually play — and a page link no longer gets blamed on the container.
 
