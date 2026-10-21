@@ -27,6 +27,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.26.0]
+App media joins the gallery — the photos messaging apps keep are now in the grid, not beside it.
+
+### Added
+- **The app keeps its own index, and the gallery merges it into the system's rows.** This is the
+  part that was missing: a scan could find a WhatsApp photo, but the grid only ever asked the
+  system, so the photo was visible on one screen and absent from the one the user actually
+  browses.
+  - **Merged, not appended.** The two sources are interleaved by the same comparator, so a photo
+    from this morning sorts where its date puts it. Appending would have put a photo taken today
+    below a photo from 2014 whenever it came from a messaging app.
+  - **Every sort order works**, not only the date ones: the app's index is small enough to hold,
+    so it is ordered with exactly the comparator the grid is already using rather than with a
+    second query per sort order — three more places for the ordering to differ.
+  - **A file both sources know appears once**, and the system's copy wins, because it carries the
+    row id that favourites, hidden items and the viewer's swipe list are all keyed on. Showing
+    the app's copy instead would silently break those.
+  - **"Show app media in the gallery"** is a real switch: off means the index is not read at all,
+    so the grid goes back to exactly what the system reports.
+  - The scan **replaces** the index rather than appending — a scan is a statement about what is
+    there now, so a file the user deleted leaves with it.
+- **A new table and a migration** (`indexed_media`, v4 → v5), purely additive: favourites,
+  albums, hidden items, the trash and the recovery history all survive untouched.
+
+### The part that was actually hard, and how it was found
+- **The merge is a plain function, and its windowing is tested at every page boundary.** An item
+  duplicated, dropped or swapped where one window meets the next looks like a stutter while
+  scrolling, not like a bug — so the property that matters is checked directly: *paging through
+  in small windows must produce exactly the list one big window would*, at every window size.
+- **That test found a real ordering bug**, and a model of the algorithm written in Python
+  confirmed it: the merge ran against a single batch of the system's rows, so when a batch ended
+  it fell back to the app's index alone — and an item from the *next* batch, newer than one
+  already emitted, arrived afterwards. The system's side is now read ahead until a window is
+  fully determined, and the Python model was re-run to check the fix across window sizes before
+  it was written in Kotlin.
+- **Three of the new tests were wrong rather than the code**, and each is now corrected with the
+  reason recorded: one fed the merge an unsorted list; one used a fake cursor that returned rows
+  unsorted where a real query sorts; and two asserted *how the cursor is spelled* rather than
+  that resuming continues the list.
+- The un-merged paging source was **deleted**: the merging source with an empty index is exactly
+  the same thing, and two paths are two places to differ.
+
+### Tests
+- `IndexMergeTest` — two ordered lists becoming one, an extra file taken today sorting above an
+  old store file, windowing, cursor advances, both sources exhausted, a duplicate appearing once
+  with the store's copy winning, a duplicate not shortening a page, a total order so ties cannot
+  shuffle, and every sort order.
+- `IndexedPagingTest` — paging through equals one big window, rejected rows not causing a skip or
+  a duplicate, a window of one, the end of the list having no next key, more rows meaning a next
+  key, a duplicate across a window boundary, resuming exactly where a window stopped, and the
+  named fault this algorithm was rewritten for.
+- `MigrationCoverageTest` — the new table's migration creates every column the entity declares,
+  creates none it does not, and is keyed by the media key.
+
 ## [1.25.0]
 Anonymised usage data, on the device only — and the seven-day review it feeds.
 

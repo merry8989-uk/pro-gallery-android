@@ -122,6 +122,11 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6n. App media in the gallery — v1.26.0
+
+**✅ Part E's goal**: the app's own index, merged into the grid's order. The scan fills it; the
+gallery shows it. This is the fix for media the system's index does not hand over.
+
 ## 6m. Usage data and the seven-day review — v1.25.0
 
 **✅** Anonymised usage counts, local only, from a closed vocabulary, with a seven-day review in
