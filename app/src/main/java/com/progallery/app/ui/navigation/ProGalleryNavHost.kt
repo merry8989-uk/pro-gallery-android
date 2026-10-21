@@ -41,6 +41,7 @@ import com.progallery.app.ui.screens.cloud.CloudScreen
 import com.progallery.app.ui.screens.cloud.CloudImageViewerScreen
 import com.progallery.app.ui.screens.text.TextViewerScreen
 import com.progallery.app.ui.screens.memories.MemoriesScreen
+import com.progallery.app.ui.screens.appmedia.AppMediaScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -114,6 +115,12 @@ fun ProGalleryNavHost(
             AllFilesScreen(
                 onBack = { navController.popBackStack() },
                 onOpen = openItem,
+            )
+        }
+        composable(Routes.APP_MEDIA) {
+            AppMediaScreen(
+                onBack = { navController.popBackStack() },
+                onBrowseAndroidMedia = { navController.navigate(Routes.ANDROID_FOLDERS) },
             )
         }
         composable(Routes.MEMORIES) {

@@ -27,6 +27,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.23.0]
+App media — which messaging apps keep media on this device, and how much.
+
+### Added
+- **App media.** A screen that answers the question a person actually has — *is my WhatsApp /
+  Telegram / Arattai / Hyped media here or not* — instead of a folder tree to interpret. One
+  card per app, saying which of three situations it is in: **has media** (with a breakdown by
+  kind), **installed with none found**, or **not installed**.
+  - Reached from the sidebar.
+  - The folder path is shown, so the answer can be checked.
+  - Apps with media come first, then by how much, so the list is useful before it is complete.
+  - "Browse Android media" opens the existing browser, which shows those files with thumbnails.
+
+### How the app is identified, and why it matters
+- **The owning app is read from the folder path**, not from a table. The segment after
+  `Android/media/` *is* the package name, so **an app nobody listed is still found** — which is
+  what makes this work for Sandesh, or for anything else, without a guess.
+- **The name comes from the system.** For an installed app the label is read from the
+  PackageManager, so "Arattai" and "Hyped" appear under the name the device itself uses. A
+  hardcoded name is only a fallback for an app that is *not* installed, where there is no label
+  to ask for.
+- **The listed package names were checked against each app's own Play Store listing, not
+  guessed** — `com.aratai.chat` for Arattai and `com.friendsV` for Hyped. A wrong package name
+  is worse than none: it would put one app's media under another app's name.
+  - **Sandesh is deliberately absent.** No package name for it could be verified, and inventing
+    one would misattribute media. If it keeps media under `Android/media`, discovery still finds
+    it and the system still names it.
+- **The older layout is handled too**: top-level `WhatsApp/`, `WhatsApp Business/` and
+  `Telegram/` folders, which are still present on devices that upgraded rather than reinstalled.
+- **SD cards are included**: the storage roots come from the app's own external media
+  directories, so a card's app media is found as well as internal storage.
+- **Counting is bounded** (20,000 entries, depth 6) so a folder with tens of thousands of files
+  cannot hang the screen — and when it stops early the UI says **"20,000+"** rather than
+  presenting a floor as a total.
+- **The platform rule is stated on the screen**, from the existing policy: on Android 11+,
+  `Android/media` needs All files access, and when it is missing the reason is shown instead of
+  a list that is quietly empty.
+
+### Tests
+- `AppMediaPathsTest` — a file under `Android/media` belonging to the folder-named package,
+  every messaging app resolving the same way, a nested folder still resolving, a folder without
+  a dot not being a package, an ordinary picture not being app media, the legacy `WhatsApp` and
+  `Telegram` folders, `Android/media` taking precedence over the legacy check, an unrelated
+  top-level folder, both layouts through `ownerOf`, and Windows separators not defeating it.
+
+### Fixed — a real bug the tests caught before it shipped
+- **The legacy folder check silently returned nothing.** Chaining two `substringAfter` calls let
+  the second fall back to the *whole* path and undo the first, so `WhatsApp/` and `Telegram/`
+  were never recognised as belonging to an app. Found by writing the parser out in Python and
+  comparing against the expected answers; the root is now stripped once.
+
 ## [1.22.0]
 Memories — the pictures from this day in earlier years, and a reminder at seven.
 

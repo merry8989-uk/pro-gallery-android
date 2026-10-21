@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.progallery.app.ui.navigation.Routes
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Forum
 
 /**
  * The sidebar.
@@ -78,6 +79,9 @@ private fun DrawerContents(onNavigate: (String) -> Unit) {
             // First in the list, because it is the one entry that shows something the user did
             // not go looking for.
             DrawerItem(Icons.Filled.AutoAwesome, "Memories", Routes.MEMORIES, onNavigate)
+            // The apps whose media is otherwise invisible: WhatsApp, Telegram, Arattai, Hyped
+            // and anything else that keeps files in a folder of its own.
+            DrawerItem(Icons.Filled.Forum, "App media", Routes.APP_MEDIA, onNavigate)
             DrawerItem(Icons.Filled.Image, "Photos", Routes.PHOTOS, onNavigate)
             DrawerItem(Icons.Filled.VideoLibrary, "Videos", Routes.VIDEOS, onNavigate)
             DrawerItem(Icons.Filled.MusicNote, "Audio", Routes.AUDIO, onNavigate)

@@ -23,6 +23,7 @@ object Routes {
     const val STREAM = "stream"
     const val STREAM_PLAYER = "stream_player"
     const val MEMORIES = "memories"
+    const val APP_MEDIA = "app_media"
     const val TEXT_VIEWER = "text_viewer"
     const val CLOUD = "cloud"
     const val CLOUD_VIEWER = "cloud_viewer"

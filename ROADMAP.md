@@ -122,6 +122,13 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6k. App media — v1.23.0
+
+**✅** Which messaging apps keep media on this device, and how much. The owning app is read from
+the folder path and named by the system, so apps nobody listed are still found.
+
+**Still pending from Part E:** merging those files into the main Photos/Videos gallery.
+
 ## 6j. Memories and the daily reminder — v1.22.0
 
 **✅** Memories matched on the capture date, grouped by years ago, with a WorkManager reminder
