@@ -27,6 +27,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.15.0]
+Four real bugs in the format layer, found by reading the code. Plus the plan for the
+player and the readers, written down in full.
+
+### Fixed
+- **The content address was built from a guess, and that is why files would not open.**
+  Each file's `content://` address was built from the kind the app *guessed*, but
+  MediaStore decides which view a row lives in: `content://media/external/images/media/<id>`
+  only resolves for rows whose `media_type` is `IMAGE`. A WebP in a folder MediaStore
+  treats as non-media — or anything under `Android/media/…` — was addressed through the
+  images view, which does not contain it. **The file listed and then would not open.**
+  Now the address is built from the row's own `media_type`, with the union view for
+  anything MediaStore does not call media. The decision is a pure function that cannot be
+  handed the display kind, so the two can never disagree again.
+- **A preview was promised that no decoder could draw.** Anything with an image extension
+  was called an image, including `.psd`, `.svg`, `.tiff`, `.jxl`, `.jp2`, `.ico` — formats
+  Android has **no decoder** for. The tile was promised a picture and left blank. There is
+  now a separate question — *can this device draw it?* — with an honest answer per format:
+  a tile with no preview says **`no preview`**, and the viewer shows a card naming the
+  reason and offering another app.
+- **Animated WebP and GIF were decoded one frame deep**, which is why stickers showed
+  nothing. Coil now registers `ImageDecoderDecoder` on Android 9+ (and `GifDecoder` below
+  that), so animated WebP animates.
+- **Playback failures were silent.** Neither player listened for `onPlayerError`, so a file
+  that could not be decoded produced a player that simply did nothing — which is exactly
+  what a failing `.opus` looked like. Both players now name the reason, and the video
+  player enables the decoder fallback so a missing hardware codec falls back to software.
+- **A PDF no longer offers "open with another app" as its only route.** It has a built-in
+  reader, so that option is not offered for it (or for audio, which has a built-in player);
+  offering it only ever produced "no installed app can open this".
+
+### Added
+- **`PLAYER-AND-READERS-PLAN.md`** — the honest capability matrix for video, audio, images
+  and documents, the parts the gaps are closed in, and what will not be promised.
+
+### Tests
+- `MediaCollectionChoiceTest` — every media type maps to its own view, anything
+  unrecognised maps to the union view, and the decision takes **only** the row's media type.
+- `ImageDecodabilityTest` — every format that renders, the ones gated behind Android 9 and
+  12, every format with no decoder at all, and the wording used when a preview is missing.
+
 ## [1.14.0]
 WebDAV — cloud browsing that works without registering anything.
 
