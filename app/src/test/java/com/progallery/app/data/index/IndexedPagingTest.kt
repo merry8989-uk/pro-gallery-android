@@ -190,13 +190,46 @@ class IndexedPagingTest {
     }
 
     @Test
-    fun theCursorIsOnlyAdvancedAsFarAsTheItemsTaken() {
+    fun theCursorResumesExactlyWhereTheWindowStopped() {
+        // The property that matters is that resuming continues the list, not how the cursor is
+        // spelled. When a window takes everything that was read ahead, the next read simply
+        // starts at the following row — which is what the cursor says.
         val rows = (1..10).map { item("s$it", date = (100 - it).toLong()) }
-        val window = runBlocking {
-            IndexedPaging.load(IndexedPaging.Cursor.START, 3, emptyList(), newest, FakeCursor(rows, 10)::read)
+        val cursor = FakeCursor(rows, 10)
+
+        val first = runBlocking {
+            IndexedPaging.load(IndexedPaging.Cursor.START, 3, emptyList(), newest, cursor::read)
         }
-        assertEquals(3, window.items.size)
-        assertEquals(3, window.next?.consumedFromBatch)
+        assertEquals(3, first.items.size)
+        assertTrue("there is more to read", first.next != null)
+
+        val second = runBlocking {
+            IndexedPaging.load(first.next!!, 3, emptyList(), newest, cursor::read)
+        }
+        assertEquals(
+            "the next window continues the list rather than repeating or skipping",
+            listOf("s4", "s5", "s6"),
+            second.items.map { it.displayName },
+        )
+    }
+
+    @Test
+    fun aPartiallyTakenReadAheadIsResumedWithoutRepeating() {
+        // The other half of the same property: when a window leaves items in hand, the next
+        // window must pick up from the first one left, not from the start of the read.
+        val rows = (1..10).map { item("s$it", date = (100 - it).toLong()) }
+        val cursor = FakeCursor(rows, 10)
+
+        val first = runBlocking {
+            IndexedPaging.load(IndexedPaging.Cursor.START, 2, emptyList(), newest, cursor::read)
+        }
+        assertEquals(listOf("s1", "s2"), first.items.map { it.displayName })
+        assertTrue(first.next!!.consumedFromBatch > 0)
+
+        val second = runBlocking {
+            IndexedPaging.load(first.next!!, 2, emptyList(), newest, cursor::read)
+        }
+        assertEquals(listOf("s3", "s4"), second.items.map { it.displayName })
     }
 
     @Test
