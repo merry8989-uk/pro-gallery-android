@@ -27,6 +27,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.19.0]
+A reader for text, JSON, CSV, logs and code — pending work, Part G.
+
+### Added
+- **The app reads text documents now.** `.json`, `.csv`, `.log`, `.txt`, `.md`, `.xml`, source
+  code, configuration files and subtitles were classified as documents and then handed to
+  "open with another app", which frequently found nothing — which is exactly what the
+  Documents screen looked like: a list of icons. They open in a reader inside the app.
+  - **Monospace, because column alignment is the point** of a CSV, a log or a stack trace.
+    Text is selectable.
+  - **A byte-order mark is believed.** If the file declares what it is, that is used.
+  - **A guessed encoding is admitted to.** A file that is not valid UTF-8 is read as
+    ISO-8859-1 — which cannot fail — but the screen says the encoding was guessed, so wrong
+    accents are explained rather than passed off as the file's content.
+  - **Binary is refused, not shown as noise.** A `.docx` is a zip archive; rendering its bytes
+    would be worse than saying the app cannot read it. The extension whitelist and a NUL-byte
+    check both have to agree.
+  - **What it holds is capped** (2 MB) and the screen says when a file was longer, so a
+    gigabyte of logs is not pulled into memory to show the first screenful.
+  - **Only JSON is re-indented, and only when asked.** A reader that silently reformats what
+    it reads is worse than no reader — and "tidy" is not offered for XML, because the app has
+    no XML indenter. A button that does nothing would be a lie.
+
+### Fixed — three bugs the tests and lint caught
+- **The JSON indenter never decremented its depth for an empty container**, so a single `{}`
+  anywhere in a document broke the whole thing. Found by writing the algorithm out in Python
+  and comparing against the expected output.
+- **The binary check ran before the byte-order mark**, so **every UTF-16 file was rejected as
+  binary** — because UTF-16 text is full of NUL bytes by design. A declaration now beats a
+  guess: the mark is read first, and only then is the content sniffed.
+- **The video player's name label read a `StateFlow`'s value during composition**, so it would
+  never have updated when the video changed. Lint caught it; it is collected now.
+
+### Tests
+- `TextFormatsTest` — the formats people actually have are readable, the case does not matter,
+  an office file is *not* offered as text, an empty extension is not readable, the kind is
+  recognised for display, and only JSON is offered tidying.
+- `TextDecoderTest` — plain UTF-8, all three byte-order marks, invalid UTF-8 falling back and
+  admitting it guessed, a binary file refused rather than shown as noise, the binary check
+  looking only at the start, truncation reported, an empty file reading as empty rather than
+  failing, and a newline not mistaken for binary.
+- `JsonPrettyTest` — flat and nested objects, empty containers staying on one line, numbers
+  *not* reformatted (`1` must not become `1.0`), braces and commas inside strings left alone,
+  escaped quotes and backslashes not ending a string, already-indented input tidied rather than
+  doubled, unbalanced input refused rather than formatted, and a chosen indent width.
+
 ## [1.18.0]
 Playback failures say what actually went wrong.
 

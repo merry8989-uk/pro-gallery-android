@@ -185,7 +185,11 @@ photo instead of in a separate list. That is this part.
 - a decision on TIFF and JPEG-2000, which have decoders available as libraries but are
   large for how rarely they are used.
 
-### Part G — Document readers ⬜
+### Part G — Document readers ✅ **done, v1.19.0** (text/JSON/CSV/log/code)
+
+Remaining in this part: DOCX/XLSX/PPTX/EPUB still hand off, unless a library is added.
+
+### Part G (original) — Document readers ⬜
 
 - **text, JSON, XML, CSV, logs** — a real reader with wrapping, search and monospace
   rendering. Cheap and genuinely useful; the Documents screen is full of `.json` today.

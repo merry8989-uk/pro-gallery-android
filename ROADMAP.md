@@ -122,6 +122,11 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6g. Text reader — v1.19.0
+
+**✅ Part G (text half)**: a reader for text, JSON, CSV, logs and code. Parts B–F of the
+player/readers plan remain.
+
 ## 6f. Playback reasons — v1.18.0
 
 **✅ Failures explain themselves.** Every Media3 error code maps to its real reason and to the
