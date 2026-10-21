@@ -55,16 +55,13 @@ object TextDecoder {
         if (bytes.isEmpty()) {
             return Result.success(DecodedText("", "empty", guessed = false, truncated = false))
         }
-        if (looksBinary(bytes)) {
-            return Result.failure(
-                IllegalArgumentException("This file is not text — it is a binary file with a text extension."),
-            )
-        }
-
         val truncated = bytes.size > limit
         val slice = if (truncated) bytes.copyOf(limit) else bytes
 
-        // A byte-order mark is the file telling us what it is.
+        // The byte-order mark is checked **first**, because it is the file declaring what it is.
+        // This ordering matters: UTF-16 text contains NUL bytes as a matter of course, so
+        // sniffing for NULs before looking for the mark would reject every UTF-16 file as
+        // binary. A declaration beats a guess.
         when {
             slice.startsWith(0xEF, 0xBB, 0xBF) -> return Result.success(
                 DecodedText(
@@ -89,6 +86,13 @@ object TextDecoder {
                     guessed = false,
                     truncated = truncated,
                 ),
+            )
+        }
+
+        // No mark was declared, so now it is reasonable to ask whether this is text at all.
+        if (looksBinary(slice)) {
+            return Result.failure(
+                IllegalArgumentException("This file is not text — it is a binary file with a text extension."),
             )
         }
 

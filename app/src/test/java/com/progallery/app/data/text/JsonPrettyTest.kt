@@ -103,6 +103,6 @@ class JsonPrettyTest {
 
     @Test
     fun theIndentWidthCanBeChosen() {
-        assertEquals("{\n\t\"a\": 1\n}", pretty("""{"a":1}""".let { JsonPretty.indent(it, "\t").getOrThrow() }))
+        assertEquals("{\n\t\"a\": 1\n}", JsonPretty.indent("""{"a":1}""", "\t").getOrThrow())
     }
 }

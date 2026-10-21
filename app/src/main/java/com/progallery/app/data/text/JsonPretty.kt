@@ -57,18 +57,17 @@ object JsonPretty {
                 }
 
                 '}', ']' -> {
+                    depth--
+                    if (depth < 0) {
+                        return Result.failure(IllegalArgumentException("This JSON is not balanced."))
+                    }
                     if (openedAndEmpty) {
                         // Nothing was written between the brackets, so they stay together.
                         out.append(character)
                         openedAndEmpty = false
                     } else {
-                        depth--
-                        if (depth < 0) {
-                            return Result.failure(IllegalArgumentException("This JSON is not balanced."))
-                        }
                         out.append('\n').append(unit.repeat(depth)).append(character)
                     }
-                    depth = if (openedAndEmpty) depth - 1 else depth
                 }
 
                 ',' -> {
