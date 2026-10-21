@@ -24,6 +24,7 @@ Exit code is non-zero when anything is found.
 import os
 import re
 import sys
+import pathlib
 
 ROOT = os.path.join("app", "src", "main")
 
@@ -143,6 +144,35 @@ def main() -> int:
             if re.search(r"\b" + re.escape(decl) + r"\b", code):
                 problems.append(
                     f"{os.path.basename(path)}: uses {decl} (from {home_pkg}) with no import"
+                )
+
+    # ---- A private top-level function that nothing calls ----
+    #
+    # This rule exists because of a real bug that shipped: a settings dialog was declared,
+    # its open flag was set, and the block that rendered it was missing — so pressing the row
+    # opened nothing at all. It compiled, it passed lint and every unit test, and the only
+    # trace was a private function nobody called. That is exactly what this catches.
+    all_code = []
+    for root in ("app/src/main/java", "app/src/test"):
+        for path in kotlin_files(root):
+            all_code.append(strip_comments_and_strings(pathlib.Path(path).read_text()))
+    haystack = "\n".join(all_code)
+
+    for root in ("app/src/main/java", "app/src/test"):
+        for path in kotlin_files(root):
+            name = os.path.basename(path)
+            raw = pathlib.Path(path).read_text()
+            for declaration in re.findall(r"^private fun ([A-Za-z_]\w*)\s*\(", raw, re.M):
+                if declaration in {"main"}:
+                    continue
+                # Called, or referenced as a function value.
+                if re.search(r"\b" + re.escape(declaration) + r"\s*\(", haystack.replace(
+                    f"private fun {declaration}", "", 1
+                )) or re.search(r"::" + re.escape(declaration) + r"\b", haystack):
+                    continue
+                problems.append(
+                    f"{name}: private fun {declaration}() is never called — "
+                    f"is a call site missing?"
                 )
 
     if problems:

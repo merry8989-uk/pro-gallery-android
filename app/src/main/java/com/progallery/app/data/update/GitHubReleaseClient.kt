@@ -11,21 +11,32 @@ import kotlinx.coroutines.withContext
 /**
  * Reads the project's latest release.
  *
- * The app is distributed as a signed APK from the project's releases, so that feed is the
- * authoritative answer to "is there a newer version".
+ * **Two sources, in this order, and the order matters.**
+ *
+ * 1. The **Atom feed**. It is an ordinary web page rather than an API call, so it is not
+ *    subject to GitHub's per-address request budget. That budget is why this check failed:
+ *    it allows only a small number of unauthenticated requests per hour **per address**, and
+ *    mobile networks in India put thousands of subscribers behind one address, so the
+ *    allowance is often already spent by strangers. The app then reported "rate-limiting this
+ *    device", which is a confusing way to say "someone else used it up".
+ * 2. The **API**, as a fallback. It carries the asset list, so it is worth trying when the
+ *    feed cannot be read — but it is not the thing to depend on.
  *
  * Plain HTTP on purpose, as with WebDAV: one request, no dependency.
- *
- * **The rate limit is real and is reported honestly.** GitHub allows a limited number of
- * unauthenticated requests per address per hour, and answers 403 when they run out. That is
- * surfaced as "try again later" rather than as a failure of the app.
  */
 @Singleton
 class GitHubReleaseClient @Inject constructor() {
 
     private companion object {
-        const val LATEST_RELEASE =
-            "https://api.github.com/repos/merry8989-uk/pro-gallery-android/releases/latest"
+        const val OWNER = "merry8989-uk"
+        const val REPO = "pro-gallery-android"
+
+        /** Not rate-limited: it is the web feed, not the API. */
+        const val RELEASES_ATOM = "https://github.com/$OWNER/$REPO/releases.atom"
+
+        /** Rate-limited per address, and therefore only a fallback. */
+        const val LATEST_RELEASE = "https://api.github.com/repos/$OWNER/$REPO/releases/latest"
+
         const val CONNECT_TIMEOUT_MS = 10_000
         const val READ_TIMEOUT_MS = 15_000
 
@@ -34,29 +45,57 @@ class GitHubReleaseClient @Inject constructor() {
     }
 
     suspend fun latestRelease(): Result<UpdateRelease> = withContext(Dispatchers.IO) {
+        // The feed first, because it is the source that keeps working.
+        fetch(RELEASES_ATOM, "application/atom+xml, application/xml;q=0.9, */*;q=0.8") { body ->
+            ReleaseAtom.parse(body, OWNER, REPO)
+        }.let { fromFeed ->
+            if (fromFeed.isSuccess) return@withContext fromFeed
+
+            fetch(LATEST_RELEASE, "application/vnd.github+json") { body ->
+                ReleaseJson.parse(body)
+            }.let { fromApi ->
+                if (fromApi.isSuccess) return@withContext fromApi
+
+                // Neither worked. The API's reason is usually the more specific of the two, so
+                // it is the one shown — unless it never got as far as answering.
+                val apiReason = fromApi.exceptionOrNull()?.message
+                Result.failure(
+                    IllegalArgumentException(
+                        apiReason?.takeIf { it.isNotBlank() }
+                            ?: fromFeed.exceptionOrNull()?.message
+                            ?: "The update check could not be completed.",
+                    ),
+                )
+            }
+        }
+    }
+
+    /** One GET, with the reply handed to [parse]. */
+    private fun <T> fetch(
+        address: String,
+        accept: String,
+        parse: (String) -> Result<T>,
+    ): Result<T> {
         val connection = try {
-            (URL(LATEST_RELEASE).openConnection() as HttpURLConnection)
+            URL(address).openConnection() as HttpURLConnection
         } catch (t: IOException) {
-            return@withContext Result.failure(
-                IllegalArgumentException("The update server could not be reached.", t),
-            )
+            return Result.failure(IllegalArgumentException("The update server could not be reached.", t))
         }
 
-        try {
+        return try {
             connection.requestMethod = "GET"
             connection.connectTimeout = CONNECT_TIMEOUT_MS
             connection.readTimeout = READ_TIMEOUT_MS
             connection.instanceFollowRedirects = true
-            connection.setRequestProperty("Accept", "application/vnd.github+json")
+            connection.setRequestProperty("Accept", accept)
             connection.setRequestProperty("User-Agent", USER_AGENT)
 
             val code = connection.responseCode
             if (code != HttpURLConnection.HTTP_OK) {
-                return@withContext Result.failure(IllegalArgumentException(describe(code)))
+                Result.failure(IllegalArgumentException(describe(code)))
+            } else {
+                parse(connection.inputStream.use { it.readBytes().decodeToString() })
             }
-
-            val body = connection.inputStream.use { it.readBytes().decodeToString() }
-            ReleaseJson.parse(body)
         } catch (t: IOException) {
             Result.failure(IllegalArgumentException("The update server did not answer: ${t.message}", t))
         } finally {
@@ -66,8 +105,9 @@ class GitHubReleaseClient @Inject constructor() {
 
     /** What each reply code means here, in words worth reading. */
     private fun describe(code: Int): String = when (code) {
-        403 -> "The update server is rate-limiting this device for now. Try again in an hour."
+        403 -> "The update server is busy with other requests from this network. Try again shortly."
         404 -> "No published release was found."
+        429 -> "Too many update checks. Try again in a little while."
         HttpURLConnection.HTTP_OK -> "The update server's reply was not understood."
         else -> "The update server answered with $code."
     }
