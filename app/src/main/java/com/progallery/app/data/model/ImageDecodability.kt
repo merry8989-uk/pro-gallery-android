@@ -81,6 +81,7 @@ object ImageDecodability {
     fun canRender(extension: String, sdkInt: Int = Build.VERSION.SDK_INT): Boolean =
         when (support(extension, sdkInt)) {
             DecoderSupport.ALWAYS -> true
+            DecoderSupport.BY_APP -> true
             DecoderSupport.FROM_API -> sdkInt >= (GATED[extension.lowercase()] ?: Int.MAX_VALUE)
             DecoderSupport.NEVER -> false
         }
@@ -110,6 +111,8 @@ object ImageDecodability {
         val ext = extension.lowercase()
         return when (support(ext, sdkInt)) {
             DecoderSupport.ALWAYS -> null
+            // The app draws it itself, so there is nothing to warn about.
+            DecoderSupport.BY_APP -> null
             DecoderSupport.FROM_API -> {
                 val needed = GATED[ext] ?: return null
                 if (sdkInt >= needed) null else "Needs Android ${androidName(needed)} or newer to preview"

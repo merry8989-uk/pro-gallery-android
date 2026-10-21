@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.progallery.app.util.MediaActions
 
 /** One sticker, with what it is. */
 data class StickerEntry(val item: MediaItem, val kind: StickerKind)
@@ -39,6 +40,7 @@ data class StickerUiState(
 @HiltViewModel
 class StickerViewModel @Inject constructor(
     private val indexedMedia: IndexedMediaRepository,
+    private val mediaActions: MediaActions,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(StickerUiState())
@@ -74,6 +76,16 @@ class StickerViewModel @Inject constructor(
                 },
             )
         }
+    }
+
+    /**
+     * Hands a sticker the app cannot draw to another app.
+     *
+     * Used for the formats there is no renderer for — a `.tgs` is an animation description, not
+     * a picture — so the honest answer is a way to open it rather than a blank tile.
+     */
+    fun openWith(entry: StickerEntry) {
+        mediaActions.launchOpen(entry.item)
     }
 
     /** Whether this entry should open in the player rather than the viewer. */

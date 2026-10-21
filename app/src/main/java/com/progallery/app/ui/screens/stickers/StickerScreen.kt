@@ -47,7 +47,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.progallery.app.data.stickers.StickerKind
 import com.progallery.app.data.stickers.Stickers
-import com.progallery.app.util.MediaActions
 
 /**
  * The stickers the app has found, shown so they can actually be seen.
@@ -132,7 +131,7 @@ fun StickerScreen(
                         StickerCell(
                             entry = entry,
                             onClick = { onOpen(entry, viewModel.opensInPlayer(entry)) },
-                            onOpenWith = { MediaActions.launchOpen(entry.item) },
+                            onOpenWith = { viewModel.openWith(entry) },
                         )
                     }
                 }
