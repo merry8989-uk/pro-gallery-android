@@ -8,6 +8,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.progallery.app.data.usage.PerfOperation
+import com.progallery.app.data.usage.UsageStore
 
 /**
  * Today's memories, in one place.
@@ -19,6 +21,7 @@ import kotlinx.coroutines.withContext
 @Singleton
 class MemoriesRepository @Inject constructor(
     private val mediaRepository: MediaRepository,
+    private val usageStore: UsageStore,
 ) {
 
     /**
@@ -30,11 +33,14 @@ class MemoriesRepository @Inject constructor(
      * app already reads.
      */
     suspend fun forDate(today: LocalDate = LocalDate.now()): Memories = withContext(Dispatchers.IO) {
+        val startedAt = System.currentTimeMillis()
         val library = mediaRepository.snapshot(
             kinds = MediaType.entries.filter { it != MediaType.ALL }.toSet(),
             sort = SortOrder.DATE_NEWEST,
             query = "",
         )
-        MemoriesEngine.forDate(library, today)
+        val memories = MemoriesEngine.forDate(library, today)
+        usageStore.recordPerformance(PerfOperation.MEMORIES, System.currentTimeMillis() - startedAt)
+        memories
     }
 }

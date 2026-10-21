@@ -42,6 +42,12 @@ import com.progallery.app.ui.screens.cloud.CloudImageViewerScreen
 import com.progallery.app.ui.screens.text.TextViewerScreen
 import com.progallery.app.ui.screens.memories.MemoriesScreen
 import com.progallery.app.ui.screens.appmedia.AppMediaScreen
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.progallery.app.data.usage.UsageEvent
+import com.progallery.app.data.usage.featureForRoute
+import com.progallery.app.data.usage.rememberUsageStore
 
 @Composable
 fun ProGalleryNavHost(
@@ -52,6 +58,17 @@ fun ProGalleryNavHost(
     onMemoriesHandled: () -> Unit = {},
 ) {
     val navController = rememberNavController()
+    val usageStore = rememberUsageStore()
+
+    // Which part of the app is being used, recorded once per route. The mapping is pure and
+    // tested; an unknown route records nothing rather than guessing.
+    val route by navController.currentBackStackEntryAsState()
+    LaunchedEffect(route?.destination?.route) {
+        featureForRoute(route?.destination?.route)?.let { feature ->
+            usageStore.recordEvent(UsageEvent.FEATURE_OPENED)
+            usageStore.recordFeature(feature)
+        }
+    }
 
     // One place decides where a tapped item goes, by its kind.
     val openItem: (MediaItem) -> Unit = { item ->

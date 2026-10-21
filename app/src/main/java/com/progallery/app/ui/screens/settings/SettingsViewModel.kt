@@ -28,6 +28,8 @@ import com.progallery.app.data.update.UpdateCheck
 import com.progallery.app.data.update.UpdateChecker
 import com.progallery.app.data.update.UpdateDownloader
 import com.progallery.app.data.update.UpdateInstaller
+import com.progallery.app.data.usage.UsageDigest
+import com.progallery.app.data.usage.UsageStore
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -38,6 +40,7 @@ class SettingsViewModel @Inject constructor(
     private val updateChecker: UpdateChecker,
     private val updateDownloader: UpdateDownloader,
     private val updateInstaller: UpdateInstaller,
+    private val usageStore: UsageStore,
 ) : ViewModel() {
 
     private val _cacheSizeBytes = MutableStateFlow(0L)
@@ -117,6 +120,39 @@ class SettingsViewModel @Inject constructor(
                     installedFromPlay = installedFromPlay(),
                 )
             }
+        }
+    }
+
+    /** The seven-day review, loaded when it is asked for. */
+    private val _usageDigest = MutableStateFlow<UsageDigest?>(null)
+    val usageDigest: StateFlow<UsageDigest?> = _usageDigest.asStateFlow()
+
+    fun loadUsageDigest() {
+        viewModelScope.launch { _usageDigest.value = usageStore.digest() }
+    }
+
+    fun clearUsageDigest() {
+        _usageDigest.value = null
+    }
+
+    /** Writes the local usage file where the user chooses. Nothing is sent anywhere. */
+    fun exportUsageTo(uri: android.net.Uri) {
+        viewModelScope.launch {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(usageStore.asText().toByteArray())
+                }
+            }.onFailure {
+                _settingsMessage.value = "The usage file could not be written."
+            }
+        }
+    }
+
+    fun clearUsage() {
+        viewModelScope.launch {
+            usageStore.clear()
+            _usageDigest.value = null
+            _settingsMessage.value = "Usage data deleted."
         }
     }
 

@@ -33,6 +33,12 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import com.progallery.app.data.usage.PerfOperation
+import com.progallery.app.data.usage.UsageEvent
+import com.progallery.app.data.usage.UsageStore
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filter
 
 data class BrowserUiState(
     val type: MediaType = MediaType.ALL,
@@ -86,6 +92,7 @@ class MediaBrowserViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val albumRepository: AlbumRepository,
     private val viewerContext: ViewerContext,
+    private val usageStore: UsageStore,
     private val trashRepository: TrashRepository,
     private val mediaActions: MediaActions,
 ) : ViewModel() {
@@ -208,6 +215,27 @@ class MediaBrowserViewModel @Inject constructor(
                 query = current.query,
             )
             viewerContext.set(all)
+        }
+    }
+
+    /**
+     * Counts searches — one per search, not one per keystroke.
+     *
+     * `setQuery` runs on every character typed, so counting there would report a typed word as
+     * five searches and make the seven-day review nonsense. A search is what the user *stopped*
+     * typing, which is what the debounce finds.
+     *
+     * **The query itself is never recorded.** Only that a search happened.
+     */
+    init {
+        viewModelScope.launch {
+            @OptIn(kotlinx.coroutines.FlowPreview::class)
+            _state
+                .map { it.query }
+                .distinctUntilChanged()
+                .debounce(800)
+                .filter { it.isNotBlank() }
+                .collect { usageStore.recordEvent(UsageEvent.SEARCH_PERFORMED) }
         }
     }
 
