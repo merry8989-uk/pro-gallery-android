@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.progallery.app.data.media.PlaybackFailure
+import com.progallery.app.util.runCatchingCancellable
 
 /**
  * Backs the video player, including moving between videos.
@@ -89,9 +91,48 @@ class VideoPlayerViewModel @Inject constructor(
      * The name Media3 gives is technical, so the message says what it means for the user
      * and what the likely cause is, rather than leaving a black screen unexplained.
      */
-    fun reportPlaybackFailure(errorCodeName: String) {
-        _message.value = "This video could not be played ($errorCodeName). The codec inside " +
-            "it may not be supported by this device."
+    /** The action the user was offered for the last failure, if any. */
+    private val _failureAction = MutableStateFlow(PlaybackFailure.Action.NONE)
+    val failureAction: StateFlow<PlaybackFailure.Action> = _failureAction.asStateFlow()
+
+    /**
+     * Reports a playback failure in terms of the actual reason.
+     *
+     * Every failure used to be blamed on the codec, which was wrong for most of them — a file
+     * that could not be opened was described as an unsupported codec. The file's name is
+     * included, because a playlist of thirty-two videos needs to say which one failed.
+     */
+    fun reportPlaybackFailure(errorCode: Int, fileName: String?) {
+        val explanation = PlaybackFailure.explain(errorCode)
+        _message.value = PlaybackFailure.message(errorCode, fileName)
+        _failureAction.value = explanation.action
+    }
+
+    /**
+     * Re-reads the library and tries the current video again.
+     *
+     * Offered when a file could not be opened: the entry may simply be stale, and re-reading
+     * the index is the honest first thing to try.
+     */
+    fun rescanAndRetry() {
+        viewModelScope.launch {
+            _failureAction.value = PlaybackFailure.Action.NONE
+            runCatchingCancellable { repository.refresh() }
+            configure(_item.value?.uri?.toString() ?: return@launch)
+        }
+    }
+
+    /** Hands the current video to another app. */
+    fun openCurrentWithAnotherApp() {
+        val current = _item.value ?: return
+        _failureAction.value = PlaybackFailure.Action.NONE
+        if (!mediaActions.launchOpen(current)) {
+            _message.value = "No installed app can open ${current.displayName}"
+        }
+    }
+
+    fun consumeFailureAction() {
+        _failureAction.value = PlaybackFailure.Action.NONE
     }
 
     fun consumeMessage() {
