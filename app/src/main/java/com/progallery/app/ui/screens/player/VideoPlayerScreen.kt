@@ -43,6 +43,7 @@ import com.progallery.app.util.ImmersiveSystemBars
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.common.Player
 
 /**
  * Full-screen video playback with a swipe between videos.
