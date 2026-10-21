@@ -224,6 +224,14 @@ class AppSettingsTest {
     }
 
     @Test
+    fun theAboutSectionHasNothingToReset() {
+        // It holds the version and the contact handle, which are not settings — so its
+        // Reset does nothing, deliberately, rather than pretending to restore something.
+        val settings = AppSettings.Defaults.copy(quickScanEnabled = false)
+        assertEquals(settings, settings.resetSection("About"))
+    }
+
+    @Test
     fun anUnknownSectionChangesNothing() {
         val settings = AppSettings.Defaults.copy(quickScanEnabled = false)
         assertEquals(settings, settings.resetSection("Not A Section"))

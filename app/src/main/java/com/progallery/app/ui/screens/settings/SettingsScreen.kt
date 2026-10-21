@@ -123,6 +123,7 @@ private val SECTION_ORDER = listOf(
     "Performance",
     "Recovery & export",
     "Diagnostics & experimental",
+    "About",
 )
 
 /** Bounded choices, so the size range can never be set to something absurd. */
@@ -198,6 +199,13 @@ fun SettingsScreen(
         onCheckForUpdates = {
             updateDialogOpen = true
             viewModel.checkForUpdates()
+        },
+        onOpenInstagram = {
+            runCatching {
+                context.startActivity(
+                    Intent(Intent.ACTION_VIEW, android.net.Uri.parse(INSTAGRAM_URL)),
+                )
+            }
         },
         onClearDiagnostics = viewModel::clearDiagnostics,
         onOpenDefaultApps = { DefaultApps.openDefaultAppsSettings(context) },
@@ -315,6 +323,7 @@ private fun buildRows(
     onClearDiagnostics: () -> Unit,
     onOpenPermissionDiagnostics: () -> Unit,
     onCheckForUpdates: () -> Unit,
+    onOpenInstagram: () -> Unit,
     onOpenDefaultApps: () -> Unit,
 ): List<SettingsRow> = buildList {
     // ---- Scanning -----------------------------------------------------
@@ -800,6 +809,24 @@ private fun buildRows(
         ),
     )
 
+    // ---- About ----------------------------------------------------------
+    add(
+        SettingsRow.Info(
+            title = "Version",
+            subtitle = "ProGallery ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE}).",
+            section = "About",
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Suggestions, feedback and feature requests",
+            subtitle = "Reach the developer on Instagram at @osintgram_io.",
+            section = "About",
+            label = "@osintgram_io",
+            onClick = onOpenInstagram,
+        ),
+    )
+
     // ---- Diagnostics & experimental -----------------------------------
     add(
         SettingsRow.Action(
@@ -1177,3 +1204,6 @@ private fun UpdateDialog(
         },
     )
 }
+
+/** Where suggestions and feature requests are sent. */
+private const val INSTAGRAM_URL = "https://instagram.com/osintgram_io"
