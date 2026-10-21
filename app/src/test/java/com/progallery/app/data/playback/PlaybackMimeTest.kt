@@ -21,10 +21,12 @@ class PlaybackMimeTest {
     // ---- the item's own type wins when it is a real one ----
 
     @Test
-    fun aRealDeclaredTypeIsPassedStraightThrough() {
+    fun aRealDeclaredTypeIsPassedOn() {
         assertEquals("video/mp4", hint(mime = "video/mp4"))
         assertEquals("audio/mpeg", hint(mime = "audio/mpeg"))
-        assertEquals("application/x-mpegURL", hint(mime = "application/x-mpegURL"))
+        // Normalised to lower case, because MIME types are case-insensitive and one spelling
+        // throughout means the hint can be compared and logged without surprises.
+        assertEquals("application/x-mpegurl", hint(mime = "application/x-mpegURL"))
     }
 
     @Test

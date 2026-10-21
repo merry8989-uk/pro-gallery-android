@@ -129,6 +129,13 @@ object CapabilityMatrix {
             return FormatCapability(ext, kind, Capability.NEEDS_ANOTHER_APP, reason)
         }
 
+        // Playlists are checked before the kind, because the registry does not classify them as
+        // media at all — they are a text list of addresses. The app plays them because the HLS
+        // and DASH modules are on the classpath, and that is what this says.
+        if (ext in PLAYLISTS) {
+            return FormatCapability(ext, kind, Capability.OPENS_HERE, null)
+        }
+
         return when (kind) {
             MediaType.IMAGE -> image(ext, kind)
             MediaType.VIDEO -> video(ext, kind)
@@ -161,7 +168,6 @@ object CapabilityMatrix {
     }
 
     private fun video(ext: String, kind: MediaType): FormatCapability = when {
-        ext in PLAYLISTS -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)
         CAVEATS.containsKey(ext) -> FormatCapability(ext, kind, Capability.OPENS_WITH_CAVEAT, CAVEATS[ext])
         // Everything else is sniffed by Media3, which reads the container rather than the name.
         else -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)
@@ -182,9 +188,19 @@ object CapabilityMatrix {
         )
     }
 
-    /** Every format the app knows, with its answer. Sorted by extension. */
+    /**
+     * Every format the app knows, with its answer. Sorted by extension.
+     *
+     * The registry's extensions plus the three groups this file adds: the adaptive playlists,
+     * which the registry does not classify as media at all, and the no-parser and caveat lists,
+     * which name formats the registry may not carry. Without them the screen would omit formats
+     * the app has a definite answer about — and omitting `.m3u8` would have hidden something the
+     * app plays.
+     */
     fun all(): List<FormatCapability> =
-        FileTypeRegistry.knownExtensions().sorted().map(::forExtension)
+        (FileTypeRegistry.knownExtensions() + PLAYLISTS + NO_PARSER.keys + CAVEATS.keys)
+            .sorted()
+            .map(::forExtension)
 
     fun byVerdict(): Map<Capability, List<FormatCapability>> =
         all().groupBy { it.verdict }
