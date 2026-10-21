@@ -45,7 +45,7 @@ class WebDavXmlTest {
                 <d:displayname>beach sunset.jpg</d:displayname>
                 <d:getcontentlength>204800</d:getcontentlength>
                 <d:getcontenttype>image/jpeg</d:getcontenttype>
-                <d:getlastmodified>Mon, 20 Oct 2026 10:00:00 GMT</d:getlastmodified>
+                <d:getlastmodified>Tue, 20 Oct 2026 10:00:00 GMT</d:getlastmodified>
                 <d:resourcetype/>
               </d:prop>
               <d:status>HTTP/1.1 200 OK</d:status>
@@ -177,6 +177,44 @@ class WebDavXmlTest {
         """.trimIndent()
         val entry = WebDavXml.parseListing(xml, "https://dav.example.org/media/").getOrThrow().single()
         assertEquals("the 200 propstat must win", 512L, entry.sizeBytes)
+    }
+
+    @Test
+    fun aDateWithTheWrongWeekdayStillGivesATimestamp() {
+        // Servers do send an inconsistent weekday. Strict parsing alone would throw the
+        // timestamp away; the lenient pass keeps it, which is the more useful answer.
+        val xml = """
+            <?xml version="1.0"?>
+            <d:multistatus xmlns:d="DAV:">
+              <d:response>
+                <d:href>/media/a.jpg</d:href>
+                <d:propstat>
+                  <d:prop><d:getlastmodified>Mon, 20 Oct 2026 10:00:00 GMT</d:getlastmodified></d:prop>
+                  <d:status>HTTP/1.1 200 OK</d:status>
+                </d:propstat>
+              </d:response>
+            </d:multistatus>
+        """.trimIndent()
+        val entry = WebDavXml.parseListing(xml, "https://dav.example.org/media/").getOrThrow().single()
+        assertEquals(1_792_490_400_000L, entry.lastModifiedMillis)
+    }
+
+    @Test
+    fun anUnreadableDateBecomesNoDateRatherThanAGuess() {
+        val xml = """
+            <?xml version="1.0"?>
+            <d:multistatus xmlns:d="DAV:">
+              <d:response>
+                <d:href>/media/a.jpg</d:href>
+                <d:propstat>
+                  <d:prop><d:getlastmodified>not a date at all</d:getlastmodified></d:prop>
+                  <d:status>HTTP/1.1 200 OK</d:status>
+                </d:propstat>
+              </d:response>
+            </d:multistatus>
+        """.trimIndent()
+        val entry = WebDavXml.parseListing(xml, "https://dav.example.org/media/").getOrThrow().single()
+        assertNull("no date is better than an invented one", entry.lastModifiedMillis)
     }
 
     @Test

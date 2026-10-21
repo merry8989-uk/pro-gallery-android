@@ -138,6 +138,12 @@ object WebDavXml {
     /** Ensures a collection URL ends in "/", which is what makes resolution behave. */
     fun asCollection(url: String): String = if (url.endsWith("/")) url else "$url/"
 
+    /**
+     * Reads an HTTP date.
+     *
+     * Strict first, then lenient: a server that sends the wrong weekday should still give
+     * a usable timestamp rather than none, but a well-formed date must not be reinterpreted.
+     */
     private fun parseHttpDate(raw: String): Long? {
         val formats = listOf(
             "EEE, dd MMM yyyy HH:mm:ss zzz",
@@ -145,10 +151,13 @@ object WebDavXml {
             "EEE MMM d HH:mm:ss yyyy",
         )
         formats.forEach { pattern ->
-            val parsed = runCatching {
-                SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }.parse(raw)?.time
-            }.getOrNull()
-            if (parsed != null) return parsed
+            listOf(false, true).forEach { lenient ->
+                val parsed = runCatching {
+                    SimpleDateFormat(pattern, Locale.US).apply { isLenient = lenient }
+                        .parse(raw)?.time
+                }.getOrNull()
+                if (parsed != null) return parsed
+            }
         }
         return null
     }

@@ -88,6 +88,7 @@ private fun DrawerContents(onNavigate: (String) -> Unit) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             DrawerSection("CLOUD")
+            DrawerItem(Icons.Filled.Cloud, "WebDAV — browse in the app", Routes.WEBDAV, onNavigate)
             CloudProviders.ALL.forEach { provider ->
                 NavigationDrawerItem(
                     icon = { androidx.compose.material3.Icon(Icons.Filled.Cloud, contentDescription = null) },
@@ -99,9 +100,9 @@ private fun DrawerContents(onNavigate: (String) -> Unit) {
             }
             Text(
                 // Stated once, here, so no entry has to carry the whole explanation.
-                text = "These open the service's own app, or its website if the app is not " +
-                    "installed. To play something from one of them, share a direct link and " +
-                    "use Stream.",
+                text = "WebDAV is browsed inside the app, with no registration. The three " +
+                    "below open the service's own app, or its website if the app is not " +
+                    "installed; to play from one of them, share a direct link and use Stream.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 28.dp, vertical = 4.dp),

@@ -22,12 +22,18 @@ object Routes {
     const val SEARCH = "search"
     const val STREAM = "stream"
     const val STREAM_PLAYER = "stream_player"
+    const val WEBDAV = "webdav"
+    const val WEBDAV_PLAYER = "webdav_player"
     const val VIEWER = "viewer"
     const val VIDEO_PLAYER = "video_player"
     const val PHOTO_EDITOR = "photo_editor"
     const val VIDEO_EDITOR = "video_editor"
     const val ALBUM_DETAIL = "album_detail"
     const val CUSTOM_ALBUM_DETAIL = "custom_album"
+
+    fun webDavPlayer(serverId: String, url: String) =
+        "$WEBDAV_PLAYER?server=${java.net.URLEncoder.encode(serverId, "UTF-8")}" +
+            "&url=${java.net.URLEncoder.encode(url, "UTF-8")}"
 
     fun streamPlayer(url: String) =
         "$STREAM_PLAYER?url=${java.net.URLEncoder.encode(url, "UTF-8")}"

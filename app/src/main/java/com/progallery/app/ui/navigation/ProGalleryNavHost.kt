@@ -34,6 +34,8 @@ import com.progallery.app.ui.screens.videos.VideosScreen
 import com.progallery.app.ui.screens.diagnostics.PermissionDiagnosticsScreen
 import com.progallery.app.ui.screens.stream.StreamScreen
 import com.progallery.app.ui.screens.stream.StreamPlayerScreen
+import com.progallery.app.ui.screens.webdav.WebDavScreen
+import com.progallery.app.ui.screens.webdav.WebDavPlayerScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -171,6 +173,27 @@ fun ProGalleryNavHost(
                 // Adding a folder is where the folder picker already lives, so the fix
                 // takes the user to the real thing rather than a second copy of it.
                 onPickFolder = { navController.navigate(Routes.DEEP_SCAN) },
+            )
+        }
+        composable(Routes.WEBDAV) {
+            WebDavScreen(
+                onBack = { navController.popBackStack() },
+                onPlay = { serverId, url ->
+                    navController.navigate(Routes.webDavPlayer(serverId, url))
+                },
+            )
+        }
+        composable(
+            route = "${Routes.WEBDAV_PLAYER}?server={server}&url={url}",
+            arguments = listOf(
+                navArgument("server") { type = NavType.StringType },
+                navArgument("url") { type = NavType.StringType },
+            ),
+        ) { entry ->
+            WebDavPlayerScreen(
+                serverId = entry.arguments?.getString("server") ?: "",
+                url = entry.arguments?.getString("url") ?: "",
+                onBack = { navController.popBackStack() },
             )
         }
         composable(Routes.STREAM) {
