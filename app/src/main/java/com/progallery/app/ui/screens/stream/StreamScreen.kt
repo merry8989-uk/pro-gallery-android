@@ -38,6 +38,7 @@ import com.progallery.app.data.stream.StreamLinkPage
 import com.progallery.app.data.stream.StreamLinks
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.runtime.remember
 
 /**
  * Paste a link and play it.
