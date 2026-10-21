@@ -145,6 +145,9 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
     implementation(libs.coil.gif)
+    // SVG. The platform decoder cannot draw a vector at all, so the app ships one — the
+    // catalog entry existed without this line, which is why the release build failed.
+    implementation(libs.coil.svg)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     implementation(libs.media3.transformer)
