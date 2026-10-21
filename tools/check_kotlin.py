@@ -88,11 +88,22 @@ def main() -> int:
             if not any(i.endswith("." + icon) for i in icon_imports):
                 problems.append(f"{name}: Icons.*.{icon} used but not imported")
 
-        companions = len(re.findall(r"\bcompanion object\b", code))
-        if companions > 1:
-            problems.append(
-                f"{name}: {companions} companion objects — Kotlin allows only one per class"
-            )
+        # One companion per *class*, not per file. Counting per file was wrong and produced a
+        # false positive the moment a file held three enums that each had one — and a check that
+        # cries wolf teaches everyone to ignore it. So the count is taken between one top-level
+        # declaration and the next.
+        declarations = [
+            match.start()
+            for match in re.finditer(r"^(?:internal |private |public )?(?:data |sealed |enum |abstract )?class \w+|^object \w+|^enum class \w+", code, re.M)
+        ]
+        bounds = declarations + [len(code)]
+        for index in range(len(declarations)):
+            body = code[bounds[index]:bounds[index + 1]]
+            companions = len(re.findall(r"\bcompanion object\b", body))
+            if companions > 1:
+                problems.append(
+                    f"{name}: {companions} companion objects in one class — Kotlin allows one"
+                )
 
         seen = set()
         seen_code = False
