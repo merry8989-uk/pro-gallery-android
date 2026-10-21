@@ -58,10 +58,18 @@ class UsagePrivacyTest {
     fun theFramesAreClassesAndMethodsOnly() {
         val crash = IllegalStateException("boom")
         val record = CrashSanitizer.record(crash, build = "1.24.0")
+
+        // A throwable captures its stack when it is constructed, so there are frames even
+        // though this one was never thrown.
+        assertTrue("there should be frames to check", record.frames.isNotEmpty())
+
         record.frames.forEach { frame ->
             assertTrue("$frame should look like Class.method", frame.contains('.'))
             assertFalse("no file name in a frame", frame.contains(".kt"))
-            assertFalse("no line number in a frame", frame.any { it.isDigit() })
+            assertFalse("no path in a frame", frame.contains('/') || frame.contains('\\'))
+            // Digits are legitimate: a lambda or a synthetic class is named with one, as in
+            // "UsagePrivacyTest$load$1". What must not appear is a file name or a line number,
+            // which is what the two checks above cover.
         }
     }
 
@@ -116,9 +124,33 @@ class UsagePrivacyTest {
     }
 
     @Test
-    fun theIdentifiersAreUnique() {
-        val all = UsageEvent.entries.map { it.id } + FeatureId.entries.map { it.id } +
-            PerfOperation.entries.map { it.id }
-        assertEquals("identifiers must not collide across kinds", all.size, all.toSet().size)
+    fun identifiersAreUniqueWithinTheirKind() {
+        listOf(
+            "events" to UsageEvent.entries.map { it.id },
+            "features" to FeatureId.entries.map { it.id },
+            "operations" to PerfOperation.entries.map { it.id },
+        ).forEach { (kind, ids) ->
+            assertEquals("$kind must not collide with itself", ids.size, ids.toSet().size)
+        }
+    }
+
+    @Test
+    fun theSameWordMayNameAFeatureAndAnOperationBecauseTheLinePrefixSeparatesThem() {
+        // "search" is both a place and something that is timed, which is honest: they are
+        // different facts. The stored file cannot confuse them, because every line says which
+        // kind it is.
+        val text = UsageCodec.encode(
+            DeviceProfile("Pixel", 34, "1.24.0", 40),
+            listOf(
+                UsageDay(
+                    day = java.time.LocalDate.of(2026, 10, 21),
+                    features = mapOf(FeatureId.SEARCH to 3),
+                    performance = mapOf(PerfOperation.SEARCH to PerfTotals(3, 300, 150)),
+                ),
+            ),
+        )
+        val (_, days) = UsageCodec.decode(text)
+        assertEquals(3, days.single().features.getValue(FeatureId.SEARCH))
+        assertEquals(3, days.single().performance.getValue(PerfOperation.SEARCH).count)
     }
 }

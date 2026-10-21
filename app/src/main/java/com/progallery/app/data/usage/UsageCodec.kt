@@ -82,18 +82,21 @@ object UsageCodec {
                 }
 
                 line.startsWith("crash=") -> {
-                    val rest = line.removePrefix("crash=")
-                    val firstSpace = rest.indexOf(' ')
-                    if (firstSpace <= 0) return@forEach
-                    val exceptionClass = rest.substring(0, firstSpace)
-                    val remainder = rest.substring(firstSpace + 1)
-                    val lastSpace = remainder.lastIndexOf(' ')
-                    val frames = if (lastSpace <= 0) {
+                    // The build is the last field, so it is taken from the end; everything before
+                    // it is the exception and its frames. Parsing from the front instead would
+                    // leave a leading space on the build when there are no frames at all.
+                    val rest = line.removePrefix("crash=").trim()
+                    val lastSpace = rest.lastIndexOf(' ')
+                    if (lastSpace <= 0) return@forEach
+                    val build = rest.substring(lastSpace + 1)
+                    val head = rest.substring(0, lastSpace).trim()
+                    val firstSpace = head.indexOf(' ')
+                    val exceptionClass = if (firstSpace < 0) head else head.substring(0, firstSpace)
+                    val frames = if (firstSpace < 0) {
                         emptyList()
                     } else {
-                        remainder.substring(0, lastSpace).split('|').filter { it.isNotBlank() }
+                        head.substring(firstSpace + 1).split('|').filter { it.isNotBlank() }
                     }
-                    val build = if (lastSpace <= 0) remainder else remainder.substring(lastSpace + 1)
                     days.values.lastOrNull()?.crashes?.add(
                         CrashRecord(exceptionClass, frames, build),
                     )
