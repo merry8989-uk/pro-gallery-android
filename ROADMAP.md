@@ -122,6 +122,11 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6m. Usage data and the seven-day review — v1.25.0
+
+**✅** Anonymised usage counts, local only, from a closed vocabulary, with a seven-day review in
+Diagnostics. Version and update check merged into one row.
+
 ## 6l. In-app update — v1.24.0
 
 **✅** The update is fetched in the app, checked against this app's own signing key, and handed

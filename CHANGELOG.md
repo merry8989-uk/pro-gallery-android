@@ -27,6 +27,74 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.25.0]
+Anonymised usage data, on the device only — and the seven-day review it feeds.
+
+### Added
+- **Anonymised usage data**, recorded locally and shown in Diagnostics. It answers the question
+  the next round of work depends on: which features are actually used, how long loading takes,
+  and whether anything is crashing.
+  - **Collected:** which feature was opened, how often search ran and albums were created, how
+    long loading took, the device model and Android version, and reduced crash records.
+  - **Never collected:** photos, contacts, location, face data, file names, file paths, search
+    terms, or anything inside your files. Photo access remains only for the photos the user
+    chooses, through the system picker, and is revocable at any time.
+  - **Nothing is uploaded.** There is no endpoint and no transmission anywhere in this code.
+  - **A switch, a review, an export and a delete button** — all on the same screen, so the data
+    is something the user can read and remove rather than something done to them.
+- **The seven-day review.** Not a pile of numbers: the counts are turned into observations —
+  which area carries the app, what is slow, whether crashes are happening, whether a refused
+  permission suggests a screen is explaining itself badly. This is what the next round of work
+  is chosen from, so "improve it every seven days" is a thing the app can actually support.
+
+### The privacy guarantee is structural, not careful
+- **Every recorded value comes from a closed enum or is a number.** A record has no field a
+  filename, path or search term could be written into — not because the code remembers not to,
+  but because the type has nowhere to put one. `UsagePrivacyTest` checks this.
+- **A crash's message is dropped, not filtered.** A message is the likeliest place for a path or
+  a search term to appear — "File not found: /storage/…/beach.jpg" is an ordinary crash message
+  — and a filter can only remove the shapes someone thought of. What survives is the exception's
+  class and the first few `Class.method` frames: enough to find the fault, nothing that can
+  carry content. Tested with messages containing a real path, a real filename and a search term.
+- **A crash is recorded even when recording is switched off**, and this is deliberate: the
+  diagnostic log is a separate, user-visible thing that exists so a fault can be reported at
+  all. It is deleted by the same button.
+- **The stored file is plain text the user can read**, and says what it is at the top.
+
+### Also
+- **The version and the update check are now one row.** Two rows saying the same thing in
+  different sections read as two unrelated features and took two lines to say one thing.
+- **Search is counted once per search, not once per keystroke.** `setQuery` runs on every
+  character, so counting there would have reported a typed word as five searches and made the
+  whole review nonsense; a debounce finds where the typing stopped.
+
+### Fixed — what the compiler and the tests caught
+- A day is immutable, so every recording returns a new one. Mutating in place would have left a
+  day half-updated when a write failed.
+- The opening count was recorded on the startup path and could have delayed it; it is launched
+  now.
+- The crash line was parsed from the front, leaving a leading space on the build when a crash
+  had no frames.
+- Two of the new tests were wrong rather than the code: digits are legitimate in a frame name
+  (a lambda is called `$load$1`), and the same word may name a feature and an operation because
+  every line in the file says which kind it is.
+
+### Tests
+- `UsagePrivacyTest` — an exception message containing a path is not kept, nor one containing a
+  search term; a cause chain is not followed; frames carry no file name or path; identifiers are
+  unique within their kind and the line prefix separates the kinds; the file says what it is;
+  no device identifier is part of the profile; no identifier looks like a path or a file name.
+- `UsageCodecTest` — a day round-trips exactly, several days survive, an empty file reads as
+  nothing, an unknown identifier is ignored rather than invented, comments and blank lines are
+  skipped, an event before any day is not attached to the wrong day, a crash with no frames
+  survives, totals round-trip exactly, and an average of nothing is zero rather than a crash.
+- `UsageReviewTest` — only the last seven days count, the seventh day back is inside the window,
+  a future day is not counted, no data says so, a partial week is admitted, the busiest area and
+  a slow operation are called out and a fast one is not, crashes are counted and singularised, a
+  refused permission is treated as a sign of confusing wording, and a custom window is honoured.
+- `FeatureRouteTest` — every route the app has either maps to a feature or is deliberately not a
+  place, so a new screen cannot silently be recorded under the wrong one.
+
 ## [1.24.0]
 The update downloads and installs inside the app, instead of going to a browser.
 
