@@ -27,6 +27,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.27.0]
+Stickers, shown so they can actually be seen — and SVG, which the app now draws itself.
+
+### Added
+- **A Stickers screen.** The reported fault was "there are many stickers but none of them showing
+  anything", and there were **three separate causes**, all fixed:
+  1. **They are not in the system's index.** Stickers live in the folders messaging apps keep
+     under `Android/media`, which the system does not hand over — so they were never in the grid.
+     The screen reads the app's own index, which a scan of Android media fills, and says so
+     plainly when it is empty, with the button that fixes it.
+  2. **They were drawn on a flat colour.** A sticker is transparent by design, so white line art
+     on a light tile and black line art on a dark tile are both invisible. They are now drawn on
+     a **chequerboard**, which is never the same colour as the artwork — so the shape shows
+     whatever colour it is.
+  3. **A `.tgs` is not a picture.** Telegram's animated stickers are gzipped Lottie animation
+     descriptions with no pixels to draw. The app says exactly that and offers another app,
+     rather than promising a preview it could never produce.
+  - Every sticker is identified by kind — image, animated WebP, video, vector, Lottie — and the
+    kinds the app cannot draw say why instead of showing a blank tile.
+  - **`Fit`, not `Crop`**: cropping a sticker cuts off exactly the outline that makes it
+    recognisable.
+- **SVG now renders.** Android's platform decoder cannot draw a vector at all — it is not a
+  bitmap format — so those files were listed and never shown. The app ships a decoder
+  (`coil-svg`) and draws them itself.
+  - This makes SVG the **first format the app decodes rather than the platform**, and the
+    capability answer reflects it: `DecoderSupport.BY_APP`, deliberately distinct from `ALWAYS`,
+    because one works on every device and the other works because of a decision made here.
+
+### Fixed — three edits that silently missed their anchor
+- The `BY_APP` work landed in three pieces, and **two of them silently did nothing**: the enum
+  gained the value and the callers gained the branch, but the classifier never returned it, so
+  SVG was still classified as having no decoder. The compiler caught two `when` blocks that had
+  become non-exhaustive, and the new tests caught the classifier — which is the only reason it
+  did not ship as a half-applied change. **CI is the authority on this, not the structural
+  checker**, which cannot see a replacement that matched nothing.
+
+### Tests
+- `StickersTest` — a WebP in the WhatsApp sticker folder is a sticker, the folder match ignoring
+  case and language ("figurinhas", "Stickers"), an ordinary photo not being one, a `.tgs` being
+  one wherever it sits, an unknown format in a sticker folder not being one, every kind being
+  identified, `.tgs` not being showable **and saying what it actually is and how to open it**,
+  every other kind being showable, an unrecognised kind saying so, a vector being showable
+  because the app ships a decoder, and transparency being acknowledged.
+- `ImageDecodabilityTest` — SVG is renderable **because the app ships a decoder**, and that is
+  distinct from a format the platform handles.
+
 ## [1.26.0]
 App media joins the gallery — the photos messaging apps keep are now in the grid, not beside it.
 

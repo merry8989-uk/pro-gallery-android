@@ -122,6 +122,12 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6o. Stickers and SVG — v1.27.0
+
+**✅ Part F**: a sticker screen with a chequerboard background (so transparency is visible), a
+sticker-kind vocabulary that says what cannot be shown and why, and SVG rendering via the app's
+own decoder.
+
 ## 6n. App media in the gallery — v1.26.0
 
 **✅ Part E's goal**: the app's own index, merged into the grid's order. The scan fills it; the
