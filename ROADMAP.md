@@ -122,6 +122,11 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6e. Cloud inside the app — v1.17.0
+
+**✅ Cloud folders browsed in-app**, with no sign-in of the app's own: a folder is granted
+once through the system picker and persisted, and the service keeps its own session.
+
 ## 6d. Update check — v1.16.0
 
 **✅ Check for updates** from the releases feed, manual only, with the version comparison

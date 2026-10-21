@@ -55,6 +55,8 @@ import androidx.media3.ui.PlayerView
 fun StreamPlayerScreen(
     uri: String,
     onBack: () -> Unit,
+    /** A name to show instead of the address, used when the address is not readable. */
+    title: String? = null,
 ) {
     val context = LocalContext.current
     val address = remember(uri) {
@@ -93,7 +95,11 @@ fun StreamPlayerScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(text = host, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        text = title ?: host,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -135,10 +141,10 @@ fun StreamPlayerScreen(
             val message = failure
             if (message != null) {
                 Text(
-                    text = "This link could not be played ($message).\n\n" +
-                        "The usual reason is that the address is not a direct media file — a " +
-                        "link to a web page, or to a service that needs a sign-in, will not " +
-                        "play. HLS (.m3u8) and DASH (.mpd) streams do.",
+                    text = "This could not be played ($message).\n\n" +
+                        "Either the file's codec is one this device cannot decode, or — for a " +
+                        "link — the address is not a direct media file. A web page, or a " +
+                        "service that needs a sign-in, will not play.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.fillMaxWidth().padding(12.dp),

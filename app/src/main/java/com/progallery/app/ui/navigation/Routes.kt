@@ -22,6 +22,8 @@ object Routes {
     const val SEARCH = "search"
     const val STREAM = "stream"
     const val STREAM_PLAYER = "stream_player"
+    const val CLOUD = "cloud"
+    const val CLOUD_VIEWER = "cloud_viewer"
     const val WEBDAV = "webdav"
     const val WEBDAV_PLAYER = "webdav_player"
     const val VIEWER = "viewer"
@@ -35,8 +37,13 @@ object Routes {
         "$WEBDAV_PLAYER?server=${java.net.URLEncoder.encode(serverId, "UTF-8")}" +
             "&url=${java.net.URLEncoder.encode(url, "UTF-8")}"
 
-    fun streamPlayer(url: String) =
-        "$STREAM_PLAYER?url=${java.net.URLEncoder.encode(url, "UTF-8")}"
+    fun cloudViewer(uri: String, title: String) =
+        "$CLOUD_VIEWER?uri=${java.net.URLEncoder.encode(uri, "UTF-8")}" +
+            "&title=${java.net.URLEncoder.encode(title, "UTF-8")}"
+
+    fun streamPlayer(url: String, title: String? = null) =
+        "$STREAM_PLAYER?url=${java.net.URLEncoder.encode(url, "UTF-8")}" +
+            (title?.let { "&title=${java.net.URLEncoder.encode(it, "UTF-8")}" } ?: "")
 
     fun albumDetail(bucketId: Long, name: String) = "$ALBUM_DETAIL/$bucketId/${java.net.URLEncoder.encode(name, "UTF-8")}"
     fun customAlbumDetail(albumId: Long, name: String) = "$CUSTOM_ALBUM_DETAIL/$albumId/${java.net.URLEncoder.encode(name, "UTF-8")}"

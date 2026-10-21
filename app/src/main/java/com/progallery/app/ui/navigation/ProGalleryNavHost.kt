@@ -36,6 +36,9 @@ import com.progallery.app.ui.screens.stream.StreamScreen
 import com.progallery.app.ui.screens.stream.StreamPlayerScreen
 import com.progallery.app.ui.screens.webdav.WebDavScreen
 import com.progallery.app.ui.screens.webdav.WebDavPlayerScreen
+import com.progallery.app.data.cloud.CloudKind
+import com.progallery.app.ui.screens.cloud.CloudScreen
+import com.progallery.app.ui.screens.cloud.CloudImageViewerScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -175,6 +178,33 @@ fun ProGalleryNavHost(
                 onPickFolder = { navController.navigate(Routes.DEEP_SCAN) },
             )
         }
+        composable(Routes.CLOUD) {
+            CloudScreen(
+                onBack = { navController.popBackStack() },
+                onOpen = { uri, kind ->
+                    // Everything opens inside the app: pictures in a viewer built for a
+                    // single cloud document, and video or audio in the URI player.
+                    when (kind) {
+                        CloudKind.IMAGE -> navController.navigate(Routes.cloudViewer(uri, uri))
+                        else -> navController.navigate(Routes.streamPlayer(uri))
+                    }
+                },
+            )
+        }
+        composable(
+            route = "${Routes.CLOUD_VIEWER}?uri={uri}&title={title}",
+            arguments = listOf(
+                navArgument("uri") { type = NavType.StringType },
+                navArgument("title") { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) { entry ->
+            CloudImageViewerScreen(
+                uri = entry.arguments?.getString("uri") ?: "",
+                title = entry.arguments?.getString("title").orEmpty()
+                    .ifBlank { "Cloud picture" },
+                onBack = { navController.popBackStack() },
+            )
+        }
         composable(Routes.WEBDAV) {
             WebDavScreen(
                 onBack = { navController.popBackStack() },
@@ -203,12 +233,16 @@ fun ProGalleryNavHost(
             )
         }
         composable(
-            route = "${Routes.STREAM_PLAYER}?url={url}",
-            arguments = listOf(navArgument("url") { type = NavType.StringType }),
+            route = "${Routes.STREAM_PLAYER}?url={url}&title={title}",
+            arguments = listOf(
+                navArgument("url") { type = NavType.StringType },
+                navArgument("title") { type = NavType.StringType; defaultValue = "" },
+            ),
         ) { entry ->
             StreamPlayerScreen(
                 uri = entry.arguments?.getString("url") ?: "",
                 onBack = { navController.popBackStack() },
+                title = entry.arguments?.getString("title").orEmpty().ifBlank { null },
             )
         }
         composable(Routes.SEARCH) {

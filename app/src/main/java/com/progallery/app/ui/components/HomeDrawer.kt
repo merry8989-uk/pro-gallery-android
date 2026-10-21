@@ -31,10 +31,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.progallery.app.data.cloud.CloudProvider
-import com.progallery.app.data.cloud.CloudProviders
-import com.progallery.app.data.cloud.LaunchPlan
 import com.progallery.app.ui.navigation.Routes
+import androidx.compose.material.icons.filled.AlternateEmail
 
 /**
  * The sidebar.
@@ -88,21 +86,14 @@ private fun DrawerContents(onNavigate: (String) -> Unit) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             DrawerSection("CLOUD")
-            DrawerItem(Icons.Filled.Cloud, "WebDAV — browse in the app", Routes.WEBDAV, onNavigate)
-            CloudProviders.ALL.forEach { provider ->
-                NavigationDrawerItem(
-                    icon = { androidx.compose.material3.Icon(Icons.Filled.Cloud, contentDescription = null) },
-                    label = { Text(provider.name) },
-                    selected = false,
-                    onClick = { openProvider(context, provider) },
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                )
-            }
+            // Browsed inside the app. The services keep their own sign-in, so the app asks
+            // for no password and there is nothing to log into again.
+            DrawerItem(Icons.Filled.Cloud, "Browse cloud services", Routes.CLOUD, onNavigate)
+            DrawerItem(Icons.Filled.Cloud, "WebDAV server", Routes.WEBDAV, onNavigate)
             Text(
-                // Stated once, here, so no entry has to carry the whole explanation.
-                text = "WebDAV is browsed inside the app, with no registration. The three " +
-                    "below open the service's own app, or its website if the app is not " +
-                    "installed; to play from one of them, share a direct link and use Stream.",
+                text = "Cloud folders open inside the app. Each service keeps its own " +
+                    "sign-in, so nothing is signed into here, and a folder you choose once " +
+                    "stays chosen.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 28.dp, vertical = 4.dp),
@@ -117,6 +108,23 @@ private fun DrawerContents(onNavigate: (String) -> Unit) {
             DrawerItem(Icons.Filled.Folder, "Android folders", Routes.ANDROID_FOLDERS, onNavigate)
             DrawerItem(Icons.Filled.Search, "Search", Routes.SEARCH, onNavigate)
             DrawerItem(Icons.Filled.Settings, "Settings", Routes.SETTINGS, onNavigate)
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            DrawerSection("CONTACT")
+            NavigationDrawerItem(
+                icon = { androidx.compose.material3.Icon(Icons.Filled.AlternateEmail, contentDescription = null) },
+                label = { Text("@osintgram_io") },
+                selected = false,
+                onClick = { openInstagram(context) },
+                modifier = Modifier.padding(horizontal = 12.dp),
+            )
+            Text(
+                text = "For suggestions, feedback or a feature request.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 28.dp, vertical = 4.dp),
+            )
 
             Column(modifier = Modifier.padding(bottom = 20.dp)) {}
         }
@@ -150,24 +158,12 @@ private fun DrawerItem(
 }
 
 /**
- * Opens a cloud service the way [CloudProviders] decided.
+ * Opens the contact handle.
  *
- * Nothing is guessed at: if the provider's app is not there, its website is opened, and
- * if that cannot be opened either nothing happens rather than a crash.
+ * A plain web link, so it works whether or not the app is installed, and nothing happens
+ * rather than a crash if there is no browser at all.
  */
-private fun openProvider(context: Context, provider: CloudProvider) {
-    val appIntent = runCatching {
-        context.packageManager.getLaunchIntentForPackage(provider.packageName)
-    }.getOrNull()
-
-    val plan = CloudProviders.launchPlan(provider, appInstalled = appIntent != null)
-    val intent = when (plan) {
-        LaunchPlan.APP -> appIntent
-        LaunchPlan.BROWSER -> Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse(CloudProviders.target(provider, plan)),
-        )
-    } ?: return
-
+private fun openInstagram(context: Context) {
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://instagram.com/osintgram_io"))
     runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 }

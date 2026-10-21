@@ -27,6 +27,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.17.0]
+Cloud folders, browsed inside the app — and no repeated sign-in.
+
+### Changed
+- **Cloud browsing happens in the app now.** The old entries opened the service's own app or
+  website; they are gone, replaced by a real browser that walks a provider's folders, shows
+  the files, and opens them in the app.
+- **How a folder gets there, and why there is nothing to sign into.** A folder is chosen once
+  through the system's own folder picker — the screen whose sidebar lists every installed
+  service, which is exactly what the user's screenshot showed. That listing belongs to the
+  platform: `ContentResolver.acquireRoots()`, which the system picker uses, **is not public
+  API**, so an ordinary app cannot reproduce that sidebar. What an app *can* do is what the
+  system picker offers: choose a folder, and be granted it.
+  - The **service keeps its own account and session**, so this app never receives a password
+    and never signs anything in — which is precisely why there is nothing to log into again
+    later.
+  - The grant is **persisted** (`takePersistableUriPermission`), so the folder opens straight
+    away from then on. A grant revoked outside the app is dropped rather than shown as
+    something that would fail when tapped.
+  - Every provider is spoken to the same way, through the platform's document API, so one
+    browser works for Drive, TeraBox, WPS Office, Zoho WorkDrive and a NAS alike.
+- **Everything opens in the app.** A picture goes to a viewer built for a single cloud
+  document; video and audio go to the URI player, which was generalised so it no longer
+  assumes it is playing a web link.
+
+### Added
+- **A contact handle.** Settings → About shows the version and offers **@osintgram_io** for
+  suggestions, feedback and feature requests; the sidebar links to it too.
+
+### Fixed
+- `INTERNET` (from v1.16.0) is what makes any of this reach a provider at all.
+
 ## [1.16.0]
 Check for updates — and a permission the app could not work without.
 
