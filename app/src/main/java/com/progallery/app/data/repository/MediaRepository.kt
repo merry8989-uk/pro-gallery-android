@@ -33,6 +33,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.data.usage.PerfOperation
+import com.progallery.app.data.usage.UsageStore
 
 /**
  * Single source of truth for media shown in the UI. Merges the MediaStore
@@ -52,6 +54,7 @@ class MediaRepository @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val mediaStoreObserver: MediaStoreObserver,
     @ApplicationScope private val applicationScope: CoroutineScope,
+    private val usageStore: UsageStore,
 ) {
 
     init {
@@ -144,6 +147,7 @@ class MediaRepository @Inject constructor(
         sort: SortOrder,
         query: String,
     ): List<MediaItem> = withContext(Dispatchers.IO) {
+        val startedAt = System.currentTimeMillis()
         val settings = settingsRepository.current()
         val favourites = favouriteDao.allKeys().toHashSet()
         val hidden = hiddenDao.allKeys().toHashSet()
@@ -161,6 +165,10 @@ class MediaRepository @Inject constructor(
             row += page.rowsRead
             exhausted = page.exhausted || page.rowsRead == 0
         }
+
+        // How long reading the library took. A duration is recorded, never what was read —
+        // and only when usage recording is on, which the store enforces.
+        usageStore.recordPerformance(PerfOperation.LIBRARY_LOAD, System.currentTimeMillis() - startedAt)
         all
     }
 

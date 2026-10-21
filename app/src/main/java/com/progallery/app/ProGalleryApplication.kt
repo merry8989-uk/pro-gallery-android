@@ -14,6 +14,9 @@ import android.os.Build
 import coil.decode.ImageDecoderDecoder
 import coil.decode.GifDecoder
 import com.progallery.app.data.memories.MemoriesScheduler
+import com.progallery.app.data.usage.UsageEvent
+import com.progallery.app.data.usage.UsageStore
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Application entry point. Configures Hilt and a shared Coil [ImageLoader] tuned
@@ -28,6 +31,30 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
 
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var memoriesScheduler: MemoriesScheduler
+    @Inject lateinit var usageStore: UsageStore
+
+    /**
+     * Records a crash so a fault can be found, then lets the process die as it would have.
+     *
+     * The record keeps the exception's class and the first few frames and **nothing else** —
+     * no message, because a message is where a path or a search term would appear. See
+     * [CrashSanitizer].
+     *
+     * `runBlocking` on a crash path is deliberate: the process is ending, and a record that
+     * arrives after it does is no record at all. It is bounded, so a stuck write cannot hold
+     * the crash open.
+     */
+    private fun installCrashRecorder() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            runCatching {
+                runBlocking {
+                    withTimeoutOrNull(2_000) { usageStore.recordCrash(throwable) }
+                }
+            }
+            previous?.uncaughtException(thread, throwable)
+        }
+    }
 
     /** Read once at startup; Coil cannot resize its cache later. */
     @Volatile
@@ -38,6 +65,11 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
         // Scheduled here, so the reminder needs no setting and no first visit to Memories.
         // WorkManager keeps it across reboots.
         runCatching { memoriesScheduler.ensureScheduled() }
+
+        // Counted, not described: the event has no field that could hold a filename.
+        runCatching { usageStore.recordEvent(UsageEvent.APP_OPENED) }
+
+        installCrashRecorder()
         thumbnailCacheLimitMb = runCatching {
             runBlocking { settingsRepository.current().thumbnailCacheLimitMb }
         }.getOrDefault(DEFAULT_CACHE_MB)

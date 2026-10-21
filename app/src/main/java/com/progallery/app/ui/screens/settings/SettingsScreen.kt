@@ -63,6 +63,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.progallery.app.data.usage.UsageDigest
 
 /** One renderable settings row. */
 private sealed interface SettingsRow {
@@ -171,6 +172,11 @@ fun SettingsScreen(
     val importPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let { viewModel.importFrom(it) } }
+    val usagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain"),
+    ) { uri -> uri?.let { viewModel.exportUsageTo(it) } }
+    var usageDialogOpen by remember { mutableStateOf(false) }
+    val usageDigest by viewModel.usageDigest.collectAsStateWithLifecycle()
     val diagnosticsPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/plain"),
     ) { uri -> uri?.let { viewModel.saveDiagnosticsTo(it) } }
@@ -227,6 +233,12 @@ fun SettingsScreen(
             }
         },
         onClearDiagnostics = viewModel::clearDiagnostics,
+        onReviewUsage = {
+            usageDialogOpen = true
+            viewModel.loadUsageDigest()
+        },
+        onExportUsage = { usagePicker.launch("progallery-usage.txt") },
+        onDeleteUsage = viewModel::clearUsage,
         onOpenDefaultApps = { DefaultApps.openDefaultAppsSettings(context) },
     )
 
@@ -311,6 +323,16 @@ fun SettingsScreen(
 
     // Rendered from the flag the row sets. Without this the row opened nothing at all: the
     // flag was set, the check ran, and no dialog was ever shown.
+    if (usageDialogOpen) {
+        UsageReviewDialog(
+            digest = usageDigest,
+            onDismiss = {
+                usageDialogOpen = false
+                viewModel.clearUsageDigest()
+            },
+        )
+    }
+
     if (updateDialogOpen) {
         UpdateDialog(
             state = updateState,
@@ -371,6 +393,9 @@ private fun buildRows(
     onCheckForUpdates: () -> Unit,
     onOpenInstagram: () -> Unit,
     onOpenDefaultApps: () -> Unit,
+    onReviewUsage: () -> Unit,
+    onExportUsage: () -> Unit,
+    onDeleteUsage: () -> Unit,
 ): List<SettingsRow> = buildList {
     // ---- Scanning -----------------------------------------------------
     add(
@@ -856,11 +881,16 @@ private fun buildRows(
     )
 
     // ---- About ----------------------------------------------------------
+    // The version and the update check are one row: two rows saying the same thing in
+    // different sections read as two unrelated features, and take two lines to say one thing.
     add(
-        SettingsRow.Info(
-            title = "Version",
-            subtitle = "ProGallery ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE}).",
+        SettingsRow.Action(
+            title = "ProGallery ${BuildConfig.VERSION_NAME}",
+            subtitle = "Build ${BuildConfig.VERSION_CODE}. Asks the project's releases feed " +
+                "whether a newer version exists. Nothing about this device is sent.",
             section = "About",
+            label = "Check for updates",
+            onClick = onCheckForUpdates,
         ),
     )
     add(
@@ -874,6 +904,61 @@ private fun buildRows(
     )
 
     // ---- Diagnostics & experimental -----------------------------------
+    // ---- Usage data ----------------------------------------------------
+    add(
+        SettingsRow.Switch(
+            title = "Anonymised usage data",
+            subtitle = "Keeps counts of which features are used, how long loading takes, the " +
+                "device model and Android version, and reduced crash records — on this device " +
+                "only. Nothing is uploaded, and it is deleted by the button below.",
+            section = "Diagnostics & experimental",
+            checked = settings.usageDataEnabled,
+            onCheckedChange = { value -> update { it.copy(usageDataEnabled = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Info(
+            title = "What is collected, and what never is",
+            subtitle = "Collected: which feature was opened, how often search ran and albums " +
+                "were created, how long loading took, the device model and Android version, and " +
+                "crash records that keep only the exception's class and method — never its " +
+                "message. Never collected: photos, contacts, location, face data, file names, " +
+                "file paths, search terms, or anything inside your files. Photo access is only " +
+                "ever for the photos you choose, through the system picker, and can be revoked " +
+                "at any time.",
+            section = "Diagnostics & experimental",
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Review of the last 7 days",
+            subtitle = "What the recorded counts say — which area carries the app, what is slow, " +
+                "whether anything crashed. This is what the next round of work is chosen from.",
+            section = "Diagnostics & experimental",
+            label = "Review",
+            onClick = onReviewUsage,
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Export usage data",
+            subtitle = "Writes the same file to a location you choose. It is plain text you can " +
+                "read, and it holds counts only.",
+            section = "Diagnostics & experimental",
+            label = "Export",
+            onClick = onExportUsage,
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Delete usage data",
+            subtitle = "Removes everything recorded, now.",
+            section = "Diagnostics & experimental",
+            label = "Delete",
+            onClick = onDeleteUsage,
+        ),
+    )
+
     add(
         SettingsRow.Action(
             title = "Export settings",
@@ -932,16 +1017,6 @@ private fun buildRows(
             advanced = true,
             checked = settings.includePathsInLogs,
             onCheckedChange = { value -> update { it.copy(includePathsInLogs = value) } },
-        ),
-    )
-    add(
-        SettingsRow.Action(
-            title = "Check for updates",
-            subtitle = "Asks the project's releases feed whether a newer version exists. " +
-                "You are on ${BuildConfig.VERSION_NAME}. Nothing about this device is sent.",
-            section = "Diagnostics & experimental",
-            label = "Check",
-            onClick = onCheckForUpdates,
         ),
     )
     add(
@@ -1168,9 +1243,10 @@ private fun Label(text: String) {
 /**
  * The result of an update check.
  *
- * It says which version you have and which is published, and it never downloads anything on
- * its own: the buttons open the release page in a browser, so the decision to install stays
- * with the user.
+ * It says which version you have and which is published, fetches the file **in the app**, checks
+ * it against this app's own signing key, and asks Android to install it. Nothing is downloaded
+ * or installed until the user presses the button, and the system's own confirmation still
+ * appears — which the dialog says in advance.
  */
 @Composable
 private fun UpdateDialog(
@@ -1317,3 +1393,78 @@ private fun UpdateDialog(
 
 /** Where suggestions and feature requests are sent. */
 private const val INSTAGRAM_URL = "https://instagram.com/osintgram_io"
+
+/**
+ * The seven-day review.
+ *
+ * This is the "improve the UI every seven days" part made visible: it shows the counts, and the
+ * observations derived from them, so the next round of work is chosen from what the app actually
+ * sees rather than from a guess. It also says, in the same breath, that none of it has left the
+ * device — which is the thing a person reading a screen full of their own usage wants to know.
+ */
+@Composable
+private fun UsageReviewDialog(digest: UsageDigest?, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("The last 7 days") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (digest == null) {
+                    Text("Reading…")
+                } else {
+                    Text(
+                        text = "Recorded on ${digest.daysWithData} of the last " +
+                            "${digest.windowDays} days.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+
+                    if (digest.features.isNotEmpty()) {
+                        Text("Most used", style = MaterialTheme.typography.titleSmall)
+                        digest.features.take(5).forEach { (feature, count) ->
+                            Text(
+                                text = "${feature.id} — $count",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+
+                    if (digest.slowest.isNotEmpty()) {
+                        Text("Slowest", style = MaterialTheme.typography.titleSmall)
+                        digest.slowest.take(5).forEach { (operation, average) ->
+                            Text(
+                                text = "${operation.id} — ${average}ms average",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Crashes recorded: ${digest.crashes}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+
+                    Text("What it suggests", style = MaterialTheme.typography.titleSmall)
+                    digest.observations.forEach { observation ->
+                        Text(
+                            text = "• $observation",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+
+                    Text(
+                        text = "Counts only — no file names, no paths, no search terms, and " +
+                            "nothing has left this device.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+    )
+}

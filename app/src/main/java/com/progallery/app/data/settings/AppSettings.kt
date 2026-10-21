@@ -160,6 +160,15 @@ data class AppSettings(
     /** Write a local diagnostics log. Nothing is ever sent anywhere. */
     val saveDiagnosticLogs: Boolean = false,
 
+    /**
+     * Whether anonymised usage counts are recorded on this device.
+     *
+     * On by default, and off with one switch. Only counts of a closed set of events, a device
+     * model and timings — never a filename, a path, a search term or anything from the user's
+     * content. Nothing is uploaded anywhere.
+     */
+    val usageDataEnabled: Boolean = true,
+
     /** Include file paths in the diagnostics log. Off by default, because a log is a file you may share. */
     val includePathsInLogs: Boolean = false,
 
