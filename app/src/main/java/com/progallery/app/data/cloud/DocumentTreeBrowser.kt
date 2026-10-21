@@ -9,6 +9,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.database.Cursor
 
 /**
  * Walks a cloud provider's folders using the platform's document API.
@@ -113,4 +114,42 @@ class DocumentTreeBrowser @Inject constructor(
             it.isReadPermission && it.uri.toString() == treeUri
         }
     }.getOrDefault(false)
+}
+
+/**
+ * Reads one row of a document query into the app's own shape.
+ *
+ * Providers vary in which columns they actually fill, so every column is looked up by index
+ * and treated as optional: a missing size becomes zero, a missing date becomes nothing, and
+ * a missing name falls back to the last part of the document id. Nothing is invented.
+ */
+internal fun Cursor.toCloudDocument(): CloudDocument? {
+    val idColumn = getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+    if (idColumn < 0) return null
+    val documentId = getString(idColumn) ?: return null
+
+    val name = getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+        .takeIf { it >= 0 }?.let { getString(it) }
+        .orEmpty()
+        .ifBlank { documentId.substringAfterLast('/') }
+
+    val mime = getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
+        .takeIf { it >= 0 }?.let { getString(it) }
+        .orEmpty()
+
+    val size = getColumnIndex(DocumentsContract.Document.COLUMN_SIZE)
+        .takeIf { it >= 0 }?.let { if (isNull(it)) 0L else getLong(it) } ?: 0L
+
+    val modified = getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+        .takeIf { it >= 0 }?.let { if (isNull(it)) null else getLong(it) }
+
+    return CloudDocument(
+        uri = "",
+        documentId = documentId,
+        name = name,
+        mimeType = mime,
+        sizeBytes = size,
+        lastModifiedMillis = modified,
+        isDirectory = mime == DocumentsContract.Document.MIME_TYPE_DIR,
+    )
 }
