@@ -93,7 +93,10 @@ object MemoriesEngine {
             // Newest anniversary first: last year before ten years ago.
             .sortedBy { it.key }
             .map { (yearsAgo, group) ->
-                val sorted = group.sortedByDescending { it.memoryDate(zone) ?: LocalDate.MIN }
+                // Sorted by the instant, not by the day. Sorting by the day leaves the order
+                // within a day up to the order the library happened to return, so a morning and
+                // an evening picture of the same day would come out in an arbitrary order.
+                val sorted = group.sortedByDescending { it.memorySeconds() }
                 MemoryGroup(
                     yearsAgo = yearsAgo,
                     date = sorted.firstOrNull()?.memoryDate(zone) ?: LocalDate.MIN,
@@ -108,8 +111,14 @@ object MemoriesEngine {
  * The capture date when the file carries one, and the modification date only as a fallback.
  * Null when the item has no usable date at all, so it is left out rather than filed under 1970.
  */
-fun MediaItem.memoryDate(zone: ZoneId = ZoneId.systemDefault()): LocalDate? {
-    val seconds = dateTakenSeconds.takeIf { it > 0 } ?: dateModifiedSeconds
-    if (seconds <= 0) return null
-    return Instant.ofEpochSecond(seconds).atZone(zone).toLocalDate()
-}
+fun MediaItem.memoryDate(zone: ZoneId = ZoneId.systemDefault()): LocalDate? =
+    memorySeconds().takeIf { it > 0 }?.let { Instant.ofEpochSecond(it).atZone(zone).toLocalDate() }
+
+/**
+ * The instant a picture belongs to: its capture time when known, its modification time
+ * otherwise, and zero when neither is usable.
+ *
+ * Separate from [memoryDate] because two pictures can share a day and still have an order, and
+ * a memory should show them in the order they were taken.
+ */
+fun MediaItem.memorySeconds(): Long = dateTakenSeconds.takeIf { it > 0 } ?: dateModifiedSeconds
