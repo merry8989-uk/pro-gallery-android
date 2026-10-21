@@ -130,25 +130,67 @@ instead of staying silent — that will tell us which it is.
 The four bugs above. Nothing here is a new feature; it is the app no longer lying about
 what it can do.
 
-### Part B — One dynamic player for audio and video ⬜ next
+### Part B — One dynamic player for audio and video ⬜ **in progress, v1.28.0**
 
-A single `MediaPlayerScreen` that takes any media address and lets Media3 pick the
-extractor and decoder:
+**What the survey found** (four players, 2014 lines, each building its own `ExoPlayer`):
 
-- the MIME type is passed explicitly, so the right extractor is chosen instead of sniffed;
-- `setEnableDecoderFallback(true)` plus extension-renderer preference, so a missing
-  hardware codec falls back to software;
-- the real reason on failure, with **"Try another app"** offered;
-- position remembered, and audio and video handled by the same surface.
+| Player | Decoder fallback | MIME hint | Player build |
+|---|---|---|---|
+| `VideoPlayerScreen` (231) | **yes** | no | `ExoPlayer.Builder(context, renderers)` |
+| `AudioPlayerScreen` (460) | **no** | no | `ExoPlayer.Builder(context)` |
+| `StreamPlayerScreen` (164) | **no** | no | `ExoPlayer.Builder(context)` |
+| `WebDavPlayerScreen` (159) | **no** | no | `DefaultMediaSourceFactory` + auth header |
 
-This replaces the four separate players (video, audio, stream, WebDAV) over time. They
-stay until the new one covers what they do — the stream and WebDAV players carry sign-in
-handling the library player has no business knowing about.
+Three real gaps, and none of them is cosmetic:
 
-### Part C — A capability screen ⬜
+1. **Only the video player falls back to a software decoder.** A device with no hardware decoder
+   for a codec plays a video and fails the same audio — which is a bug the user cannot explain.
+2. **No player tells Media3 what the file is.** Every one calls `MediaItem.fromUri`, so the
+   format is sniffed. Sniffing is good and often right; a hint is what makes the *right* extractor
+   get chosen for a container whose header is ambiguous, and for a content URI that carries no
+   extension at all.
+3. **Four places to fix, and they have already drifted** — which is the actual defect. The video
+   player got the fallback; the others did not, because there was nowhere to put it.
 
-The matrix above, in the app, generated from the same pure tables the player uses. The app
-then *tells* you that `.wmv` needs another app, rather than failing when you try.
+**Steps**
+
+- **B1 — one factory.** `PlaybackEngine`: the single place a player is built, with decoder
+  fallback on, taking an optional data source (WebDAV's auth) and an optional MIME hint. All four
+  players use it. Testable part: the builder configuration.
+- **B2 — the MIME hint, as a pure table.** `PlaybackMime.hintFor(...)`: the item's own MIME when
+  it is a real media type, else a well-known extension mapping, else **null so Media3 sniffs**.
+  A *wrong* hint is worse than none — it picks the wrong extractor — so only mappings that are
+  certain are in the table, and every one is tested.
+- **B3 — position memory.** Returning to a video resumes where it was left, with the two rules
+  that make it not annoying: a position near the end starts over, and a position near the start
+  is not worth restoring. Pure and tested.
+- **B4 — one screen.** `MediaPlayerScreen` for audio and video on the same surface, replacing the
+  internals of `VideoPlayerScreen` and `AudioPlayerScreen`. The audio player's queue and the
+  video player's gestures stay.
+- **B5 — failures.** The existing `PlaybackFailure` reasons and actions move to the new screen,
+  including **"Try another app"**.
+- **B6 — stream and WebDAV stay as wrappers.** They carry redirect and sign-in handling the
+  library player has no business knowing about; they use the same engine and gain the fallback.
+
+**Not doing:** `setExtensionRendererMode(PREFER)`. With no extension renderer bundled it is a
+no-op, and a setting that does nothing is the kind of thing this app does not ship. It belongs
+with Part D, if Part D is ever chosen.
+
+### Part C — A capability screen ⬜ **in progress, v1.28.0**
+
+The matrix above, in the app, **generated from the same pure tables the player uses** — so it
+cannot drift from what the app actually does.
+
+**Steps**
+
+- **C1 — the matrix, as a pure table.** `CapabilityMatrix`: for every extension the app knows,
+  one verdict — **Plays here** / **Plays with a caveat** / **Needs another app** — and the reason,
+  derived from `FileTypeRegistry`, `ImageDecodability`, `Stickers`, `TextFormats` and the list of
+  containers Android has no parser for.
+- **C2 — a test that nothing is unclassified.** Every extension in the registry must appear in the
+  matrix, so a format cannot be added to the app and silently left out of the answer.
+- **C3 — the screen.** Searchable, grouped by verdict, with the reason next to each format. The
+  app then *tells* you that `.wmv` needs another app, instead of failing when you try.
 
 ### Part D — The formats Media3 cannot parse ⬜ **decision needed**
 
