@@ -145,7 +145,6 @@ private val MAX_SIZE_OPTIONS = listOf(
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenPermissionDiagnostics: () -> Unit,
-    onCheckForUpdates: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
