@@ -1,6 +1,7 @@
 package com.progallery.app.data.model
 
 import android.net.Uri
+import com.progallery.app.data.text.TextFormats
 
 /**
  * Broad category of a file, used for browsing and filtering.
@@ -65,6 +66,15 @@ data class MediaItem(
     /** True for PDFs, which have their own in-app viewer. */
     val isPdf: Boolean
         get() = mimeType.equals("application/pdf", ignoreCase = true) || extension == "pdf"
+
+    /**
+     * True when the app has its own reader for this file's text.
+     *
+     * A document, not just any file: the reader only claims the formats it actually knows, so
+     * an office file is left to another app rather than shown as noise.
+     */
+    val isTextReadable: Boolean
+        get() = TextFormats.canRead(extension)
 
     /** Whether the app can render an inline preview (image or video). */
     val isPreviewable: Boolean
