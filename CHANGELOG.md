@@ -27,51 +27,72 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.28.0]
+The log, live, on the access screen — and the half that was missing.
+
+### Added
+- **A live log on the Access screen.** It reads from the store's own flow, so an event appears as
+  it is written — there is nothing to refresh. That matters most here: the question this screen
+  answers is "why is this stuck", and the answer is the sequence of events, which is no use a
+  minute late.
+  - **The filter** — by level with a count beside each, by free text, and by device code (a
+    prefix is enough, because a code is copied by hand).
+  - **Export** in four formats through the system picker, so the file lands where the person
+    chooses rather than somewhere they have to go looking.
+  - **Email**, which composes in **Gmail when it is installed** and falls back to a chooser when
+    it is not. No recipient is filled in: there is no support address defined for this project —
+    the contact is an Instagram handle — and inventing one would send a log to an address the
+    person did not choose. The subject, the body and the attachment are filled in.
+  - The body says what the log contains **and what it does not**, because a log sent without that
+    is a log sent with an apology.
+- **`access_fix_result` — the event whose absence made the 21 October log useless.** 71
+  `access_fix_requested` entries and not one result, so the log proved a loop without saying what
+  was looping. Every fix attempt now writes **both ends**: the request with an `attempt_id`, and
+  the result with the same id, plus `state_before`, `state_after`, `action_taken`, `outcome` and
+  `media_item_count`.
+  - **The open attempt is kept on disk**, because the app can be killed while the user is in
+    Settings — which is exactly when the answer arrives. An attempt held only in memory would be
+    lost in the one case this exists for.
+  - **`media_item_count` is new too**: the snapshot now counts the photos and videos the app can
+    see. "Granted, 412 items" and "granted, 0 items" are the same permission state and completely
+    different problems.
+- **The outcome rule, stated once**: success when the access is granted now and was not before;
+  no_op when the state is exactly as it was — the most useful thing to know about a loop; failed
+  when it moved and still is not granted. All sixteen state pairs are tested.
+- **The logging schema, in code**: the install's readable code, a closed event vocabulary, the
+  JSON line codec, and the filter. `PG-XXX-XXX`, from a Crockford alphabet that drops I, L, O and
+  U, so a code read aloud cannot become a different one — random, and not derived from the device,
+  the account or the phone number.
+
+### The parts that are easy to get wrong, and are tested
+- **CSV quoting.** One detail value containing a comma shifts every column after it and the file
+  still opens. A value with a comma, a quote or a newline is quoted with inner quotes doubled, and
+  a test counts the fields of every row to prove the columns line up.
+- **Retention that keeps the error.** The standard asks for 100% of errors and sampled info; on a
+  device the honest reading of that is the *order things are dropped in*. When the file is over
+  its limit the oldest debug and info lines go first, so fifty scroll events cannot push out the
+  crash that explains the session.
+- **A second `AccessState` enum was avoided.** The app already had one; a rival copy for logging
+  would have been two parts of the app disagreeing about the same idea. The schema's wire names
+  are a mapping beside the log instead. The one gap is stated rather than papered over: the schema
+  names `permanently_denied`, and the app does not distinguish it from `denied` yet.
+
 ## [1.27.0]
 Stickers, shown so they can actually be seen — and SVG, which the app now draws itself.
 
 ### Added
-- **A Stickers screen.** The reported fault was "there are many stickers but none of them showing
-  anything", and there were **three separate causes**, all fixed:
-  1. **They are not in the system's index.** Stickers live in the folders messaging apps keep
-     under `Android/media`, which the system does not hand over — so they were never in the grid.
-     The screen reads the app's own index, which a scan of Android media fills, and says so
-     plainly when it is empty, with the button that fixes it.
-  2. **They were drawn on a flat colour.** A sticker is transparent by design, so white line art
-     on a light tile and black line art on a dark tile are both invisible. They are now drawn on
-     a **chequerboard**, which is never the same colour as the artwork — so the shape shows
-     whatever colour it is.
-  3. **A `.tgs` is not a picture.** Telegram's animated stickers are gzipped Lottie animation
-     descriptions with no pixels to draw. The app says exactly that and offers another app,
-     rather than promising a preview it could never produce.
-  - Every sticker is identified by kind — image, animated WebP, video, vector, Lottie — and the
-    kinds the app cannot draw say why instead of showing a blank tile.
-  - **`Fit`, not `Crop`**: cropping a sticker cuts off exactly the outline that makes it
-    recognisable.
-- **SVG now renders.** Android's platform decoder cannot draw a vector at all — it is not a
-  bitmap format — so those files were listed and never shown. The app ships a decoder
-  (`coil-svg`) and draws them itself.
-  - This makes SVG the **first format the app decodes rather than the platform**, and the
-    capability answer reflects it: `DecoderSupport.BY_APP`, deliberately distinct from `ALWAYS`,
-    because one works on every device and the other works because of a decision made here.
-
-### Fixed — three edits that silently missed their anchor
-- The `BY_APP` work landed in three pieces, and **two of them silently did nothing**: the enum
-  gained the value and the callers gained the branch, but the classifier never returned it, so
-  SVG was still classified as having no decoder. The compiler caught two `when` blocks that had
-  become non-exhaustive, and the new tests caught the classifier — which is the only reason it
-  did not ship as a half-applied change. **CI is the authority on this, not the structural
-  checker**, which cannot see a replacement that matched nothing.
-
-### Tests
-- `StickersTest` — a WebP in the WhatsApp sticker folder is a sticker, the folder match ignoring
-  case and language ("figurinhas", "Stickers"), an ordinary photo not being one, a `.tgs` being
-  one wherever it sits, an unknown format in a sticker folder not being one, every kind being
-  identified, `.tgs` not being showable **and saying what it actually is and how to open it**,
-  every other kind being showable, an unrecognised kind saying so, a vector being showable
-  because the app ships a decoder, and transparency being acknowledged.
-- `ImageDecodabilityTest` — SVG is renderable **because the app ships a decoder**, and that is
-  distinct from a format the platform handles.
+- **A Stickers screen.** "There are many stickers but none of them showing anything" had **three
+  separate causes**, all fixed: they live in an app folder the system's index does not hand over,
+  so they were never in the grid; they were drawn on a flat colour, and a transparent sticker can
+  be genuinely invisible on one; and a `.tgs` is not a picture at all. They are now read from the
+  app's own index, drawn on a **chequerboard** — never the same colour as the artwork — and the
+  formats with no renderer say what they are and offer another app instead of a blank tile.
+  `Fit` rather than `Crop`, because cropping a sticker cuts off the outline that makes it
+  recognisable.
+- **SVG renders.** Android's platform decoder cannot draw a vector at all, so those files were
+  listed and never shown. The app ships a decoder and draws them itself — making SVG the first
+  format the app decodes rather than the platform, and the capability answer says so: `BY_APP`,
+  deliberately distinct from `ALWAYS`.
 
 ## [1.26.0]
 App media joins the gallery — the photos messaging apps keep are now in the grid, not beside it.

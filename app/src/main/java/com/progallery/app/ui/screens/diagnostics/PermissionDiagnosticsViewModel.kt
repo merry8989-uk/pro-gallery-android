@@ -2,11 +2,25 @@ package com.progallery.app.ui.screens.diagnostics
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.progallery.app.data.diagnostics.DiagnosticLog
+import com.progallery.app.data.eventlog.EventLogStore
+import com.progallery.app.data.eventlog.EventName
+import com.progallery.app.data.eventlog.LogEntry
+import com.progallery.app.data.eventlog.LogFilter
+import com.progallery.app.data.eventlog.LogLevel
+import com.progallery.app.data.eventlog.LogFilters
+import com.progallery.app.data.eventlog.LogFormat
+import com.progallery.app.data.eventlog.PendingFix
+import com.progallery.app.data.eventlog.PendingFixStore
+import com.progallery.app.data.eventlog.wire
 import com.progallery.app.data.permissions.AccessDiagnostics
+import com.progallery.app.data.permissions.AccessId
+import com.progallery.app.data.permissions.AccessFixOutcome
 import com.progallery.app.data.permissions.AccessRow
 import com.progallery.app.data.permissions.AccessSnapshotReader
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.File
+import java.security.SecureRandom
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,46 +34,188 @@ data class PermissionDiagnosticsUiState(
     val headline: String = "",
     /** How many accesses are actually stopping the app. */
     val blockingCount: Int = 0,
-)
+    /** Photos and videos visible right now — the number that makes an access problem legible. */
+    val mediaItemCount: Int = 0,
+    /** The log, newest first, live. */
+    val log: List<LogEntry> = emptyList(),
+    val loggingEnabled: Boolean = true,
+    val userCode: String = "",
+    val filter: LogFilter = LogFilter(),
+    val message: String? = null,
+) {
+    val filteredLog: List<LogEntry> get() = LogFilters.apply(log, filter)
+    val levelCounts: Map<LogLevel, Int> get() = LogFilters.countsByLevel(log)
+}
 
 @HiltViewModel
 class PermissionDiagnosticsViewModel @Inject constructor(
     private val reader: AccessSnapshotReader,
-    private val diagnosticLog: DiagnosticLog,
+    private val eventLog: EventLogStore,
+    private val pendingFix: PendingFixStore,
+    @ApplicationContext private val context: android.content.Context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PermissionDiagnosticsUiState())
     val state: StateFlow<PermissionDiagnosticsUiState> = _state.asStateFlow()
 
     init {
+        // The log is shown from the store's own flow, so an event appears on the screen as it is
+        // written rather than when someone remembers to refresh.
+        viewModelScope.launch {
+            eventLog.entries.collect { entries ->
+                _state.update { it.copy(log = entries.asReversed()) }
+            }
+        }
+        viewModelScope.launch {
+            eventLog.enabled.collect { enabled -> _state.update { it.copy(loggingEnabled = enabled) } }
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(userCode = eventLog.code()) }
+        }
         refresh()
     }
 
     /**
-     * Re-reads the device state.
+     * Re-reads the device state, and **answers any open fix attempt**.
      *
-     * Worth having a button for: "All files access" and the app-settings screen are
-     * changed *outside* the app, so the answer can differ when the user comes back.
+     * This is the half that was missing: the app recorded that the user asked for a fix and never
+     * recorded what came of it, so a report could show 71 attempts and no explanation. Reading
+     * the state again is exactly the moment the answer is known.
      */
     fun refresh() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true) }
-            val rows = AccessDiagnostics.rows(reader.read())
+            val snapshot = reader.read()
+            val rows = AccessDiagnostics.rows(snapshot)
             val blocking = AccessDiagnostics.blocking(rows)
+
             _state.update {
                 it.copy(
                     loading = false,
                     rows = rows,
                     headline = AccessDiagnostics.headline(rows),
                     blockingCount = blocking.size,
+                    mediaItemCount = snapshot.mediaItemCount,
                 )
             }
-            diagnosticLog.record("Access diagnostics opened", "${blocking.size} blocking")
+
+            answerOpenAttempt(rows, snapshot.mediaItemCount)
+
+            // What the app can reach, with the count — "granted, 412 items" and "granted, 0
+            // items" are the same state and completely different problems.
+            val visual = rows.firstOrNull { it.id == AccessId.MEDIA_VISUAL }?.state
+            if (visual != null) {
+                record(
+                    event = EventName.PERMISSION_STATE_RESOLVED,
+                    details = mapOf(
+                        "permission" to "photos_and_videos",
+                        "state" to visual.wire(),
+                        "media_item_count" to snapshot.mediaItemCount.toString(),
+                    ),
+                )
+            }
         }
     }
 
-    /** Records that the user went to fix something, so a report can say what was tried. */
+    /** Records that the user went to fix something, and keeps the attempt open until answered. */
     fun noteFixAttempt(row: AccessRow) {
-        viewModelScope.launch { diagnosticLog.record("Access fix requested", row.id.name) }
+        viewModelScope.launch {
+            val attemptId = newAttemptId()
+            val action = row.fix.name.lowercase()
+            // Written down before the tap is acted on, because the app can be killed while the
+            // user is in Settings — which is precisely when the answer arrives.
+            pendingFix.put(PendingFix(attemptId, row.id, row.state, action))
+            record(
+                event = EventName.ACCESS_FIX_REQUESTED,
+                attemptId = attemptId,
+                details = mapOf(
+                    "permission" to row.id.name.lowercase(),
+                    "state_before" to row.state.wire(),
+                    "action_taken" to action,
+                ),
+            )
+        }
+    }
+
+    fun setFilter(filter: LogFilter) = _state.update { it.copy(filter = filter) }
+
+    fun clearLog() {
+        viewModelScope.launch {
+            eventLog.clear()
+            _state.update { it.copy(message = "The log was cleared.") }
+        }
+    }
+
+    /** Renders the filtered log, for the export and for attaching to a message. */
+    suspend fun renderLog(format: LogFormat): String = eventLog.export(format)
+
+    fun logFileFor(format: LogFormat, onReady: (File) -> Unit, onFailed: (String) -> Unit) {
+        viewModelScope.launch {
+            runCatching { eventLog.exportFile(format) }.fold(
+                onSuccess = onReady,
+                onFailure = { onFailed(it.message ?: "The log could not be written.") },
+            )
+        }
+    }
+
+    /**
+     * Writes the filtered log to a place the user chose.
+     *
+     * The write happens here rather than in the screen so it runs on the view model's scope: a
+     * coroutine started from a composable outlives the composition and leaks.
+     */
+    fun saveLogTo(uri: android.net.Uri, format: LogFormat, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val body = renderLog(format)
+            val written = runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { stream -> stream.write(body.toByteArray()) }
+                true
+            }.getOrDefault(false)
+            onDone(written)
+        }
+    }
+
+    fun consumeMessage() = _state.update { it.copy(message = null) }
+
+    // ---- internals ----
+
+    private suspend fun answerOpenAttempt(rows: List<AccessRow>, mediaItemCount: Int) {
+        val open = pendingFix.take() ?: return
+        val after = rows.firstOrNull { it.id == open.accessId }?.state ?: return
+        record(
+            event = EventName.ACCESS_FIX_RESULT,
+            attemptId = open.attemptId,
+            details = mapOf(
+                "permission" to open.accessId.name.lowercase(),
+                "action_taken" to open.actionTaken,
+                "state_before" to open.stateBefore.wire(),
+                "state_after" to after.wire(),
+                "outcome" to AccessFixOutcome.of(open.stateBefore, after).wire,
+                "media_item_count" to mediaItemCount.toString(),
+            ),
+        )
+    }
+
+    private suspend fun record(
+        event: EventName,
+        details: Map<String, String> = emptyMap(),
+        attemptId: String? = null,
+    ) {
+        eventLog.record(
+            LogEntry(
+                event = event,
+                timestampMillis = System.currentTimeMillis(),
+                userCode = eventLog.code(),
+                sessionId = eventLog.session(),
+                attemptId = attemptId,
+                screen = "AccessDiagnostics",
+                details = details,
+            ),
+        )
+    }
+
+    private fun newAttemptId(): String {
+        val bytes = ByteArray(4).also { SecureRandom().nextBytes(it) }
+        return "att_" + bytes.joinToString("") { "%02x".format(it) }
     }
 }
