@@ -11,29 +11,29 @@ class CloudKindTest {
 
     @Test
     fun aFolderIsAFolder() {
-        assertEquals(CloudKind.FOLDER, CloudKind.of("", "Photos", isDirectory = true))
+        assertEquals(CloudKind.FOLDER, CloudKinds.of("", "Photos", isDirectory = true))
         // Even when the provider reports a type for it, a directory is a directory.
         assertEquals(
             CloudKind.FOLDER,
-            CloudKind.of("resource/folder", "Photos", isDirectory = true),
+            CloudKinds.of("resource/folder", "Photos", isDirectory = true),
         )
     }
 
     @Test
     fun theReportedMimeTypeIsUsedWhenItSaysSomething() {
-        assertEquals(CloudKind.IMAGE, CloudKind.of("image/jpeg", "a", false))
-        assertEquals(CloudKind.VIDEO, CloudKind.of("video/mp4", "a", false))
-        assertEquals(CloudKind.AUDIO, CloudKind.of("audio/mpeg", "a", false))
+        assertEquals(CloudKind.IMAGE, CloudKinds.of("image/jpeg", "a", false))
+        assertEquals(CloudKind.VIDEO, CloudKinds.of("video/mp4", "a", false))
+        assertEquals(CloudKind.AUDIO, CloudKinds.of("audio/mpeg", "a", false))
     }
 
     @Test
     fun aMimeTypeWithParametersIsStillRead() {
-        assertEquals(CloudKind.IMAGE, CloudKind.of("image/jpeg; charset=binary", "a", false))
+        assertEquals(CloudKind.IMAGE, CloudKinds.of("image/jpeg; charset=binary", "a", false))
     }
 
     @Test
     fun theMimeTypeCaseDoesNotMatter() {
-        assertEquals(CloudKind.IMAGE, CloudKind.of("IMAGE/PNG", "a", false))
+        assertEquals(CloudKind.IMAGE, CloudKinds.of("IMAGE/PNG", "a", false))
     }
 
     @Test
@@ -41,18 +41,18 @@ class CloudKindTest {
         // Providers really do report this for everything, which is why the name is consulted.
         listOf("application/octet-stream", "binary/octet-stream", "", "resource/folder")
             .forEach { generic ->
-                assertEquals("$generic should fall back", CloudKind.IMAGE, CloudKind.of(generic, "holiday.jpg", false))
-                assertEquals("$generic should fall back", CloudKind.VIDEO, CloudKind.of(generic, "clip.MP4", false))
-                assertEquals("$generic should fall back", CloudKind.AUDIO, CloudKind.of(generic, "song.opus", false))
+                assertEquals("$generic should fall back", CloudKind.IMAGE, CloudKinds.of(generic, "holiday.jpg", false))
+                assertEquals("$generic should fall back", CloudKind.VIDEO, CloudKinds.of(generic, "clip.MP4", false))
+                assertEquals("$generic should fall back", CloudKind.AUDIO, CloudKinds.of(generic, "song.opus", false))
             }
     }
 
     @Test
     fun somethingUnrecognisedIsNeitherPromisedNorGuessed() {
-        assertEquals(CloudKind.OTHER, CloudKind.of("application/zip", "archive.zip", false))
-        assertEquals(CloudKind.OTHER, CloudKind.of("", "noextension", false))
-        assertEquals(CloudKind.OTHER, CloudKind.of("", "trailing.", false))
-        assertEquals(CloudKind.OTHER, CloudKind.of("", "", false))
+        assertEquals(CloudKind.OTHER, CloudKinds.of("application/zip", "archive.zip", false))
+        assertEquals(CloudKind.OTHER, CloudKinds.of("", "noextension", false))
+        assertEquals(CloudKind.OTHER, CloudKinds.of("", "trailing.", false))
+        assertEquals(CloudKind.OTHER, CloudKinds.of("", "", false))
     }
 
     @Test

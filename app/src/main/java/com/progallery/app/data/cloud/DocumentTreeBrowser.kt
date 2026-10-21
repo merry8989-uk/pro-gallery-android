@@ -77,6 +77,31 @@ class DocumentTreeBrowser @Inject constructor(
             }
         }
 
+    /**
+     * The display name of a granted folder.
+     *
+     * The system picker returns only an address, so the name is asked of the provider — which
+     * is the only thing that knows what the folder is called.
+     */
+    suspend fun displayName(treeUri: String): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val tree = Uri.parse(treeUri)
+            val root = DocumentsContract.buildDocumentUriUsingTree(
+                tree,
+                DocumentsContract.getTreeDocumentId(tree),
+            )
+            context.contentResolver.query(
+                root,
+                arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getString(0) else null
+            }
+        }.getOrNull()
+    }
+
     /** Opens a document for reading, so it can be played or shown in-app. */
     suspend fun openStream(documentUri: String): InputStream? = withContext(Dispatchers.IO) {
         runCatching { context.contentResolver.openInputStream(Uri.parse(documentUri)) }.getOrNull()

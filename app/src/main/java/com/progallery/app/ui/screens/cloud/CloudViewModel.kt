@@ -5,8 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.progallery.app.data.cloud.CloudDocument
 import com.progallery.app.data.cloud.CloudGrantStore
 import com.progallery.app.data.cloud.CloudKind
-import com.progallery.app.data.cloud.CloudRoot
-import com.progallery.app.data.cloud.CloudRootsReader
 import com.progallery.app.data.cloud.DocumentTreeBrowser
 import com.progallery.app.data.cloud.GrantedCloudTree
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,10 +22,7 @@ data class CloudOpenRequest(val uri: String, val name: String, val kind: CloudKi
 data class CloudStep(val documentId: String, val name: String)
 
 data class CloudUiState(
-    val loading: Boolean = true,
-    /** The services installed on this device. The device's own storage is left out. */
-    val roots: List<CloudRoot> = emptyList(),
-    /** Folders already granted once, so they open straight away. */
+    /** Folders already chosen, which open straight away with no further step. */
     val granted: List<GrantedCloudTree> = emptyList(),
     val title: String? = null,
     val treeUri: String? = null,
@@ -35,13 +30,22 @@ data class CloudUiState(
     val documents: List<CloudDocument> = emptyList(),
     val browsing: Boolean = false,
     val error: String? = null,
-    /** A provider that wants its folder granted before it will open. */
-    val needsGrant: CloudRoot? = null,
+    /** True while a newly chosen folder is being named and opened. */
+    val opening: Boolean = false,
 )
 
+/**
+ * Browsing cloud folders, inside the app.
+ *
+ * **How a folder gets here.** The user picks it once through the system's own folder picker —
+ * the same screen that lists every installed service in its sidebar. That is the supported
+ * way for an app to reach a cloud provider: the provider app keeps its account and its
+ * session, and the platform hands this app a folder it may read. The app never sees a
+ * password and never signs anything in, which is exactly why there is nothing to sign into
+ * again later: the grant is persisted, and the provider's own login was never ours to hold.
+ */
 @HiltViewModel
 class CloudViewModel @Inject constructor(
-    private val rootsReader: CloudRootsReader,
     private val browser: DocumentTreeBrowser,
     private val grants: CloudGrantStore,
 ) : ViewModel() {
@@ -49,7 +53,6 @@ class CloudViewModel @Inject constructor(
     private val _state = MutableStateFlow(CloudUiState())
     val state: StateFlow<CloudUiState> = _state.asStateFlow()
 
-    /** A file to open, with the kind that decides which in-app viewer takes it. */
     private val _open = MutableStateFlow<CloudOpenRequest?>(null)
     val open: StateFlow<CloudOpenRequest?> = _open.asStateFlow()
 
@@ -57,25 +60,17 @@ class CloudViewModel @Inject constructor(
         viewModelScope.launch {
             grants.observe().collect { list -> _state.update { it.copy(granted = list) } }
         }
-        refresh()
     }
 
-    fun refresh() {
+    /** Called after the system picker returns and the permission has been persisted. */
+    fun folderChosen(treeUri: String) {
         viewModelScope.launch {
-            _state.update { it.copy(loading = true) }
-            val services = rootsReader.roots().filterNot { it.isDeviceStorage }
-            _state.update { it.copy(loading = false, roots = services) }
-        }
-    }
-
-    /** Opens a service at the folder that was already granted, if there is one. */
-    fun openRoot(root: CloudRoot) {
-        val remembered = _state.value.granted.firstOrNull { it.treeUri == root.treeUri }
-        if (remembered != null && browser.hasPersistedGrant(root.treeUri)) {
-            openTree(root.treeUri, root.title)
-        } else {
-            // The provider has not been granted yet, so the screen offers it once.
-            _state.update { it.copy(needsGrant = root) }
+            _state.update { it.copy(opening = true, error = null) }
+            // The picker hands back an address, not a name, so the provider is asked.
+            val name = browser.displayName(treeUri) ?: treeUri.substringAfterLast('/').ifBlank { "Cloud folder" }
+            grants.remember(treeUri, name)
+            _state.update { it.copy(opening = false) }
+            openTree(treeUri, name)
         }
     }
 
@@ -83,25 +78,15 @@ class CloudViewModel @Inject constructor(
         if (browser.hasPersistedGrant(granted.treeUri)) {
             openTree(granted.treeUri, granted.title)
         } else {
-            // The grant was revoked outside the app, so it is dropped rather than shown.
+            // Access was removed outside the app, so the entry is dropped rather than shown
+            // as something that would fail when tapped.
             viewModelScope.launch {
                 grants.forget(granted.treeUri)
-                _state.update { it.copy(error = "That folder's access was removed, so it was forgotten.") }
+                _state.update {
+                    it.copy(error = "Access to that folder was removed, so it was forgotten.")
+                }
             }
         }
-    }
-
-    /** Called after the system folder picker returns, once the permission is persisted. */
-    fun granted(treeUri: String, title: String) {
-        viewModelScope.launch {
-            grants.remember(treeUri, title)
-            _state.update { it.copy(needsGrant = null) }
-            openTree(treeUri, title)
-        }
-    }
-
-    fun dismissGrant() {
-        _state.update { it.copy(needsGrant = null) }
     }
 
     fun forget(treeUri: String) {
@@ -167,14 +152,15 @@ class CloudViewModel @Inject constructor(
                     _state.update { it.copy(browsing = false, documents = documents) }
                 },
                 onFailure = { failure ->
-                    // A grant that the provider has started refusing is offered again rather
-                    // than reported as a plain error.
-                    val wantsGrant = failure is DocumentTreeBrowser.GrantRequired
                     _state.update {
                         it.copy(
                             browsing = false,
                             documents = emptyList(),
-                            error = if (wantsGrant) null else (failure.message ?: "That folder could not be listed."),
+                            error = if (failure is DocumentTreeBrowser.GrantRequired) {
+                                "This service needs the folder to be chosen again."
+                            } else {
+                                failure.message ?: "That folder could not be listed."
+                            },
                         )
                     }
                 },

@@ -22,10 +22,10 @@ data class CloudDocument(
     val isDirectory: Boolean,
 ) {
     val kind: CloudKind
-        get() = CloudKind.of(mimeType, name, isDirectory)
+        get() = CloudKinds.of(mimeType, name, isDirectory)
 }
 
-object CloudKind {
+object CloudKinds {
 
     /**
      * Decides the kind from the MIME type the provider reported, falling back to the name.

@@ -1,7 +1,6 @@
 package com.progallery.app.ui.screens.cloud
 
 import android.content.Intent
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -17,12 +16,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -32,7 +30,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,22 +42,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.progallery.app.data.cloud.CloudKind
-import com.progallery.app.util.MediaFormatUtils
 import com.progallery.app.data.cloud.CloudDocument
-import com.progallery.app.data.cloud.CloudRoot
+import com.progallery.app.data.cloud.CloudKind
 import com.progallery.app.data.cloud.GrantedCloudTree
+import com.progallery.app.util.MediaFormatUtils
 
 /**
- * Cloud browsing, inside the app.
+ * Cloud folders, browsed inside the app.
  *
- * The providers listed here are the ones installed on the device — the same list the
- * system's own file picker shows, because it comes from the same source. **The app holds no
- * account and asks for no password**: the provider app owns the sign-in, which is why there
- * is nothing to sign into again later.
+ * **How a folder gets here.** The user chooses one through the system's own folder picker.
+ * That picker's sidebar is where every installed service appears — Drive, TeraBox, WPS
+ * Office, Zoho WorkDrive, a NAS — because that listing belongs to the platform, not to this
+ * app. Choosing a folder is a **one-time** step: the platform persists the grant, and the
+ * service keeps its own account and session. The app never receives a password and never
+ * signs anything in, which is precisely why there is nothing to sign into again later.
  *
- * A provider may allow its folders straight away, or ask to be granted one folder the first
- * time. That grant is persisted, so it is a one-time step and not a login.
+ * From then on the folder opens straight away, and everything is browsed and opened without
+ * leaving the app.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,29 +72,24 @@ fun CloudScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // The system folder picker, opened *at the provider's own root*, so the user picks a
-    // folder inside that service rather than hunting for it.
-    val grantPicker = rememberLauncherForActivityResult(
+    val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
-        val root = state.needsGrant
-        if (uri == null || root == null) {
-            viewModel.dismissGrant()
-        } else {
-            // Persisted, which is what makes this a one-time step.
+        if (uri != null) {
+            // Persisted, which is what makes this the only time the user is asked.
             runCatching {
                 context.contentResolver.takePersistableUriPermission(
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION,
                 )
             }
-            viewModel.granted(uri.toString(), root.title)
+            viewModel.folderChosen(uri.toString())
         }
     }
 
     LaunchedEffect(pending) {
-        pending?.let { (uri, kind) ->
-            onOpen(uri, kind)
+        pending?.let { request ->
+            onOpen(request.uri, request.kind)
             viewModel.consumeOpen()
         }
     }
@@ -121,8 +114,8 @@ fun CloudScreen(
                 },
                 actions = {
                     if (state.title == null) {
-                        IconButton(onClick = viewModel::refresh) {
-                            Icon(Icons.Filled.Refresh, contentDescription = "Look again")
+                        IconButton(onClick = { folderPicker.launch(null) }) {
+                            Icon(Icons.Filled.CreateNewFolder, contentDescription = "Choose a cloud folder")
                         }
                     }
                 },
@@ -130,10 +123,10 @@ fun CloudScreen(
         },
     ) { padding ->
         if (state.title == null) {
-            ServiceList(
+            FolderList(
                 state = state,
                 padding = padding,
-                onOpenRoot = viewModel::openRoot,
+                onChoose = { folderPicker.launch(null) },
                 onOpenGranted = viewModel::openGranted,
                 onForget = viewModel::forget,
             )
@@ -146,35 +139,13 @@ fun CloudScreen(
             )
         }
     }
-
-    state.needsGrant?.let { root ->
-        AlertDialog(
-            onDismissRequest = viewModel::dismissGrant,
-            title = { Text("Open ${root.title}") },
-            text = {
-                Text(
-                    "${root.title} keeps its own sign-in, so there is nothing to log into " +
-                        "here. Choose the folder inside it once and the app will remember it — " +
-                        "you will not be asked again.",
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { grantPicker.launch(Uri.parse(root.treeUri)) }) {
-                    Text("Choose the folder")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::dismissGrant) { Text("Cancel") }
-            },
-        )
-    }
 }
 
 @Composable
-private fun ServiceList(
+private fun FolderList(
     state: CloudUiState,
     padding: PaddingValues,
-    onOpenRoot: (CloudRoot) -> Unit,
+    onChoose: () -> Unit,
     onOpenGranted: (GrantedCloudTree) -> Unit,
     onForget: (String) -> Unit,
 ) {
@@ -185,16 +156,42 @@ private fun ServiceList(
     ) {
         item {
             Text(
-                text = "These are the cloud services installed on this device. The app holds " +
-                    "no account and never asks for a password — each service keeps its own " +
-                    "sign-in, and a folder you choose once stays chosen.",
+                text = "Choose a folder from any service installed on this device — Drive, " +
+                    "TeraBox, WPS Office, a NAS. The service keeps its own sign-in, so the app " +
+                    "never asks for a password and there is nothing to log into here. A folder " +
+                    "you choose once stays chosen.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
         }
+        item {
+            Button(
+                onClick = onChoose,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            ) {
+                Icon(Icons.Filled.CreateNewFolder, contentDescription = null)
+                Text("  Choose a cloud folder")
+            }
+        }
+        if (state.opening) {
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) { CircularProgressIndicator() }
+            }
+        }
 
-        if (state.granted.isNotEmpty()) {
+        if (state.granted.isEmpty()) {
+            item {
+                Text(
+                    text = "No cloud folder has been chosen yet.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 16.dp),
+                )
+            }
+        } else {
             item { SectionLabel("READY TO BROWSE") }
             items(state.granted, key = { it.treeUri }) { granted ->
                 Row(
@@ -211,52 +208,6 @@ private fun ServiceList(
                     )
                     IconButton(onClick = { onForget(granted.treeUri) }) {
                         Icon(Icons.Filled.Delete, contentDescription = "Forget this folder")
-                    }
-                }
-            }
-        }
-
-        item { SectionLabel("SERVICES") }
-
-        when {
-            state.loading -> item {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) { CircularProgressIndicator() }
-            }
-
-            state.roots.isEmpty() -> item {
-                Text(
-                    text = "No cloud service on this device publishes a folder to other apps. " +
-                        "Install the service's own app and it will appear here.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 16.dp),
-                )
-            }
-
-            else -> items(state.roots, key = { it.treeUri }) { root ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().clickable { onOpenRoot(root) },
-                ) {
-                    Icon(Icons.Filled.Cloud, contentDescription = null)
-                    Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text(
-                            text = root.title,
-                            style = MaterialTheme.typography.bodyLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        root.summary?.takeIf { it.isNotBlank() }?.let { summary ->
-                            Text(
-                                text = summary,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
                     }
                 }
             }
@@ -282,7 +233,7 @@ private fun FolderBrowser(
                     Icon(Icons.Filled.ArrowUpward, contentDescription = "Up one folder")
                 }
                 Text(
-                    text = listOf(state.title.orEmpty()) + state.trail.map { it.name }
+                    text = (listOf(state.title.orEmpty()) + state.trail.map { it.name })
                         .joinToString(" / "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
