@@ -63,7 +63,7 @@ fun WebDavPlayerScreen(
     }
 
     val auth by produceState<WebDavAuth?>(null, serverId) { value = viewModel.auth(serverId) }
-    var failure by remember { mutableStateOf<String?>(null) }
+    var failure by remember { mutableStateOf<Int?>(null) }
 
     val resolved = auth
     val player = remember(resolved, address) {

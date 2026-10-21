@@ -65,7 +65,7 @@ fun StreamPlayerScreen(
     }
     val host = remember(address) { runCatching { Uri.parse(address).host }.getOrNull() ?: address }
 
-    var failure by remember { mutableStateOf<String?>(null) }
+    var failure by remember { mutableStateOf<Int?>(null) }
 
     val player = remember(address) {
         ExoPlayer.Builder(context).build().apply {
