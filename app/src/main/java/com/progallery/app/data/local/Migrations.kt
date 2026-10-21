@@ -24,6 +24,34 @@ object MigrationSteps {
  * can check it against the entities it has to satisfy.
  */
 object MigrationSql {
+    /**
+     * The app's own index of files the system's does not hand over.
+     *
+     * The column list and nullability must match what Room expects for
+     * `IndexedMediaEntity` exactly, or the migration fails at runtime on a real upgrade —
+     * which `MigrationCoverageTest` checks against the entity itself.
+     */
+    val MIGRATION_4_5_CREATE_INDEXED_MEDIA = """
+        CREATE TABLE IF NOT EXISTS `indexed_media` (
+            `mediaKey` TEXT NOT NULL,
+            `uri` TEXT NOT NULL,
+            `displayName` TEXT NOT NULL,
+            `mimeType` TEXT NOT NULL,
+            `sizeBytes` INTEGER NOT NULL,
+            `dateModifiedSeconds` INTEGER NOT NULL,
+            `dateTakenSeconds` INTEGER NOT NULL,
+            `width` INTEGER NOT NULL,
+            `height` INTEGER NOT NULL,
+            `durationMs` INTEGER NOT NULL,
+            `bucketId` INTEGER NOT NULL,
+            `bucketName` TEXT NOT NULL,
+            `relativePath` TEXT,
+            `mediaType` TEXT NOT NULL,
+            `indexedAt` INTEGER NOT NULL,
+            PRIMARY KEY(`mediaKey`)
+        )
+    """.trimIndent()
+
     val MIGRATION_3_4_CREATE_RECOVERY_HISTORY = """
         CREATE TABLE IF NOT EXISTS `recovery_history` (
             `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

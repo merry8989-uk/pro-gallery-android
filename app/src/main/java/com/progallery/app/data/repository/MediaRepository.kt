@@ -128,6 +128,7 @@ class MediaRepository @Inject constructor(
                 pagingSourceFactory = {
                     IndexedPagingSource(
                         dataSource = mediaStore,
+                        indexed = extra,
                         kinds = kinds,
                         sort = sort,
                         query = query,
