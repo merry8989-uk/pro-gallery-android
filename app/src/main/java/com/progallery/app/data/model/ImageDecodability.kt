@@ -52,10 +52,20 @@ object ImageDecodability {
         "avif" to Build.VERSION_CODES.S,
     )
 
+    /**
+     * Formats the app renders itself, because the platform cannot.
+     *
+     * SVG is a vector format: a bitmap decoder cannot draw it, and Android ships none. The app
+     * carries one, so these files show a picture — and the reason line says nothing, because
+     * there is nothing to warn about.
+     */
+    private val BY_APP = setOf("svg", "svgz")
+
     /** Image formats Android has no decoder for. Listed, never promised. */
     private val NEVER = setOf(
-        // vector and page description — a bitmap decoder cannot render these
-        "svg", "svgz", "eps", "epsf", "ai", "indd", "indt", "sketch", "cdr", "cdt",
+        // vector and page description — a bitmap decoder cannot render these, and none is
+        // carried for them
+        "eps", "epsf", "ai", "indd", "indt", "sketch", "cdr", "cdt",
         // layered and professional
         "psd", "psb", "xcf",
         // other image codecs with no platform decoder
@@ -72,6 +82,7 @@ object ImageDecodability {
         return when {
             ext in ALWAYS -> DecoderSupport.ALWAYS
             GATED.containsKey(ext) -> DecoderSupport.FROM_API
+            ext in BY_APP -> DecoderSupport.BY_APP
             ext in NEVER -> DecoderSupport.NEVER
             else -> DecoderSupport.NEVER
         }
