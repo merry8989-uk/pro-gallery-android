@@ -20,6 +20,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import com.progallery.app.data.local.MIGRATION_4_5
+import com.progallery.app.data.local.dao.IndexedMediaDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -40,6 +41,10 @@ object AppModule {
     @Provides fun provideTrashDao(db: ProGalleryDatabase): TrashDao = db.trashDao()
     @Provides fun provideHiddenDao(db: ProGalleryDatabase): HiddenDao = db.hiddenDao()
     @Provides fun provideScanDirectoryDao(db: ProGalleryDatabase): ScanDirectoryDao = db.scanDirectoryDao()
+
+    /** The app's own index, which the gallery merges into the system's rows. */
+    @Provides fun provideIndexedMediaDao(db: ProGalleryDatabase): IndexedMediaDao =
+        db.indexedMediaDao()
 
     @Provides fun provideRecoveryHistoryDao(db: ProGalleryDatabase): RecoveryHistoryDao =
         db.recoveryHistoryDao()
