@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.content.Context
@@ -22,6 +23,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.progallery.app.data.settings.SettingsDependencies
 import com.progallery.app.data.diagnostics.DiagnosticLog
+import com.progallery.app.BuildConfig
+import com.progallery.app.data.update.UpdateCheck
+import com.progallery.app.data.update.UpdateChecker
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -29,6 +33,7 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val thumbnailCache: ThumbnailCacheManager,
     private val diagnosticLog: DiagnosticLog,
+    private val updateChecker: UpdateChecker,
 ) : ViewModel() {
 
     private val _cacheSizeBytes = MutableStateFlow(0L)
@@ -54,6 +59,61 @@ class SettingsViewModel @Inject constructor(
 
     fun consumeCacheMessage() {
         _cacheMessage.value = null
+    }
+
+    /**
+     * The update check.
+     *
+     * There is no automatic check and no background request: the app asks the releases feed
+     * only when the user presses the button. Nothing about the device is sent — the request
+     * is a plain GET for the project's latest release.
+     */
+    data class UpdateUiState(
+        val checking: Boolean = false,
+        val result: UpdateCheck? = null,
+        val currentVersion: String = BuildConfig.VERSION_NAME,
+        /**
+         * True when this copy was installed by Play, where updates arrive on their own and
+         * downloading an APK by hand would fight the store.
+         */
+        val installedFromPlay: Boolean = false,
+    )
+
+    private val _updateState = MutableStateFlow(UpdateUiState())
+    val updateState: StateFlow<UpdateUiState> = _updateState.asStateFlow()
+
+    /** Asks the releases feed whether a newer version exists. */
+    fun checkForUpdates() {
+        viewModelScope.launch {
+            _updateState.update { it.copy(checking = true) }
+            val result = updateChecker.check(BuildConfig.VERSION_NAME)
+            _updateState.update {
+                it.copy(
+                    checking = false,
+                    result = result,
+                    installedFromPlay = installedFromPlay(),
+                )
+            }
+        }
+    }
+
+    fun dismissUpdateCheck() {
+        _updateState.update { it.copy(result = null) }
+    }
+
+    /** Whether the store owns this install, so an update should come from there. */
+    private fun installedFromPlay(): Boolean = runCatching {
+        val installer = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            context.packageManager.getInstallSourceInfo(context.packageName).installingPackageName
+        } else {
+            @Suppress("DEPRECATION")
+            context.packageManager.getInstallerPackageName(context.packageName)
+        }
+        installer == PLAY_PACKAGE
+    }.getOrDefault(false)
+
+    private companion object {
+        const val PLAY_PACKAGE = "com.android.vending"
     }
 
     private val _settingsMessage = MutableStateFlow<String?>(null)

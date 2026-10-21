@@ -122,6 +122,13 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6d. Update check — v1.16.0
+
+**✅ Check for updates** from the releases feed, manual only, with the version comparison
+pure and tested. Along the way a real bug was found and fixed: `INTERNET` was never
+declared, so Stream from a link, WebDAV browsing and the update check could not open a
+connection at all.
+
 ## 6c. Player and readers — started v1.15.0
 
 **✅ Part A — truth in the format layer** (v1.15.0): the content-address bug, decodability
