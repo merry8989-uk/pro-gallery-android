@@ -34,18 +34,25 @@ class IndexedPagingTest {
      * [IndexedPaging.Batch.rowsRead] but not returned, exactly as a real cursor behaves. That is
      * the case a naive implementation gets wrong, so every test goes through it.
      */
-    private class FakeCursor(val rows: List<MediaItem>, val rowsPerRead: Int) {
+    private class FakeCursor(rows: List<MediaItem>, val rowsPerRead: Int) {
+
+        /**
+         * Sorted, because that is what a real cursor returns: the query has an ORDER BY. A fake
+         * that returned rows in list order would fail the merge for a reason the app never has.
+         */
+        private val ordered = rows.sortedWith(IndexMerge.comparator(SortOrder.DATE_NEWEST))
+        private val rows: List<MediaItem> get() = ordered
         var reads = 0
             private set
 
         suspend fun read(row: Int, size: Int): IndexedPaging.Batch {
             reads++
-            val window = rows.drop(row).take(rowsPerRead.coerceAtMost(size))
+            val window = ordered.drop(row).take(rowsPerRead.coerceAtMost(size))
             val visible = window.filterNot { it.displayName.startsWith("hidden-") }
             return IndexedPaging.Batch(
                 items = visible,
                 rowsRead = window.size,
-                exhausted = window.size < rowsPerRead.coerceAtMost(size) || row + window.size >= rows.size,
+                exhausted = window.size < rowsPerRead.coerceAtMost(size) || row + window.size >= ordered.size,
             )
         }
     }
@@ -212,5 +219,51 @@ class IndexedPagingTest {
             }
             assertEquals(50, total)
         }
+    }
+
+    // ---- the fault this algorithm was rewritten for ----
+
+    @Test
+    fun anItemFromTheNextBatchIsNotEmittedOutOfOrder() {
+        // The bug, named: a window's worth of the system's side was merged without reading
+        // ahead, so when the batch ended the merge fell back to the app's index alone — and an
+        // item from the *next* batch, newer than one already emitted, arrived afterwards. The
+        // grid would show two neighbours swapped.
+        //
+        // Here the store has s1 (date 990) and s2 (date 960) with s3 (date 958) in the app's
+        // index. With a batch of one row per read, s2 is only visible after s1 is taken.
+        val rows = listOf(item("s1", date = 990), item("s2", date = 960))
+        val indexed = listOf(item("s3", date = 958, source = MediaSource.DEEP_SCAN))
+
+        val streamed = paged(FakeCursor(rows, 1), indexed, loadSize = 2)
+
+        assertEquals(listOf("s1", "s2", "s3"), streamed.map { it.displayName })
+    }
+
+    @Test
+    fun theOrderIsRightAtEveryWindowSize() {
+        // The property, checked across the sizes the pager actually uses: a first load is twice
+        // the page size, and later loads are the page size.
+        val rows = (1..30).map { item("s$it", date = (900 - it * 11).toLong()) }
+        val indexed = (1..20).map { item("i$it", date = (900 - it * 7).toLong(), MediaSource.DEEP_SCAN) }
+
+        val whole = oneWindow(FakeCursor(rows, 9), indexed).items.map { it.displayName }
+
+        listOf(1, 2, 3, 5, 8, 13, 30).forEach { size ->
+            val streamed = paged(FakeCursor(rows, 9), indexed, loadSize = size)
+            assertEquals("window size $size", whole, streamed.map { it.displayName })
+        }
+    }
+
+    @Test
+    fun readingAheadDoesNotChangeWhatIsShown() {
+        // A bigger read-ahead must not add, drop or reorder anything.
+        val rows = (1..18).map { item("s$it", date = (500 - it * 5).toLong()) }
+        val indexed = (1..12).map { item("i$it", date = (500 - it * 3).toLong(), MediaSource.DEEP_SCAN) }
+
+        val small = paged(FakeCursor(rows, 4), indexed, loadSize = 3).map { it.displayName }
+        val large = paged(FakeCursor(rows, 12), indexed, loadSize = 3).map { it.displayName }
+
+        assertEquals(small, large)
     }
 }

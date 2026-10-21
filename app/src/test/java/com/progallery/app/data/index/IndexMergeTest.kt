@@ -197,8 +197,11 @@ class IndexMergeTest {
         val store = listOf(item("b", date = 5), item("a", date = 5))
         val indexed = listOf(item("c", date = 5))
 
+        // Both inputs must be sorted, as they are in the app: the system's side comes from a
+        // sorted query and the app's side is sorted with the same comparator. Feeding them in
+        // a different *order* is fine; feeding them unsorted is not what the merge is for.
         val first = IndexMerge.merge(store, indexed, 10, newest)
-        val second = IndexMerge.merge(store.reversed(), indexed, 10, newest)
+        val second = IndexMerge.merge(store.reversed().sortedWith(newest), indexed, 10, newest)
 
         assertEquals(names(first.items), names(second.items))
     }
