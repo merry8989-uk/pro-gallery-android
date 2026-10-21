@@ -40,6 +40,12 @@ import com.progallery.app.data.permissions.AccessFix
 import com.progallery.app.data.permissions.AccessRow
 import com.progallery.app.data.permissions.AccessState
 import com.progallery.app.util.PermissionUtils
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * What the app can and cannot reach, why it matters, and how to change it.
@@ -57,6 +63,17 @@ fun PermissionDiagnosticsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+
+    // The view model's own messages — "the log was cleared", a failed write — surfaced rather
+    // than swallowed.
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbar.showSnackbar(it)
+            viewModel.consumeMessage()
+        }
+    }
 
     // The normal permission dialog.
     val permissionRequest = rememberMultiplePermissionsState(
@@ -74,6 +91,7 @@ fun PermissionDiagnosticsScreen(
     ) { viewModel.refresh() }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { Text("Access") },
@@ -135,6 +153,26 @@ fun PermissionDiagnosticsScreen(
                             AccessFix.PICK_FOLDER -> onPickFolder()
                             AccessFix.NONE -> Unit
                         }
+                    },
+                )
+            }
+
+            item {
+                LogSection(
+                    state = state,
+                    onFilter = viewModel::setFilter,
+                    onClear = viewModel::clearLog,
+                    onSave = { uri, format ->
+                        viewModel.saveLogTo(uri, format) { written ->
+                            scope.launch {
+                                snackbar.showSnackbar(
+                                    if (written) "Exported." else "The file could not be written.",
+                                )
+                            }
+                        }
+                    },
+                    onFile = { format, onReady, onFailed ->
+                        viewModel.logFileFor(format, onReady, onFailed)
                     },
                 )
             }

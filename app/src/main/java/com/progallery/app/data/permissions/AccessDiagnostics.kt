@@ -45,6 +45,14 @@ data class AccessSnapshot(
     val location: AccessState,
     val allFiles: Boolean,
     val grantedFolders: Int,
+    /**
+     * How many photos and videos the app can currently see.
+     *
+     * This is the number that makes an access log explain itself: "granted, 412 items" and
+     * "granted, 0 items" are the same permission state and completely different problems.
+     * Defaulted so a caller that does not read it — and every test — still compiles.
+     */
+    val mediaItemCount: Int = 0,
     /** The read-only root check, or null when it has not been run. */
     val rootStatus: String? = null,
 )

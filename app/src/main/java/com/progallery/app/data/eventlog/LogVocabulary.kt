@@ -75,15 +75,10 @@ enum class FixOutcome(val wire: String) {
     }
 }
 
-/** The access states an attempt can start and end in. */
-enum class AccessState(val wire: String) {
-    GRANTED("granted"),
-    PARTIAL("partial"),
-    DENIED("denied"),
-    PERMANENTLY_DENIED("permanently_denied"),
-    ;
+/*
+ * There is deliberately no access-state enum here. The app already has one —
+ * `com.progallery.app.data.permissions.AccessState` — and a second one for the same idea is
+ * exactly how two parts of an app come to disagree. The wire names the schema uses live in
+ * `AccessStateWire.kt`, next to the mapping rather than in a rival enum.
+ */
 
-    companion object {
-        fun ofWire(value: String): AccessState? = entries.firstOrNull { it.wire == value }
-    }
-}

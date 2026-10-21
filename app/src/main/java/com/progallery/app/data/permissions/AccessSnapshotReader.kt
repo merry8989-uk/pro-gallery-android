@@ -7,6 +7,9 @@ import com.progallery.app.util.PermissionUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import android.provider.MediaStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Reads the real access state off the device.
@@ -39,7 +42,33 @@ class AccessSnapshotReader @Inject constructor(
             },
             allFiles = PermissionUtils.hasAllFilesAccess(context),
             grantedFolders = runCatching { scanDirectoryDao.all().size }.getOrDefault(0),
+            mediaItemCount = mediaItemCount(),
         )
+    }
+
+    /**
+     * Photos and videos the app can see right now.
+     *
+     * A count query rather than a read: the number is what matters, and pulling the rows would
+     * be work done to be thrown away. Images and videos only — audio and documents are not what
+     * the media permission controls, so counting them would inflate the number that is meant to
+     * say whether the gallery is actually visible.
+     */
+    private suspend fun mediaItemCount(): Int = withContext(Dispatchers.IO) {
+        runCatching {
+            val selection = "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (?, ?)"
+            val arguments = arrayOf(
+                MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
+                MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString(),
+            )
+            context.contentResolver.query(
+                MediaStore.Files.getContentUri("external"),
+                arrayOf(MediaStore.Files.FileColumns._ID),
+                selection,
+                arguments,
+                null,
+            )?.use { it.count } ?: 0
+        }.getOrDefault(0)
     }
 
     /**
