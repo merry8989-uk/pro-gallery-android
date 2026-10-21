@@ -26,6 +26,8 @@ import com.progallery.app.data.diagnostics.DiagnosticLog
 import com.progallery.app.BuildConfig
 import com.progallery.app.data.update.UpdateCheck
 import com.progallery.app.data.update.UpdateChecker
+import com.progallery.app.data.update.UpdateDownloader
+import com.progallery.app.data.update.UpdateInstaller
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -34,6 +36,8 @@ class SettingsViewModel @Inject constructor(
     private val thumbnailCache: ThumbnailCacheManager,
     private val diagnosticLog: DiagnosticLog,
     private val updateChecker: UpdateChecker,
+    private val updateDownloader: UpdateDownloader,
+    private val updateInstaller: UpdateInstaller,
 ) : ViewModel() {
 
     private val _cacheSizeBytes = MutableStateFlow(0L)
@@ -68,8 +72,21 @@ class SettingsViewModel @Inject constructor(
      * only when the user presses the button. Nothing about the device is sent — the request
      * is a plain GET for the project's latest release.
      */
+    /** What the in-app download is doing, so the dialog can show it rather than a browser. */
+    sealed interface UpdateDownloadUi {
+        data object Idle : UpdateDownloadUi
+
+        /** [percent] is -1 when the server did not say how large the file is. */
+        data class Working(val percent: Int) : UpdateDownloadUi
+        data class Ready(val file: java.io.File, val versionName: String) : UpdateDownloadUi
+        data class Failed(val reason: String) : UpdateDownloadUi
+    }
+
     data class UpdateUiState(
         val checking: Boolean = false,
+        val download: UpdateDownloadUi = UpdateDownloadUi.Idle,
+        /** Whether Android will let this app ask for an install yet. */
+        val canInstallPackages: Boolean = false,
         val result: UpdateCheck? = null,
         val currentVersion: String = BuildConfig.VERSION_NAME,
         /**
@@ -85,7 +102,13 @@ class SettingsViewModel @Inject constructor(
     /** Asks the releases feed whether a newer version exists. */
     fun checkForUpdates() {
         viewModelScope.launch {
-            _updateState.update { it.copy(checking = true) }
+            _updateState.update {
+                it.copy(
+                    checking = true,
+                    download = UpdateDownloadUi.Idle,
+                    canInstallPackages = updateInstaller.canInstallPackages(),
+                )
+            }
             val result = updateChecker.check(BuildConfig.VERSION_NAME)
             _updateState.update {
                 it.copy(
@@ -98,8 +121,60 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun dismissUpdateCheck() {
-        _updateState.update { it.copy(result = null) }
+        _updateState.update { it.copy(result = null, download = UpdateDownloadUi.Idle) }
     }
+
+    /**
+     * Fetches the update **here**, rather than handing the address to a browser.
+     *
+     * The file is checked against this app's own signing key before it is offered, which is
+     * only possible because it is fetched in the app.
+     */
+    fun downloadUpdate() {
+        val release = (updateState.value.result as? UpdateCheck.Available)?.release ?: return
+        val url = release.apkUrl ?: return
+
+        viewModelScope.launch {
+            _updateState.update { it.copy(download = UpdateDownloadUi.Working(0)) }
+
+            when (val outcome = updateDownloader.download(url, release.displayVersion) { percent ->
+                _updateState.update { it.copy(download = UpdateDownloadUi.Working(percent)) }
+            }) {
+                is UpdateDownloader.Outcome.Ready -> _updateState.update {
+                    it.copy(
+                        download = UpdateDownloadUi.Ready(outcome.file, outcome.versionName),
+                        canInstallPackages = updateInstaller.canInstallPackages(),
+                    )
+                }
+
+                is UpdateDownloader.Outcome.Failed -> _updateState.update {
+                    it.copy(download = UpdateDownloadUi.Failed(outcome.reason))
+                }
+            }
+        }
+    }
+
+    /** Hands the verified file to Android's own installer. */
+    fun installDownloaded() {
+        val ready = (updateState.value.download as? UpdateDownloadUi.Ready) ?: return
+        updateInstaller.install(ready.file).onFailure { failure ->
+            _updateState.update {
+                it.copy(
+                    download = UpdateDownloadUi.Failed(
+                        failure.message ?: "The installer could not be opened.",
+                    ),
+                )
+            }
+        }
+    }
+
+    /** Re-read whether installs are allowed, for when the user returns from the setting. */
+    fun refreshInstallPermission() {
+        _updateState.update { it.copy(canInstallPackages = updateInstaller.canInstallPackages()) }
+    }
+
+    /** The system screen where "install unknown apps" is turned on for this app. */
+    fun installPermissionIntent(): android.content.Intent = updateInstaller.installPermissionSettings()
 
     /** Whether the store owns this install, so an update should come from there. */
     private fun installedFromPlay(): Boolean = runCatching {

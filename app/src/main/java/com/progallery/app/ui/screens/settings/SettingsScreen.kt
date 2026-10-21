@@ -56,6 +56,13 @@ import com.progallery.app.BuildConfig
 import com.progallery.app.data.update.UpdateCheck
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.LinearProgressIndicator
+import com.progallery.app.data.update.UpdateInstallPlan
+import com.progallery.app.data.update.UpdateInstallStep
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 /** One renderable settings row. */
 private sealed interface SettingsRow {
@@ -168,6 +175,18 @@ fun SettingsScreen(
         ActivityResultContracts.CreateDocument("text/plain"),
     ) { uri -> uri?.let { viewModel.saveDiagnosticsTo(it) } }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // The "install unknown apps" switch is changed outside the app, so the answer is re-read
+    // when the app comes back to the front. Without this the dialog would keep offering a
+    // setting the user has already turned on.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshInstallPermission()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(Unit) { viewModel.refreshCacheSize() }
     LaunchedEffect(cacheMessage) {
@@ -307,6 +326,13 @@ fun SettingsScreen(
                 }
             },
             onRetry = viewModel::checkForUpdates,
+            onDownload = viewModel::downloadUpdate,
+            onInstall = viewModel::installDownloaded,
+            onAllowInstalls = {
+                // Re-reads the switch when the user comes back from the setting.
+                viewModel.refreshInstallPermission()
+                runCatching { context.startActivity(viewModel.installPermissionIntent()) }
+            },
         )
     }
 
@@ -1152,7 +1178,20 @@ private fun UpdateDialog(
     onDismiss: () -> Unit,
     onOpen: (String) -> Unit,
     onRetry: () -> Unit,
+    onDownload: () -> Unit,
+    onInstall: () -> Unit,
+    onAllowInstalls: () -> Unit,
 ) {
+    val available = state.result as? UpdateCheck.Available
+    val step = available?.let {
+        UpdateInstallPlan.step(
+            installedFromPlay = state.installedFromPlay,
+            hasApk = it.release.apkUrl != null,
+            downloaded = state.download is SettingsViewModel.UpdateDownloadUi.Ready,
+            canInstallPackages = state.canInstallPackages,
+        )
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Check for updates") },
@@ -1163,21 +1202,11 @@ private fun UpdateDialog(
             ) {
                 Text("You are on version ${state.currentVersion}.")
 
-                if (state.installedFromPlay) {
-                    Text(
-                        // Worth saying, because a hand-installed APK would fight the store.
-                        text = "This copy was installed by Play, where updates arrive on " +
-                            "their own — updating it from a file can cause a conflict.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
                 when {
                     state.checking -> Text("Checking…")
 
-                    state.result is UpdateCheck.Available -> {
-                        val release = (state.result as UpdateCheck.Available).release
+                    available != null -> {
+                        val release = available.release
                         Text(
                             text = "Version ${release.displayVersion} is available.",
                             style = MaterialTheme.typography.titleSmall,
@@ -1190,6 +1219,54 @@ private fun UpdateDialog(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        }
+
+                        // What happens next, in the app's own words — including the part that
+                        // cannot be avoided: Android shows its own confirmation.
+                        step?.let { UpdateInstallPlan.note(it) }?.let { note ->
+                            Text(
+                                text = note,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+
+                        when (val download = state.download) {
+                            is SettingsViewModel.UpdateDownloadUi.Working -> {
+                                if (download.percent >= 0) {
+                                    LinearProgressIndicator(
+                                        progress = { download.percent / 100f },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    Text(
+                                        text = "Downloading… ${download.percent}%",
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                } else {
+                                    // The server did not say how large the file is, so a
+                                    // percentage would be invented.
+                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                    Text(
+                                        text = "Downloading…",
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            }
+
+                            is SettingsViewModel.UpdateDownloadUi.Ready -> Text(
+                                text = "Downloaded and checked. It is signed with this app's " +
+                                    "own key.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+
+                            is SettingsViewModel.UpdateDownloadUi.Failed -> Text(
+                                text = download.reason,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+
+                            SettingsViewModel.UpdateDownloadUi.Idle -> Unit
                         }
                     }
 
@@ -1210,8 +1287,15 @@ private fun UpdateDialog(
         confirmButton = {
             when (val result = state.result) {
                 is UpdateCheck.Available -> {
-                    if (result.release.apkUrl != null) {
-                        TextButton(onClick = { onOpen(result.release.apkUrl) }) { Text("Open the APK") }
+                    val working = state.download is SettingsViewModel.UpdateDownloadUi.Working
+                    if (step != null && step != UpdateInstallStep.PLAY && !working) {
+                        TextButton(
+                            onClick = when (step) {
+                                UpdateInstallStep.DOWNLOAD -> onDownload
+                                UpdateInstallStep.ALLOW_INSTALLS -> onAllowInstalls
+                                else -> onInstall
+                            },
+                        ) { Text(UpdateInstallPlan.actionLabel(step)) }
                     }
                     TextButton(onClick = { onOpen(result.release.pageUrl) }) { Text("Release page") }
                 }

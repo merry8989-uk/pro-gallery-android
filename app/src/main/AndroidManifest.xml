@@ -33,6 +33,14 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--
+      So an update found by the update check can be installed without sending the user to a
+      browser. Android still shows its own confirmation — this only allows the app to ask.
+      Play restricts this permission, so a Play-distributed build would use Play's own update
+      flow instead; this build is sideloaded, which is exactly the case it is for.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!--
       Optional "All files access". MediaStore hides documents and archives created
       by other apps from a normal media permission, so this is the only way to
       browse PDFs and similar files in the main list. The app explains this and
