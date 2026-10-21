@@ -60,7 +60,7 @@ object PlaybackFailure {
         val action: Action,
     )
 
-    fun explain(errorCode: Int): Explanation = when (errorCode) {
+    fun explain(errorCode: Int, isLink: Boolean = false): Explanation = when (errorCode) {
         IO_FILE_NOT_FOUND -> Explanation(
             reason = "The file could not be opened",
             detail = "It has been moved or deleted, or it is in a folder Android does not let " +
@@ -109,12 +109,26 @@ object PlaybackFailure {
             action = Action.ANOTHER_APP,
         )
 
-        PARSING_CONTAINER_UNSUPPORTED, PARSING_MANIFEST_UNSUPPORTED -> Explanation(
-            reason = "This kind of file cannot be played",
-            detail = "The container is not one Android can read. MPEG program streams (.mpg), " +
-                "Windows Media (.wmv) and Flash (.swf) have no support on Android at all.",
-            action = Action.ANOTHER_APP,
-        )
+        // For a link, the overwhelmingly common cause is that the address is a page and not a
+        // file at all — which is a different answer from "Android cannot read this container",
+        // and a more useful one. That mistake was made once already; it is not repeated here.
+        PARSING_CONTAINER_UNSUPPORTED, PARSING_MANIFEST_UNSUPPORTED -> if (isLink) {
+            Explanation(
+                reason = "The address did not return a media file",
+                detail = "It answered with a web page rather than a stream. A page is shown by " +
+                    "a browser, not played by a player. A direct file link ends in .mp4, .webm, " +
+                    ".mkv, .m3u8 or .mpd.",
+                action = Action.ANOTHER_APP,
+            )
+        } else {
+            Explanation(
+                reason = "This kind of file cannot be played",
+                detail = "The container is not one Android can read. MPEG program streams " +
+                    "(.mpg), Windows Media (.wmv) and Flash (.swf) have no support on Android " +
+                    "at all.",
+                action = Action.ANOTHER_APP,
+            )
+        }
 
         PARSING_CONTAINER_MALFORMED, PARSING_MANIFEST_MALFORMED -> Explanation(
             reason = "The file is damaged",
@@ -170,8 +184,8 @@ object PlaybackFailure {
      * The file's name is included when it is known, because "something failed" is not useful
      * when a playlist of thirty-two videos is open.
      */
-    fun message(errorCode: Int, fileName: String? = null): String {
-        val explanation = explain(errorCode)
+    fun message(errorCode: Int, fileName: String? = null, isLink: Boolean = false): String {
+        val explanation = explain(errorCode, isLink)
         val prefix = fileName?.takeIf { it.isNotBlank() }?.let { "\"$it\" — " } ?: ""
         return "$prefix${explanation.reason}.\n\n${explanation.detail}"
     }

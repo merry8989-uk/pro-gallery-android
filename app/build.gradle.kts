@@ -150,6 +150,12 @@ dependencies {
     implementation(libs.media3.transformer)
     implementation(libs.media3.effect)
     implementation(libs.media3.common)
+    // Adaptive streams. The app's own copy promised .m3u8 and .mpd worked; they could not,
+    // because these were never on the classpath. Now the promise is true.
+    implementation(libs.media3.exoplayer.hls)
+    implementation(libs.media3.exoplayer.dash)
+    implementation(libs.media3.exoplayer.rtsp)
+    implementation(libs.media3.exoplayer.smoothstreaming)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
