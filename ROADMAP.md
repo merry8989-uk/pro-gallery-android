@@ -122,12 +122,6 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
-## 6o. Stickers and SVG — v1.27.0
-
-**✅ Part F**: a sticker screen with a chequerboard background (so transparency is visible), a
-sticker-kind vocabulary that says what cannot be shown and why, and SVG rendering via the app's
-own decoder.
-
 ## 6n. App media in the gallery — v1.26.0
 
 **✅ Part E's goal**: the app's own index, merged into the grid's order. The scan fills it; the
@@ -179,6 +173,26 @@ action that helps; a missing file is no longer described as a codec problem.
 
 **✅ Cloud folders browsed in-app**, with no sign-in of the app's own: a folder is granted
 once through the system picker and persisted, and the service keeps its own session.
+
+## 6e. What shipped since v1.16.0 — v1.17.0 to v1.28.0
+
+Written as one entry rather than ten, because the roadmap stopped being updated at v1.16.0 and
+ten back-dated sections would read as if they had been there all along.
+
+| Version | What |
+| --- | --- |
+| v1.17.0 | Cloud browsed **inside** the app: a picked folder becomes a persisted grant, opened straight away. The provider sidebar could not be reproduced — `ContentResolver.acquireRoots()` is not public API — so the picker-first design is the honest alternative. |
+| v1.18.0 | The real reason a file will not play, on every player, with **Try another app** offered. |
+| v1.19.0 | A reader for text, JSON, CSV, log and code. Binary files are refused rather than shown as noise. |
+| v1.20.0 | **HLS, DASH, RTSP and SmoothStreaming**, which were missing while the app's own text claimed they worked. |
+| v1.21.0 | Check for updates fixed — the dialog was never rendered — and moved to the Atom feed, which is not rate-limited per address. |
+| v1.22.0 | **Memories**: the capture date, not the modification date, and a reminder at seven with nothing to set up. |
+| v1.23.0 | **App media**: which messaging apps have media, and what is installed. |
+| v1.24.0 | The update downloads, is verified against the app's own signing key, and installs from inside the app. |
+| v1.25.0 | **Anonymised usage data** in Diagnostics, with the seven-day review. A closed vocabulary, so no field exists that a filename could be written into. |
+| v1.26.0 | **App media joins the gallery**: the app's own index merged into the system's rows. |
+| v1.27.0 | **Stickers** on a chequerboard, and **SVG** drawn by the app's own decoder. |
+| v1.28.0 | **The log, live, on the access screen** — with the filter, the export, the email, and `access_fix_result`, the outcome half that the 21 October log was missing. |
 
 ## 6d. Update check — v1.16.0
 
