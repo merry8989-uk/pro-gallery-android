@@ -27,6 +27,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.16.0]
+Check for updates — and a permission the app could not work without.
+
+### Fixed
+- **`android.permission.INTERNET` was never declared.** On Android, a socket opened
+  without it throws `SecurityException: Permission denied`, so **Stream from a link**,
+  **WebDAV browsing** and the new update check could not open a connection at all. The code
+  that called them was correct; the manifest was not, and nothing in the build noticed —
+  it compiles, it lints, and the unit tests pass either way. Declared now, with a
+  **manifest guard test** so it cannot go missing again.
+
+### Added
+- **Check for updates** (Settings → Diagnostics & experimental → Check for updates). It asks
+  the project's releases feed what the latest version is and compares it with the one
+  installed, then offers the release page or the APK — it never downloads or installs
+  anything by itself.
+  - **No automatic check and no background request.** The feed is asked only when the
+    button is pressed, and nothing about the device is sent: it is a plain GET.
+  - **The comparison is the point, and it is pure and tested.** `VersionName` ignores a
+    leading `v`, treats `1.16` and `1.16.0` as the same version, cuts a pre-release suffix
+    so `1.16.0-beta` counts as `1.16.0`, and compares numerically so `1.10.0` is newer than
+    `1.9.0`. A tag that is not a version at all — `latest`, `nightly` — is **not** an
+    update, because saying nothing beats offering something meaningless. The app can never
+    tell you to "upgrade" to something older.
+  - **The rate limit is reported honestly.** GitHub allows a limited number of
+    unauthenticated requests per address per hour; running out says "try again in an hour"
+    rather than looking like a broken app.
+  - **A Play-installed copy is told so**, because updating it from a file can conflict with
+    the store.
+  - The releases feed is read by a small hand-written JSON reader, because `org.json` is
+    stubbed out in unit tests and the payload's shape is an external contract — the one
+    thing worth testing without a device. It was then **checked against the live API**: the
+    field names, the asset chosen, and the comparison result all match a real reply.
+
+### Tests
+- `VersionNameTest` — a leading `v`, missing segments, pre-release and build suffixes,
+  `1.10.0` versus `1.9.0`, equal versions not being an update, non-versions not being an
+  update, and an older version never being offered.
+- `ReleaseJsonTest` — a realistic reply with extra fields and nested objects, the APK
+  chosen over the bundle, escapes in the release notes, a bundle-only release, a
+  tag without the `v`, and readable refusals for a missing tag, a missing page, malformed
+  JSON and an array where an object was expected.
+- `NetworkPermissionTest` — `INTERNET` is declared, and declared outside a comment.
+
 ## [1.15.0]
 Four real bugs in the format layer, found by reading the code. Plus the plan for the
 player and the readers, written down in full.
