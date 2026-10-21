@@ -70,7 +70,7 @@ object PlaybackFailure {
         )
 
         IO_NO_PERMISSION -> Explanation(
-            reason = "Android did not allow this file to be read",
+            reason = "Android did not give permission to read this file",
             detail = "The app has the file's address but not permission to open it. Granting " +
                 "the folder, or all files access, is what changes that.",
             action = Action.RESCAN,
