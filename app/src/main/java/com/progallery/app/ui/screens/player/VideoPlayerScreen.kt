@@ -44,6 +44,10 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.common.Player
+import androidx.compose.material3.SnackbarResult
+import com.progallery.app.data.media.PlaybackFailure
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material3.MaterialTheme
 
 /**
  * Full-screen video playback with a swipe between videos.
@@ -67,6 +71,7 @@ fun VideoPlayerScreen(
     val items by viewModel.items.collectAsStateWithLifecycle()
     val item by viewModel.item.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val failureAction by viewModel.failureAction.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val player = remember {
@@ -81,7 +86,7 @@ fun VideoPlayerScreen(
         // A video that cannot be decoded used to show a black screen with no explanation.
         val listener = object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
-                viewModel.reportPlaybackFailure(error.errorCodeName)
+                viewModel.reportPlaybackFailure(error.errorCode, viewModel.item.value?.displayName)
             }
         }
         player.addListener(listener)
@@ -92,7 +97,27 @@ fun VideoPlayerScreen(
 
     LaunchedEffect(decoded) { viewModel.configure(uri) }
     LaunchedEffect(message) {
-        message?.let { snackbarHostState.showSnackbar(it); viewModel.consumeMessage() }
+        message?.let {
+            // The snackbar offers what can actually be done about this failure, which differs
+            // by reason: a stale entry wants a rescan, an unsupported codec wants another app.
+            val label = when (failureAction) {
+                PlaybackFailure.Action.RESCAN -> "Check again"
+                PlaybackFailure.Action.ANOTHER_APP -> "Open with"
+                PlaybackFailure.Action.RETRY -> "Try again"
+                PlaybackFailure.Action.NONE -> null
+            }
+            val result = snackbarHostState.showSnackbar(it, actionLabel = label)
+            if (result == SnackbarResult.ActionPerformed) {
+                when (failureAction) {
+                    PlaybackFailure.Action.RESCAN -> viewModel.rescanAndRetry()
+                    PlaybackFailure.Action.ANOTHER_APP -> viewModel.openCurrentWithAnotherApp()
+                    PlaybackFailure.Action.RETRY -> viewModel.rescanAndRetry()
+                    PlaybackFailure.Action.NONE -> Unit
+                }
+            }
+            viewModel.consumeMessage()
+            viewModel.consumeFailureAction()
+        }
     }
     DisposableEffect(Unit) {
         onDispose { player.release() }
@@ -162,6 +187,20 @@ fun VideoPlayerScreen(
                     color = Color.White,
                     modifier = Modifier.padding(start = 4.dp),
                 )
+                // Which video this is, not just which number. With thirty-two videos in the
+                // list, a position alone does not say what is on screen.
+                viewModel.item.value?.displayName?.let { name ->
+                    Text(
+                        text = name,
+                        color = Color.White.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .weight(1f, fill = false),
+                    )
+                }
             }
         }
 

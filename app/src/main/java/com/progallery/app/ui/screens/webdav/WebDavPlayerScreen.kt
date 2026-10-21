@@ -37,6 +37,7 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import com.progallery.app.data.media.PlaybackFailure
 
 /**
  * Plays a file straight off a WebDAV server.
@@ -62,7 +63,7 @@ fun WebDavPlayerScreen(
     }
 
     val auth by produceState<WebDavAuth?>(null, serverId) { value = viewModel.auth(serverId) }
-    var failure by remember { mutableStateOf<String?>(null) }
+    var failure by remember { mutableStateOf<Int?>(null) }
 
     val resolved = auth
     val player = remember(resolved, address) {
@@ -89,7 +90,7 @@ fun WebDavPlayerScreen(
         } else {
             val listener = object : Player.Listener {
                 override fun onPlayerError(error: PlaybackException) {
-                    failure = error.errorCodeName
+                    failure = error.errorCode
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -144,11 +145,10 @@ fun WebDavPlayerScreen(
                 }
             }
 
-            val message = failure
-            if (message != null) {
+            val code = failure
+            if (code != null) {
                 Text(
-                    text = "This file could not be played ($message). It may not be a media " +
-                        "file, or the server may have refused the request.",
+                    text = PlaybackFailure.message(code, address.substringAfterLast('/')),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.fillMaxWidth().padding(12.dp),

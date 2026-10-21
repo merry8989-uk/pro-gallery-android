@@ -34,6 +34,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.progallery.app.data.media.PlaybackFailure
 
 /**
  * Plays one address.
@@ -64,7 +65,7 @@ fun StreamPlayerScreen(
     }
     val host = remember(address) { runCatching { Uri.parse(address).host }.getOrNull() ?: address }
 
-    var failure by remember { mutableStateOf<String?>(null) }
+    var failure by remember { mutableStateOf<Int?>(null) }
 
     val player = remember(address) {
         ExoPlayer.Builder(context).build().apply {
@@ -77,7 +78,7 @@ fun StreamPlayerScreen(
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
-                failure = error.errorCodeName
+                failure = error.errorCode
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -138,13 +139,10 @@ fun StreamPlayerScreen(
                 )
             }
 
-            val message = failure
-            if (message != null) {
+            val code = failure
+            if (code != null) {
                 Text(
-                    text = "This could not be played ($message).\n\n" +
-                        "Either the file's codec is one this device cannot decode, or — for a " +
-                        "link — the address is not a direct media file. A web page, or a " +
-                        "service that needs a sign-in, will not play.",
+                    text = PlaybackFailure.message(code, title),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.fillMaxWidth().padding(12.dp),

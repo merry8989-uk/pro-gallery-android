@@ -72,6 +72,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import androidx.media3.common.PlaybackException
+import com.progallery.app.data.media.PlaybackFailure
 
 data class AudioPlayerUiState(
     val item: MediaItem? = null,
@@ -136,8 +137,7 @@ class AudioPlayerViewModel @Inject constructor(
                         it.copy(
                             playing = false,
                             loading = false,
-                            error = "This file could not be played (${error.errorCodeName}). " +
-                                "The codec inside it may not be supported by this device.",
+                            error = PlaybackFailure.message(error.errorCode, item?.displayName),
                         )
                     }
                 }
