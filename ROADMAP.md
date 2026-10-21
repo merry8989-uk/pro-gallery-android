@@ -122,6 +122,16 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6c. Player and readers — started v1.15.0
+
+**✅ Part A — truth in the format layer** (v1.15.0): the content-address bug, decodability
+truth, animated WebP/GIF, honest playback errors.
+
+**⬜ Parts B–G** — one dynamic player, a capability screen, the formats Media3 cannot
+parse (decision needed), WhatsApp/`Android/media` visibility, the SVG and sticker readers,
+and the text/JSON document reader. Full detail and the honest capability matrix:
+**`PLAYER-AND-READERS-PLAN.md`**.
+
 ## 6b. Streaming and cloud — v1.13.0
 
 **✅ Stream from a link** — real: pure link parsing, a bounded recent list, a dedicated

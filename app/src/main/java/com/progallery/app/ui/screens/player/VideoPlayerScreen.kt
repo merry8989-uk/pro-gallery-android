@@ -41,6 +41,9 @@ import com.progallery.app.ui.components.FileActionSpec
 import com.progallery.app.ui.components.sameUri
 import com.progallery.app.util.ImmersiveSystemBars
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.PlaybackException
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.common.Player
 
 /**
  * Full-screen video playback with a swipe between videos.
@@ -67,7 +70,22 @@ fun VideoPlayerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val player = remember {
-        ExoPlayer.Builder(context).build().apply { playWhenReady = true }
+        // A codec this device lacks should not end playback outright: Media3 is allowed to
+        // fall back to a software decoder when the hardware one refuses. That switch lives
+        // on the renderers factory, not on the player builder.
+        val renderers = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
+        ExoPlayer.Builder(context, renderers).build().apply { playWhenReady = true }
+    }
+
+    DisposableEffect(player) {
+        // A video that cannot be decoded used to show a black screen with no explanation.
+        val listener = object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                viewModel.reportPlaybackFailure(error.errorCodeName)
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
     }
 
     ImmersiveSystemBars(hide = true)

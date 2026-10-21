@@ -223,5 +223,19 @@ class ViewerViewModel @Inject constructor(
         refresh()
     }
 
+    /**
+     * Hands the file to another app.
+     *
+     * Offered from the "no preview" card, where the app has already said it cannot draw
+     * the file itself — so this is the honest next step, and the message names the file
+     * when nothing on the device can take it.
+     */
+    fun openWith(item: MediaItem) {
+        val opened = mediaActions.launchOpen(item)
+        if (!opened) {
+            _state.update { it.copy(message = "No installed app can open ${item.displayName}") }
+        }
+    }
+
     fun consumeMessage() = _state.update { it.copy(message = null) }
 }

@@ -10,6 +10,9 @@ import com.progallery.app.data.settings.SettingsRepository
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
+import android.os.Build
+import coil.decode.ImageDecoderDecoder
+import coil.decode.GifDecoder
 
 /**
  * Application entry point. Configures Hilt and a shared Coil [ImageLoader] tuned
@@ -37,7 +40,19 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
 
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)
-            .components { add(VideoFrameDecoder.Factory()) }
+            .components {
+                add(VideoFrameDecoder.Factory())
+                // Animated WebP and GIF need a multi-frame decoder. Without one Coil draws
+                // the first frame and stops — which is why animated stickers showed nothing
+                // useful. ImageDecoder is the platform's animated path from Android 9; below
+                // that only GIF can be animated, and only through the legacy decoder.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    add(ImageDecoderDecoder.Factory())
+                } else {
+                    @Suppress("DEPRECATION")
+                    add(GifDecoder.Factory())
+                }
+            }
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizePercent(0.25)

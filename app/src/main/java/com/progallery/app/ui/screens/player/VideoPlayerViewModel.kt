@@ -83,6 +83,17 @@ class VideoPlayerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Surfaces a playback failure.
+     *
+     * The name Media3 gives is technical, so the message says what it means for the user
+     * and what the likely cause is, rather than leaving a black screen unexplained.
+     */
+    fun reportPlaybackFailure(errorCodeName: String) {
+        _message.value = "This video could not be played ($errorCodeName). The codec inside " +
+            "it may not be supported by this device."
+    }
+
     fun consumeMessage() {
         _message.value = null
     }

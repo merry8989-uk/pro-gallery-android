@@ -71,6 +71,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import androidx.media3.common.PlaybackException
 
 data class AudioPlayerUiState(
     val item: MediaItem? = null,
@@ -120,8 +121,25 @@ class AudioPlayerViewModel @Inject constructor(
                     val duration = exo.duration.takeIf { it > 0 } ?: 0L
                     _state.update { it.copy(durationMs = duration) }
                 }
+
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _state.update { it.copy(playing = isPlaying) }
+                }
+
+                /**
+                 * A file that cannot be decoded used to fail in silence: the player sat
+                 * there doing nothing and the user had no way to tell why. The real reason
+                 * is shown instead.
+                 */
+                override fun onPlayerError(error: PlaybackException) {
+                    _state.update {
+                        it.copy(
+                            playing = false,
+                            loading = false,
+                            error = "This file could not be played (${error.errorCodeName}). " +
+                                "The codec inside it may not be supported by this device.",
+                        )
+                    }
                 }
             })
             exo.prepare()

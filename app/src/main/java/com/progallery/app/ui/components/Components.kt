@@ -72,6 +72,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.ImageBitmap
 import com.progallery.app.data.settings.ThumbnailPolicy
+import com.progallery.app.data.model.ImageDecodability
 
 /**
  * A single grid thumbnail.
@@ -119,6 +120,16 @@ fun MediaThumbnail(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.BottomCenter).padding(2.dp),
+                )
+            }
+            // An image with no preview on this device says so, rather than looking like a
+            // file that simply failed to load.
+            if (item.isImage && !ImageDecodability.canRender(item.extension)) {
+                Text(
+                    text = "no preview",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.TopStart).padding(2.dp),
                 )
             }
         }

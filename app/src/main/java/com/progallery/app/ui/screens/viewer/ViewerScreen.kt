@@ -81,6 +81,12 @@ import com.progallery.app.ui.components.sameUri
 import com.progallery.app.ui.components.zoomGestures
 import com.progallery.app.util.ImmersiveSystemBars
 import com.progallery.app.util.MediaFormatUtils
+import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.ui.text.style.TextAlign
+import com.progallery.app.data.model.ImageDecodability
+import androidx.compose.foundation.Image
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
 
 /**
  * Full-screen photo/video viewer.
@@ -191,20 +197,33 @@ fun ViewerScreen(
                     val item = items.getOrNull(page)
                     if (item != null) {
                         Box(modifier = Modifier.fillMaxSize()) {
-                            AsyncImage(
-                                model = item.uri,
-                                contentDescription = item.displayName,
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer(
-                                        scaleX = zoom.scale,
-                                        scaleY = zoom.scale,
-                                        translationX = zoom.offset.x,
-                                        translationY = zoom.offset.y,
-                                    )
-                                    .zoomGestures(zoom),
-                            )
+                            // The painter's state is watched rather than Coil's `error`
+                            // slot, because that slot takes a Painter and the point here is
+                            // to say something in words.
+                            val painter = rememberAsyncImagePainter(model = item.uri)
+                            if (painter.state is AsyncImagePainter.State.Error) {
+                                // A blank screen tells the user nothing. If the picture
+                                // cannot be drawn, say why and offer the way out.
+                                NoPreviewCard(
+                                    item = item,
+                                    onOpenWith = { viewModel.openWith(item) },
+                                )
+                            } else {
+                                Image(
+                                    painter = painter,
+                                    contentDescription = item.displayName,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer(
+                                            scaleX = zoom.scale,
+                                            scaleY = zoom.scale,
+                                            translationX = zoom.offset.x,
+                                            translationY = zoom.offset.y,
+                                        )
+                                        .zoomGestures(zoom),
+                                )
+                            }
                             // Videos open in the player rather than sitting as a still frame.
                             if (item.isVideo) {
                                 IconButton(
@@ -393,4 +412,48 @@ private fun RenameDialog(item: MediaItem, onDismiss: () -> Unit, onConfirm: (Str
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/**
+ * Shown instead of a blank screen when a picture cannot be drawn.
+ *
+ * The reason comes from [ImageDecodability], so the app says which of the two it is: this
+ * device's Android is too old for the format, or Android has no decoder for it at all. The
+ * way out is offered rather than left to be guessed at.
+ */
+@Composable
+private fun NoPreviewCard(
+    item: MediaItem,
+    onOpenWith: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.BrokenImage,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.7f),
+            modifier = Modifier.size(56.dp),
+        )
+        Text(
+            text = item.displayName,
+            color = Color.White,
+            style = MaterialTheme.typography.titleSmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        Text(
+            text = ImageDecodability.reason(item.extension)
+                ?: "This picture could not be read — the file may be damaged.",
+            color = Color.White.copy(alpha = 0.75f),
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        TextButton(onClick = onOpenWith, modifier = Modifier.padding(top = 8.dp)) {
+            Text("Open with another app")
+        }
+    }
 }
