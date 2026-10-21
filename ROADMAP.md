@@ -122,6 +122,11 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6h. Adaptive streams and page links — v1.20.0
+
+**✅** HLS/DASH/RTSP/SmoothStreaming modules added, so `.m3u8` and `.mpd` actually play; and a
+pasted page link is recognised and explained instead of being blamed on the container.
+
 ## 6g. Text reader — v1.19.0
 
 **✅ Part G (text half)**: a reader for text, JSON, CSV, logs and code. Parts B–F of the
