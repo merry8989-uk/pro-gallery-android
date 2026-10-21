@@ -50,7 +50,8 @@ class LogRetentionTest {
         assertEquals(2, kept.size)
         // The debug went first, then the oldest info.
         assertTrue(kept.none { it.level == LogLevel.DEBUG })
-        assertEquals(listOf(4L, 3L), kept.map { (now - it.timestampMillis) / day }.sorted())
+        // The two youngest of what was left: the four-day-old info and the three-day-old warn.
+        assertEquals(listOf(3L, 4L), kept.map { (now - it.timestampMillis) / day }.sorted())
     }
 
     @Test
