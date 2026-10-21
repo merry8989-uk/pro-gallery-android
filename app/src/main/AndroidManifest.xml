@@ -19,6 +19,14 @@
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
 
     <!--
+      Needed by three features, and each one fails without it:
+        * Stream from a link and WebDAV browsing, which open a connection to a server;
+        * the update check, which reads the project's releases feed.
+      It is a normal permission, so there is no runtime prompt.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
       Optional "All files access". MediaStore hides documents and archives created
       by other apps from a normal media permission, so this is the only way to
       browse PDFs and similar files in the main list. The app explains this and

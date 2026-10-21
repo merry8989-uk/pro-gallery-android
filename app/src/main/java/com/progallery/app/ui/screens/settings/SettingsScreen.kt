@@ -51,6 +51,11 @@ import com.progallery.app.util.MediaFormatUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.progallery.app.data.settings.ExportDuplicatePolicy
+import android.content.Intent
+import com.progallery.app.BuildConfig
+import com.progallery.app.data.update.UpdateCheck
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 /** One renderable settings row. */
 private sealed interface SettingsRow {
@@ -140,6 +145,7 @@ private val MAX_SIZE_OPTIONS = listOf(
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenPermissionDiagnostics: () -> Unit,
+    onCheckForUpdates: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -147,6 +153,8 @@ fun SettingsScreen(
     val cacheSizeBytes by viewModel.cacheSizeBytes.collectAsStateWithLifecycle()
     val cacheMessage by viewModel.cacheMessage.collectAsStateWithLifecycle()
     val settingsMessage by viewModel.settingsMessage.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    var updateDialogOpen by remember { mutableStateOf(false) }
 
     // The destination and the source are always chosen by the user, through the
     // official pickers — the app never picks a path on its own.
@@ -188,6 +196,10 @@ fun SettingsScreen(
         onImportSettings = { importPicker.launch(arrayOf("application/json")) },
         onSaveDiagnostics = { diagnosticsPicker.launch("progallery-diagnostics.txt") },
         onOpenPermissionDiagnostics = onOpenPermissionDiagnostics,
+        onCheckForUpdates = {
+            updateDialogOpen = true
+            viewModel.checkForUpdates()
+        },
         onClearDiagnostics = viewModel::clearDiagnostics,
         onOpenDefaultApps = { DefaultApps.openDefaultAppsSettings(context) },
     )
@@ -303,6 +315,7 @@ private fun buildRows(
     onSaveDiagnostics: () -> Unit,
     onClearDiagnostics: () -> Unit,
     onOpenPermissionDiagnostics: () -> Unit,
+    onCheckForUpdates: () -> Unit,
     onOpenDefaultApps: () -> Unit,
 ): List<SettingsRow> = buildList {
     // ---- Scanning -----------------------------------------------------
@@ -851,6 +864,16 @@ private fun buildRows(
     )
     add(
         SettingsRow.Action(
+            title = "Check for updates",
+            subtitle = "Asks the project's releases feed whether a newer version exists. " +
+                "You are on ${BuildConfig.VERSION_NAME}. Nothing about this device is sent.",
+            section = "Diagnostics & experimental",
+            label = "Check",
+            onClick = onCheckForUpdates,
+        ),
+    )
+    add(
+        SettingsRow.Action(
             title = "Access diagnostics",
             subtitle = "What the app can reach, what each access is for, and how to change it. " +
                 "Every fix goes through the system dialog or the system settings screen.",
@@ -1067,5 +1090,91 @@ private fun Label(text: String) {
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 8.dp),
+    )
+}
+
+/**
+ * The result of an update check.
+ *
+ * It says which version you have and which is published, and it never downloads anything on
+ * its own: the buttons open the release page in a browser, so the decision to install stays
+ * with the user.
+ */
+@Composable
+private fun UpdateDialog(
+    state: SettingsViewModel.UpdateUiState,
+    onDismiss: () -> Unit,
+    onOpen: (String) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Check for updates") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("You are on version ${state.currentVersion}.")
+
+                if (state.installedFromPlay) {
+                    Text(
+                        // Worth saying, because a hand-installed APK would fight the store.
+                        text = "This copy was installed by Play, where updates arrive on " +
+                            "their own — updating it from a file can cause a conflict.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                when {
+                    state.checking -> Text("Checking…")
+
+                    state.result is UpdateCheck.Available -> {
+                        val release = (state.result as UpdateCheck.Available).release
+                        Text(
+                            text = "Version ${release.displayVersion} is available.",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        release.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+                            Text(
+                                // Long notes are clipped: the dialog is a summary, and the
+                                // release page has the whole thing.
+                                text = notes.take(1_200) + if (notes.length > 1_200) "…" else "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    state.result is UpdateCheck.UpToDate -> {
+                        val latest = (state.result as UpdateCheck.UpToDate).latestVersion
+                        Text("You have the newest version ($latest).")
+                    }
+
+                    state.result is UpdateCheck.Failed -> {
+                        Text(
+                            text = (state.result as UpdateCheck.Failed).reason,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            when (val result = state.result) {
+                is UpdateCheck.Available -> {
+                    if (result.release.apkUrl != null) {
+                        TextButton(onClick = { onOpen(result.release.apkUrl) }) { Text("Open the APK") }
+                    }
+                    TextButton(onClick = { onOpen(result.release.pageUrl) }) { Text("Release page") }
+                }
+                else -> TextButton(onClick = onDismiss) { Text("Close") }
+            }
+        },
+        dismissButton = {
+            if (state.result is UpdateCheck.Available) {
+                TextButton(onClick = onDismiss) { Text("Later") }
+            }
+        },
     )
 }
