@@ -37,8 +37,8 @@ android {
         applicationId = "com.progallery.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 37
-        versionName = "1.21.0"
+        versionCode = 38
+        versionName = "1.22.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -150,6 +150,7 @@ dependencies {
     implementation(libs.media3.transformer)
     implementation(libs.media3.effect)
     implementation(libs.media3.common)
+    implementation(libs.androidx.work.runtime)
     // Adaptive streams. The app's own copy promised .m3u8 and .mpd worked; they could not,
     // because these were never on the classpath. Now the promise is true.
     implementation(libs.media3.exoplayer.hls)

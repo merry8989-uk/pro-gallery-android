@@ -27,6 +27,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--
+      The daily memories reminder. Requested in context, when Memories is first opened, rather
+      than as a setup step — and everything else in the app works whether or not it is granted.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
       Optional "All files access". MediaStore hides documents and archives created
       by other apps from a normal media permission, so this is the only way to
       browse PDFs and similar files in the main list. The app explains this and

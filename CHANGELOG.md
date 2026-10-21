@@ -27,6 +27,61 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.22.0]
+Memories — the pictures from this day in earlier years, and a reminder at seven.
+
+### Added
+- **Memories.** A photo taken on 5 April 2018 comes back on 5 April, and again the year after.
+  There is **nothing to set up**: the date is already in the file, so the app works it out.
+  - Grouped by how long ago — "8 years ago · 5 April 2018" — newest anniversary first, with a
+    cover and the rest of that day's pictures beside it.
+  - A second section for **the rest of the month** in earlier years.
+  - **Tapping a picture opens it with the rest of that memory behind it**, so swiping stays
+    inside the memory rather than wandering into the whole library.
+  - Reached from Home and from the sidebar.
+- **A reminder at 7 in the morning**, when there is something to look back on. Tapping it opens
+  Memories. It is **not sent when there is nothing to remember** — a notification that says
+  "nothing today" is worse than silence.
+  - Delivered by **WorkManager**, so it survives a reboot and does not need the app to be
+    running. It is told not to run on a low battery: a reminder about old photographs should not
+    cost the last of the charge.
+  - **Scheduled automatically at startup** — no switch, no first visit to a screen.
+  - Android 13 and later require permission to post notifications. It is asked **in context**,
+    on the Memories screen, the first time it is opened — not as a setup step — and everything
+    else in the app works whether or not it is granted.
+
+### Fixed — the date the app was using was the wrong one
+- **The capture date is read now, not the date the file was last written.** The app only read
+  `DATE_MODIFIED`, and that is the wrong date for this: copying a photo, restoring a backup, or
+  having any app rewrite it changes the modification date, so **a picture taken in 2018 can
+  carry a 2026 date and would then never be remembered**. The capture date comes from the file's
+  own properties; the modification date is only a fallback.
+  - **The two columns use different units.** MediaStore reports `DATE_TAKEN` in
+    *milliseconds* and `DATE_MODIFIED` in *seconds*. Reading one as the other would put every
+    memory in 1970 or in the far future, so the conversion happens in one place.
+  - The column is read by name rather than by constant, because `MediaColumns.DATE_TAKEN` only
+    exists from API 29 and this app runs on API 26.
+
+### Deliberate decisions, each tested
+- **Today is not a memory.** A photo from this morning is not "0 years ago".
+- **29 February is remembered on 28 February** in a year with no 29th — otherwise those
+  pictures would be remembered once every four years.
+- **A file with no usable date is left out**, not filed under 1970.
+- **A future-dated file is ignored**, so a wrong device clock cannot produce a memory of the
+  future.
+- **Pictures within a day are ordered by the instant**, not the day — otherwise a morning and
+  an evening picture come out in whatever order the library happened to return.
+
+### Tests
+- `MemoriesEngineTest` — the anniversary, today not being a memory, several years becoming
+  separate groups newest first, **the capture date winning over a rewritten modification date**,
+  the modification date as the fallback, an undated file being left out, a future-dated file,
+  another day of the same month, a different month, the leap-day rule in both directions, the
+  order within a group, and the zone deciding which day a photo falls on.
+- `MemoriesScheduleTest` — before seven, at exactly seven (a full day, not zero, or the
+  reminder would arrive twice), one minute before, one second after, late at night, and that
+  the wait is always positive and never more than a day.
+
 ## [1.21.0]
 Check for updates actually opens — and no longer depends on a budget it cannot see.
 

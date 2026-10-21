@@ -122,6 +122,11 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6j. Memories and the daily reminder — v1.22.0
+
+**✅** Memories matched on the capture date, grouped by years ago, with a WorkManager reminder
+at 7 that needs no setting up. The capture date was not being read at all before this.
+
 ## 6i. Update check fixed — v1.21.0
 
 **✅** The dialog had no call site, so "Check for updates" opened nothing; and the check now

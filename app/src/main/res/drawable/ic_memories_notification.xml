@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The notification's small icon. Notification icons are silhouettes: a single colour on
+  transparency, so this is one filled path rather than a detailed picture.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2 L14.1,9.9 L22,12 L14.1,14.1 L12,22 L9.9,14.1 L2,12 L9.9,9.9 Z" />
+</vector>

@@ -13,6 +13,7 @@ import javax.inject.Inject
 import android.os.Build
 import coil.decode.ImageDecoderDecoder
 import coil.decode.GifDecoder
+import com.progallery.app.data.memories.MemoriesScheduler
 
 /**
  * Application entry point. Configures Hilt and a shared Coil [ImageLoader] tuned
@@ -26,6 +27,7 @@ import coil.decode.GifDecoder
 class ProGalleryApplication : Application(), ImageLoaderFactory {
 
     @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var memoriesScheduler: MemoriesScheduler
 
     /** Read once at startup; Coil cannot resize its cache later. */
     @Volatile
@@ -33,6 +35,9 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        // Scheduled here, so the reminder needs no setting and no first visit to Memories.
+        // WorkManager keeps it across reboots.
+        runCatching { memoriesScheduler.ensureScheduled() }
         thumbnailCacheLimitMb = runCatching {
             runBlocking { settingsRepository.current().thumbnailCacheLimitMb }
         }.getOrDefault(DEFAULT_CACHE_MB)
