@@ -47,6 +47,9 @@ androidx-paging-compose = { group = "androidx.paging", name = "paging-compose", 
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 coil-video = { group = "io.coil-kt", name = "coil-video", version.ref = "coil" }
 coil-gif = { group = "io.coil-kt", name = "coil-gif", version.ref = "coil" }
+# SVG. Android's platform decoder cannot render vectors at all, so the app ships one — which
+# is what turns "listed but never shown" into a picture.
+coil-svg = { group = "io.coil-kt", name = "coil-svg", version.ref = "coil" }
 # The daily memories reminder. WorkManager is what Android wants for "do this about once a
 # day" — it survives reboots and does not need the app to be running.
 androidx-work-runtime = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }

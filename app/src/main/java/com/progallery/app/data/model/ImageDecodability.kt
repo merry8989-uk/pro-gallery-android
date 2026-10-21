@@ -10,6 +10,15 @@ enum class DecoderSupport {
     /** The platform can decode it, but only from the given API level. */
     FROM_API,
 
+    /**
+     * The platform has no decoder, but the app ships one.
+     *
+     * A separate answer from [ALWAYS] on purpose: it says the preview depends on a library this
+     * app carries, not on the operating system — which is the difference between a format that
+     * works on every device and one that works because of a decision made here.
+     */
+    BY_APP,
+
     /** No decoder exists on Android for this format. */
     NEVER,
 }
@@ -43,10 +52,20 @@ object ImageDecodability {
         "avif" to Build.VERSION_CODES.S,
     )
 
+    /**
+     * Formats the app renders itself, because the platform cannot.
+     *
+     * SVG is a vector format: a bitmap decoder cannot draw it, and Android ships none. The app
+     * carries one, so these files show a picture — and the reason line says nothing, because
+     * there is nothing to warn about.
+     */
+    private val BY_APP = setOf("svg", "svgz")
+
     /** Image formats Android has no decoder for. Listed, never promised. */
     private val NEVER = setOf(
-        // vector and page description — a bitmap decoder cannot render these
-        "svg", "svgz", "eps", "epsf", "ai", "indd", "indt", "sketch", "cdr", "cdt",
+        // vector and page description — a bitmap decoder cannot render these, and none is
+        // carried for them
+        "eps", "epsf", "ai", "indd", "indt", "sketch", "cdr", "cdt",
         // layered and professional
         "psd", "psb", "xcf",
         // other image codecs with no platform decoder
@@ -63,6 +82,7 @@ object ImageDecodability {
         return when {
             ext in ALWAYS -> DecoderSupport.ALWAYS
             GATED.containsKey(ext) -> DecoderSupport.FROM_API
+            ext in BY_APP -> DecoderSupport.BY_APP
             ext in NEVER -> DecoderSupport.NEVER
             else -> DecoderSupport.NEVER
         }
@@ -72,6 +92,7 @@ object ImageDecodability {
     fun canRender(extension: String, sdkInt: Int = Build.VERSION.SDK_INT): Boolean =
         when (support(extension, sdkInt)) {
             DecoderSupport.ALWAYS -> true
+            DecoderSupport.BY_APP -> true
             DecoderSupport.FROM_API -> sdkInt >= (GATED[extension.lowercase()] ?: Int.MAX_VALUE)
             DecoderSupport.NEVER -> false
         }
@@ -101,6 +122,8 @@ object ImageDecodability {
         val ext = extension.lowercase()
         return when (support(ext, sdkInt)) {
             DecoderSupport.ALWAYS -> null
+            // The app draws it itself, so there is nothing to warn about.
+            DecoderSupport.BY_APP -> null
             DecoderSupport.FROM_API -> {
                 val needed = GATED[ext] ?: return null
                 if (sdkInt >= needed) null else "Needs Android ${androidName(needed)} or newer to preview"

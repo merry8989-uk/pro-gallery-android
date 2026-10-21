@@ -45,12 +45,30 @@ class ImageDecodabilityTest {
     @Test
     fun formatsWithNoAndroidDecoderAreNeverPromised() {
         listOf(
-            "svg", "svgz", "psd", "psb", "xcf", "tif", "tiff", "jxl",
+            "psd", "psb", "xcf", "tif", "tiff", "jxl",
             "jp2", "j2k", "ico", "cur", "tga", "pcx", "ppm", "ai", "eps",
         ).forEach { ext ->
             assertFalse("$ext must never be promised", ImageDecodability.canRender(ext, sdkInt = 36))
             assertEquals(DecoderSupport.NEVER, ImageDecodability.support(ext, 36))
         }
+    }
+
+    @Test
+    fun svgIsRenderableBecauseTheAppShipsADecoder() {
+        // This changed with the app's own SVG decoder. The platform still has none — which is
+        // why the answer is BY_APP and not ALWAYS — but the file now shows a picture, and a
+        // capability screen that still said "no decoder" would be wrong.
+        assertTrue(ImageDecodability.canRender("svg", sdkInt = 26))
+        assertEquals(DecoderSupport.BY_APP, ImageDecodability.support("svg", 26))
+        assertNull("there is nothing to warn about", ImageDecodability.reason("svg", 26))
+    }
+
+    @Test
+    fun aFormatTheAppRendersIsDistinctFromOneThePlatformDoes() {
+        // The distinction is worth keeping: one works on every device, the other works because
+        // of a decision made here, and a future change to that decision should be visible.
+        assertEquals(DecoderSupport.ALWAYS, ImageDecodability.support("png", 26))
+        assertEquals(DecoderSupport.BY_APP, ImageDecodability.support("svgz", 26))
     }
 
     @Test
