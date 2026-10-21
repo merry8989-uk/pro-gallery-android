@@ -158,10 +158,14 @@ fun MediaBrowserScaffold(
                     allFavourite = state.selectedItems.all { it.isFavourite },
                     onClose = { viewModel.clearSelection() },
                     onSelectAll = { viewModel.selectAll(loadedItems()) },
-                    // Only offered for a single file that has no in-app preview —
-                    // documents, archives, audio — where another app is the way to view it.
+                    // Only offered for a single file the app cannot open itself — a
+                    // document or an archive. A PDF has the built-in reader and audio has
+                    // the built-in player, so offering another app for those only ever
+                    // produced "no installed app can open this".
                     showOpenWith = state.selectedItems.size == 1 &&
-                        !state.selectedItems.first().isPreviewable,
+                        !state.selectedItems.first().isPreviewable &&
+                        !state.selectedItems.first().isAudio &&
+                        !state.selectedItems.first().isPdf,
                     onOpenWith = {
                         state.selectedItems.firstOrNull()?.let { viewModel.openWith(it) }
                         viewModel.clearSelection()

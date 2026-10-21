@@ -1,5 +1,6 @@
 package com.progallery.app.data.settings
 
+import com.progallery.app.data.model.ImageDecodability
 import com.progallery.app.data.model.MediaItem
 
 /**
@@ -19,10 +20,16 @@ data class ThumbnailPolicy(
     val documentPreviews: Boolean = true,
 ) {
 
-    /** Whether a real preview may be produced for [item]. */
+    /**
+     * Whether a real preview may be produced for [item].
+     *
+     * An image is only previewed when the platform can actually decode its format —
+     * otherwise the tile would be promised a picture and left blank. See
+     * [ImageDecodability] for which formats those are.
+     */
     fun allows(item: MediaItem): Boolean = when {
         !generateThumbnails -> false
-        item.isImage -> true
+        item.isImage -> ImageDecodability.canRender(item.extension)
         item.isVideo -> videoThumbnails
         item.isAudio -> audioArtwork
         item.isDocument -> documentPreviews

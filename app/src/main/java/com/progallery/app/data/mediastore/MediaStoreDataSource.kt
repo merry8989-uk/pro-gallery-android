@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.data.model.MediaCollectionChoice
+import com.progallery.app.data.model.MediaStoreCollection
 
 /**
  * Reads files from the platform [MediaStore].
@@ -232,7 +234,7 @@ class MediaStoreDataSource @Inject constructor(
 
             return MediaItem(
                 id = id,
-                uri = buildContentUri(id, kind, volume),
+                uri = buildContentUri(id, mediaTypeHint, volume),
                 displayName = displayName,
                 mimeType = mime ?: "",
                 sizeBytes = cursor.longOrZero(sizeCol),
@@ -272,19 +274,25 @@ class MediaStoreDataSource @Inject constructor(
      * that, `getContentUri(volume)` does not exist, so the single external
      * collection is correct.
      */
-    private fun buildContentUri(id: Long, kind: MediaType, volumeName: String?): Uri {
+    private fun buildContentUri(id: Long, mediaTypeHint: Int, volumeName: String?): Uri {
+        // Built from the row's OWN media type, never from what the app calls the file.
+        // Addressing a non-media row through the images view produces a URI that does not
+        // resolve — the file lists and then will not open.
+        val collection = MediaCollectionChoice.forRow(mediaTypeHint)
         val base = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val volume = volumeName ?: MediaStore.VOLUME_EXTERNAL_PRIMARY
-            when (kind) {
-                MediaType.VIDEO -> MediaStore.Video.Media.getContentUri(volume)
-                MediaType.AUDIO -> MediaStore.Audio.Media.getContentUri(volume)
-                else -> MediaStore.Images.Media.getContentUri(volume)
+            when (collection) {
+                MediaStoreCollection.VIDEO -> MediaStore.Video.Media.getContentUri(volume)
+                MediaStoreCollection.AUDIO -> MediaStore.Audio.Media.getContentUri(volume)
+                MediaStoreCollection.IMAGES -> MediaStore.Images.Media.getContentUri(volume)
+                MediaStoreCollection.FILES -> MediaStore.Files.getContentUri(volume)
             }
         } else {
-            when (kind) {
-                MediaType.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-                MediaType.AUDIO -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                else -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            when (collection) {
+                MediaStoreCollection.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                MediaStoreCollection.AUDIO -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                MediaStoreCollection.IMAGES -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                MediaStoreCollection.FILES -> MediaStore.Files.getContentUri("external")
             }
         }
         return ContentUris.withAppendedId(base, id)
