@@ -74,9 +74,11 @@ object PlaybackMime {
     /** Whether a declared type actually says which extractor to use. */
     fun isUsable(mimeType: String): Boolean {
         if (mimeType.isBlank()) return false
-        if (mimeType == "application/octet-stream" || mimeType == "*/*") return false
-        // A wildcard subtype names no format.
-        if (mimeType.endsWith("/*")) return false
+        if (mimeType == "application/octet-stream") return false
+        // A wildcard subtype names no format. Written as a check for a trailing star rather
+        // than with a literal slash-star in a string, which reads like the start of a comment
+        // and — as this file found out — does not compile.
+        if (mimeType.endsWith("*")) return false
         return mimeType.startsWith("video/") ||
             mimeType.startsWith("audio/") ||
             mimeType.startsWith("application/")
