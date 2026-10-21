@@ -290,6 +290,26 @@ fun SettingsScreen(
         }
     }
 
+    // Rendered from the flag the row sets. Without this the row opened nothing at all: the
+    // flag was set, the check ran, and no dialog was ever shown.
+    if (updateDialogOpen) {
+        UpdateDialog(
+            state = updateState,
+            onDismiss = {
+                updateDialogOpen = false
+                viewModel.dismissUpdateCheck()
+            },
+            onOpen = { url ->
+                runCatching {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)),
+                    )
+                }
+            },
+            onRetry = viewModel::checkForUpdates,
+        )
+    }
+
     if (confirmReset) {
         AlertDialog(
             onDismissRequest = { confirmReset = false },
@@ -1131,6 +1151,7 @@ private fun UpdateDialog(
     state: SettingsViewModel.UpdateUiState,
     onDismiss: () -> Unit,
     onOpen: (String) -> Unit,
+    onRetry: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1194,6 +1215,11 @@ private fun UpdateDialog(
                     }
                     TextButton(onClick = { onOpen(result.release.pageUrl) }) { Text("Release page") }
                 }
+
+                // A check that failed can simply be tried again, without closing the dialog and
+                // finding the row a second time.
+                is UpdateCheck.Failed -> TextButton(onClick = onRetry) { Text("Try again") }
+
                 else -> TextButton(onClick = onDismiss) { Text("Close") }
             }
         },
