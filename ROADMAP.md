@@ -122,6 +122,11 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6l. In-app update — v1.24.0
+
+**✅** The update is fetched in the app, checked against this app's own signing key, and handed
+to Android's installer. The system's confirmation still appears, and the dialog says so.
+
 ## 6k. App media — v1.23.0
 
 **✅** Which messaging apps keep media on this device, and how much. The owning app is read from

@@ -27,6 +27,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.24.0]
+The update downloads and installs inside the app, instead of going to a browser.
+
+### Changed
+- **The update is fetched by the app, not by a browser.** "Open the APK" handed the address to
+  whatever handled it — usually a browser, which is the wrong place for it: the file belongs to
+  this app, and leaving the app loses the download, the check and the install.
+  - **"Download and install"** fetches it with a progress bar.
+  - **The file is checked before it can be installed**: that it is an APK, that it is *this*
+    app, and that **its signing certificate matches the one this copy was signed with**. That
+    check is only possible because the download happens here. An unverified file is **deleted**,
+    not left where it could be opened by hand later.
+  - A file the server does not give a length for shows an **indeterminate** bar rather than an
+    invented percentage.
+  - After downloading, the app asks Android to install it, and the system shows its own
+    confirmation.
+
+### Said plainly, because it cannot be otherwise
+- **Android does not allow an app to replace itself silently.** There is no permission for it,
+  by design, and no workaround short of root. What an app can do is fetch the file, check it,
+  and ask the system — which is what happens. **The dialog says so in advance**, so the system's
+  confirmation is an expected step rather than a surprise.
+- On Android 8 and later, installing from outside the store needs a **per-app switch** the user
+  controls. When it is off, the dialog offers **"Allow installs"**, opens that setting, and
+  **re-reads it when the app comes back to the front** — otherwise it would keep asking for
+  something already granted. Nothing is installed until the user returns and presses Install.
+- **A copy installed by Play is sent to the store instead**, as before: a hand-installed APK
+  would fight the store.
+- `REQUEST_INSTALL_PACKAGES` is now declared. Play restricts this permission, so a
+  Play-distributed build would use Play's own update flow; this build is sideloaded, which is
+  exactly the case it is for.
+
+### Tests
+- `UpdateInstallPlanTest` — a sideloaded copy offering a download first, the install once
+  downloaded and allowed, asking for the permission **before** installing rather than failing,
+  a Play install going to the store even when the file is already downloaded and the permission
+  is granted, a release with no APK, every step having a label, the download step naming the
+  signing-key check, the install step saying the system will ask **and that it cannot be
+  skipped**, the permission step not reading as though the install already happened, and **no
+  step claiming the install can happen silently**.
+
 ## [1.23.0]
 App media — which messaging apps keep media on this device, and how much.
 
