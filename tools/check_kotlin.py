@@ -175,6 +175,78 @@ def main() -> int:
                     f"is a call site missing?"
                 )
 
+    # ---- A slash-star inside a block comment ----
+    #
+    # Kotlin block comments *nest*. So a comment that quotes a wildcard — writing the two
+    # characters that open a comment, inside a comment — opens an inner comment that then has to
+    # be closed too, and the file fails to compile with "Unclosed comment". That happened here
+    # while writing a MIME table, and this checker did not catch it; the compiler did, one CI
+    # round later. It costs nothing to catch it here instead.
+    #
+    # The scan has to understand strings, character literals, line comments and raw strings, or
+    # it reports a wildcard inside a string as a fault — and a check that cries wolf is worse
+    # than no check, because it teaches everyone to ignore it.
+    for root in ("app/src/main/java", "app/src/test"):
+        for path in kotlin_files(root):
+            name = os.path.basename(path)
+            in_comment = False
+            in_raw_string = False
+            for number, line in enumerate(pathlib.Path(path).read_text().split("\n"), 1):
+                index = 0
+                while index < len(line):
+                    if in_raw_string:
+                        if line.startswith('"""', index):
+                            in_raw_string = False
+                            index += 3
+                        else:
+                            index += 1
+                        continue
+
+                    if not in_comment and line.startswith('"""', index):
+                        in_raw_string = True
+                        index += 3
+                        continue
+
+                    pair = line[index:index + 2]
+
+                    if in_comment:
+                        if pair == "*/":
+                            in_comment = False
+                            index += 2
+                        elif pair == "/*":
+                            problems.append(
+                                f"{name}:{number}: a slash-star inside a block comment opens a "
+                                f"nested comment in Kotlin — describe the pattern instead of "
+                                f"quoting it"
+                            )
+                            index += 2
+                        else:
+                            index += 1
+                        continue
+
+                    if pair == "//":
+                        break
+                    if pair == "/*":
+                        in_comment = True
+                        index += 2
+                        continue
+
+                    character = line[index]
+                    if character in ('"', "'"):
+                        quote = character
+                        index += 1
+                        while index < len(line):
+                            if line[index] == "\\":
+                                index += 2
+                                continue
+                            if line[index] == quote:
+                                index += 1
+                                break
+                            index += 1
+                        continue
+
+                    index += 1
+
     if problems:
         print("PROBLEMS FOUND:")
         for p in problems:
