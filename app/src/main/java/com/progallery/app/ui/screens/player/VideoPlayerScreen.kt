@@ -72,6 +72,10 @@ fun VideoPlayerScreen(
     val item by viewModel.item.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val failureAction by viewModel.failureAction.collectAsStateWithLifecycle()
+    // Collected rather than read from .value: reading a StateFlow's value during composition
+    // does not observe it, so the name would not update when the video changes. Lint flags it,
+    // and it is right to.
+    val currentItem by viewModel.item.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val player = remember {
@@ -86,6 +90,9 @@ fun VideoPlayerScreen(
         // A video that cannot be decoded used to show a black screen with no explanation.
         val listener = object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
+                // `.value` is right here: this is a callback, not composition, and it must read
+                // whichever video is current at the moment it fails — not the one captured when
+                // the listener was created.
                 viewModel.reportPlaybackFailure(error.errorCode, viewModel.item.value?.displayName)
             }
         }
@@ -189,7 +196,7 @@ fun VideoPlayerScreen(
                 )
                 // Which video this is, not just which number. With thirty-two videos in the
                 // list, a position alone does not say what is on screen.
-                viewModel.item.value?.displayName?.let { name ->
+                currentItem?.displayName?.let { name ->
                     Text(
                         text = name,
                         color = Color.White.copy(alpha = 0.85f),
