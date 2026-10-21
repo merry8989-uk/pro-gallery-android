@@ -56,6 +56,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.AutoAwesome
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,6 +130,16 @@ fun HomeScreen(
                         title = "Stream from a link",
                         subtitle = "Play a direct media link",
                         onClick = { onOpen(Routes.STREAM) },
+                    )
+
+                    // Memories first: it is the one entry that offers something the user did
+                    // not come looking for, and it costs nothing to set up.
+                    DashboardTile(
+                        icon = Icons.Filled.AutoAwesome,
+                        title = "Memories",
+                        subtitle = "Pictures from this day in earlier years",
+                        onClick = { onOpen(Routes.MEMORIES) },
+                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     if (HomeEntries.showCollections(state.enabledKinds)) {

@@ -60,6 +60,9 @@ class MediaStoreDataSource @Inject constructor(
         add(MediaStore.MediaColumns.MIME_TYPE)
         add(MediaStore.MediaColumns.SIZE)
         add(MediaStore.MediaColumns.DATE_MODIFIED)
+        // Written as a literal rather than the constant: MediaColumns.DATE_TAKEN only exists
+        // from API 29, and this app runs on API 26. An absent column is simply skipped.
+        add("datetaken")
         add(MediaStore.MediaColumns.WIDTH)
         add(MediaStore.MediaColumns.HEIGHT)
         add(MediaStore.MediaColumns.BUCKET_ID)
@@ -207,6 +210,15 @@ class MediaStoreDataSource @Inject constructor(
         private val mimeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
         private val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
         private val dateCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+
+        /**
+         * The capture date's column, or -1 when the provider does not offer it.
+         *
+         * **The unit differs from DATE_MODIFIED.** MediaStore reports DATE_TAKEN in
+         * *milliseconds* and DATE_MODIFIED in *seconds*. Reading one as the other would put
+         * every memory in 1970 or in the far future, so the conversion happens here, once.
+         */
+        private val takenCol = cursor.getColumnIndex("datetaken")
         private val widthCol = cursor.getColumnIndex(MediaStore.MediaColumns.WIDTH)
         private val heightCol = cursor.getColumnIndex(MediaStore.MediaColumns.HEIGHT)
         private val bucketCol = cursor.getColumnIndex(MediaStore.MediaColumns.BUCKET_ID)
@@ -239,6 +251,7 @@ class MediaStoreDataSource @Inject constructor(
                 mimeType = mime ?: "",
                 sizeBytes = cursor.longOrZero(sizeCol),
                 dateModifiedSeconds = cursor.longOrZero(dateCol),
+                dateTakenSeconds = cursor.longOrZero(takenCol).takeIf { it > 0 }?.div(1_000) ?: 0L,
                 width = cursor.intOrZero(widthCol),
                 height = cursor.intOrZero(heightCol),
                 durationMs = if (durationCol >= 0) cursor.longOrZero(durationCol) else 0L,

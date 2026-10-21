@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.progallery.app.ui.navigation.Routes
 import androidx.compose.material.icons.filled.AlternateEmail
+import androidx.compose.material.icons.filled.AutoAwesome
 
 /**
  * The sidebar.
@@ -74,6 +75,9 @@ private fun DrawerContents(onNavigate: (String) -> Unit) {
             )
 
             DrawerSection("LIBRARY")
+            // First in the list, because it is the one entry that shows something the user did
+            // not go looking for.
+            DrawerItem(Icons.Filled.AutoAwesome, "Memories", Routes.MEMORIES, onNavigate)
             DrawerItem(Icons.Filled.Image, "Photos", Routes.PHOTOS, onNavigate)
             DrawerItem(Icons.Filled.VideoLibrary, "Videos", Routes.VIDEOS, onNavigate)
             DrawerItem(Icons.Filled.MusicNote, "Audio", Routes.AUDIO, onNavigate)

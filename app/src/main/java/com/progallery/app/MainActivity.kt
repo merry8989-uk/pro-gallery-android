@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import com.progallery.app.ui.navigation.ProGalleryNavHost
 import com.progallery.app.ui.theme.ProGalleryTheme
 import dagger.hilt.android.AndroidEntryPoint
+import com.progallery.app.data.memories.MemoriesNotifier
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -25,10 +26,19 @@ class MainActivity : ComponentActivity() {
      */
     private var externalUri by mutableStateOf<String?>(null)
 
+    /**
+     * Set when the app was opened by tapping the memories reminder.
+     *
+     * Read from the intent rather than from a saved state: the reminder should open Memories
+     * once, when it is tapped, and not again every time the app is brought back to the front.
+     */
+    private var openMemories by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         externalUri = intent?.data?.toString()
+        openMemories = intent?.getBooleanExtra(MemoriesNotifier.EXTRA_OPEN_MEMORIES, false) == true
 
         setContent {
             ProGalleryTheme {
@@ -49,5 +59,6 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         externalUri = intent.data?.toString()
+        openMemories = intent.getBooleanExtra(MemoriesNotifier.EXTRA_OPEN_MEMORIES, false)
     }
 }

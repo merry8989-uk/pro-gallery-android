@@ -40,11 +40,15 @@ import com.progallery.app.data.cloud.CloudKind
 import com.progallery.app.ui.screens.cloud.CloudScreen
 import com.progallery.app.ui.screens.cloud.CloudImageViewerScreen
 import com.progallery.app.ui.screens.text.TextViewerScreen
+import com.progallery.app.ui.screens.memories.MemoriesScreen
 
 @Composable
 fun ProGalleryNavHost(
     externalUri: String? = null,
     onExternalUriHandled: () -> Unit = {},
+    /** Set when the app was launched from the memories reminder. */
+    openMemories: Boolean = false,
+    onMemoriesHandled: () -> Unit = {},
 ) {
     val navController = rememberNavController()
 
@@ -64,6 +68,14 @@ fun ProGalleryNavHost(
     }
 
     // Opened from another app (we are the gallery): jump straight to that item.
+    // Tapping the reminder opens Memories, which is the whole point of the notification.
+    androidx.compose.runtime.LaunchedEffect(openMemories) {
+        if (openMemories) {
+            navController.navigate(Routes.MEMORIES)
+            onMemoriesHandled()
+        }
+    }
+
     androidx.compose.runtime.LaunchedEffect(externalUri) {
         if (externalUri != null) {
             navController.navigate(Routes.viewer(externalUri, "IMAGE"))
@@ -102,6 +114,14 @@ fun ProGalleryNavHost(
             AllFilesScreen(
                 onBack = { navController.popBackStack() },
                 onOpen = openItem,
+            )
+        }
+        composable(Routes.MEMORIES) {
+            MemoriesScreen(
+                onBack = { navController.popBackStack() },
+                onOpen = { uri, type ->
+                    navController.navigate(Routes.viewer(uri, type.name))
+                },
             )
         }
         composable(Routes.ALBUMS) {

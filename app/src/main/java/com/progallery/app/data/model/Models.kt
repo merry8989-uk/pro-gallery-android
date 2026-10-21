@@ -35,6 +35,14 @@ data class MediaItem(
     val mimeType: String,
     val sizeBytes: Long,
     val dateModifiedSeconds: Long,
+    /**
+     * When the picture was taken, from the file's own properties.
+     *
+     * Zero when the file carries no capture date, in which case [dateModifiedSeconds] is the
+     * fallback. Kept separate rather than merged, because the two answer different questions
+     * and only this one is a memory.
+     */
+    val dateTakenSeconds: Long = 0L,
     val width: Int,
     val height: Int,
     val durationMs: Long,
