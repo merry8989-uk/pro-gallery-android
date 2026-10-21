@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * the migration tests, so the two can never disagree.
  */
 object DatabaseVersion {
-    const val CURRENT = 4
+    const val CURRENT = 5
 }
 
 /**
@@ -16,7 +16,7 @@ object DatabaseVersion {
  * or out-of-order migration fails the build rather than a user's upgrade.
  */
 object MigrationSteps {
-    val ALL: List<Pair<Int, Int>> = listOf(1 to 2, 2 to 3, 3 to 4)
+    val ALL: List<Pair<Int, Int>> = listOf(1 to 2, 2 to 3, 3 to 4, 4 to 5)
 }
 
 /**
@@ -117,5 +117,18 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
 val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(MigrationSql.MIGRATION_3_4_CREATE_RECOVERY_HISTORY)
+    }
+}
+
+/**
+ * Adds the table the app's own index writes to, so media the system's index does not hand over
+ * can be shown in the gallery.
+ *
+ * Purely additive: no existing table is touched, so favourites, albums, hidden items, the trash
+ * and the recovery history all survive the upgrade untouched.
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(MigrationSql.MIGRATION_4_5_CREATE_INDEXED_MEDIA)
     }
 }

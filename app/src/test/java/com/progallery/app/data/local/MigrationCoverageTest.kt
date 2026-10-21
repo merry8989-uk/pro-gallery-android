@@ -4,6 +4,7 @@ import com.progallery.app.data.local.entity.RecoveryHistoryEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.progallery.app.data.local.entity.IndexedMediaEntity
 
 /**
  * Guards the upgrade path without needing a device.
@@ -73,6 +74,51 @@ class MigrationCoverageTest {
                 sql.contains("`$column`"),
             )
         }
+    }
+
+    /**
+     * The same two guards for the table the app's own index writes to.
+     *
+     * A CREATE TABLE that does not match the entity exactly does not fail at build time — it
+     * fails on a real upgrade, on the device of whoever already had the app. That is the worst
+     * place to find it, so it is checked here instead.
+     */
+    @Test
+    fun theIndexedMediaMigrationCreatesEveryColumnItsEntityDeclares() {
+        val sql = MigrationSql.MIGRATION_4_5_CREATE_INDEXED_MEDIA
+        val columns = columnsOf(IndexedMediaEntity::class.java)
+
+        assertTrue("the table name is missing from the migration", sql.contains("`indexed_media`"))
+        columns.forEach { column ->
+            assertTrue(
+                "column `$column` is declared on IndexedMediaEntity but the migration does not create it",
+                sql.contains("`$column`"),
+            )
+        }
+    }
+
+    @Test
+    fun theIndexedMediaMigrationDoesNotCreateColumnsTheEntityLacks() {
+        val sql = MigrationSql.MIGRATION_4_5_CREATE_INDEXED_MEDIA
+        val declared = columnsOf(IndexedMediaEntity::class.java)
+        val created = Regex("`([A-Za-z_][A-Za-z0-9_]*)`").findAll(sql)
+            .map { it.groupValues[1] }
+            .filter { it != "indexed_media" }
+            .toSet()
+        created.forEach { column ->
+            assertTrue(
+                "the migration creates `$column` but IndexedMediaEntity has no such field",
+                column in declared,
+            )
+        }
+    }
+
+    @Test
+    fun theIndexedMediaTableIsKeyedByTheMediaKey() {
+        // The key the whole app uses for identity. A different primary key here would let the
+        // same file be indexed twice and appear twice in the grid.
+        val sql = MigrationSql.MIGRATION_4_5_CREATE_INDEXED_MEDIA
+        assertTrue("the table must be keyed by mediaKey", sql.contains("PRIMARY KEY(`mediaKey`)"))
     }
 
     @Test

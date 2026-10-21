@@ -169,6 +169,16 @@ data class AppSettings(
      */
     val usageDataEnabled: Boolean = true,
 
+    /**
+     * Whether files the app found in app folders — the photos messaging apps keep under
+     * `Android/media` — are merged into the gallery.
+     *
+     * On by default, because a photo the user can see in WhatsApp is a photo they expect to
+     * find in their gallery. Off is a real switch: the index is not read at all, so the grid
+     * goes back to exactly what the system reports.
+     */
+    val includeAppMediaInGallery: Boolean = true,
+
     /** Include file paths in the diagnostics log. Off by default, because a log is a file you may share. */
     val includePathsInLogs: Boolean = false,
 

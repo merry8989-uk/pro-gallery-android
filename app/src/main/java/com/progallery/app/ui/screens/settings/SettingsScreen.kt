@@ -417,6 +417,29 @@ private fun buildRows(
             onCheckedChange = { value -> update { it.copy(deepScanEnabled = value) } },
         ),
     )
+    // The switch that makes app media a real part of the gallery rather than a separate screen.
+    add(
+        SettingsRow.Switch(
+            title = "Show app media in the gallery",
+            subtitle = "Merges the photos and videos messaging apps keep in their own folders — " +
+                "WhatsApp, Telegram, Arattai, Hyped and others — into the gallery, in date order. " +
+                "Off leaves the gallery as the system reports it. See App media for what was found.",
+            section = "Scanning",
+            checked = settings.includeAppMediaInGallery,
+            onCheckedChange = { value -> update { it.copy(includeAppMediaInGallery = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Info(
+            title = "Why app media needs its own switch",
+            subtitle = "Those files sit under Android/media, which the system does not hand to " +
+                "other apps in its index. The app finds them itself when you scan Android media, " +
+                "and keeps its own record of them so the gallery can show them. Turning this off " +
+                "does not delete that record — Delete it from App media if you want it gone.",
+            section = "Scanning",
+        ),
+    )
+
     add(
         SettingsRow.Switch(
             title = "Folder (SAF) access",
