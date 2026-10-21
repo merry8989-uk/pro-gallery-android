@@ -16,15 +16,15 @@ class UserCodeTest {
     @Test
     fun aCodeIsBuiltFromTheRandomBytes() {
         // Deterministic from the input, so the format is pinned.
-        assertEquals("PG-012-345", UserCode.from(byteArrayOf(0, 1, 2, 3, 4, 5)))
-        assertEquals("PG-89A-BCD", UserCode.from(byteArrayOf(200, 201, 202, 203, 204, 205)))
+        assertEquals("PG-012-345", UserCode.from(byteArrayOf(0.toByte(), 1.toByte(), 2.toByte(), 3.toByte(), 4.toByte(), 5.toByte())))
+        assertEquals("PG-89A-BCD", UserCode.from(byteArrayOf(200.toByte(), 201.toByte(), 202.toByte(), 203.toByte(), 204.toByte(), 205.toByte())))
     }
 
     @Test
     fun aByteAboveTheSignedRangeStillIndexesTheAlphabet() {
         // A Kotlin Byte is signed: 200 arrives as -56. Without masking it would index backwards
         // and produce a character from the wrong end of the alphabet.
-        assertEquals("PG-800-000", UserCode.from(byteArrayOf(200.toByte(), 0, 0, 0, 0, 0)))
+        assertEquals("PG-800-000", UserCode.from(byteArrayOf(200.toByte(), 0.toByte(), 0.toByte(), 0.toByte(), 0.toByte(), 0.toByte())))
     }
 
     @Test
