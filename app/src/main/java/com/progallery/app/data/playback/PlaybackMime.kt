@@ -60,8 +60,12 @@ object PlaybackMime {
      *
      * The item's own type wins when it is a real media type, because that came from the system
      * rather than from a file name. A generic type is not a real answer — `application/octet-stream`
-     * and the catch-all `video/*` say nothing about which extractor to use — so those are treated
-     * as absent rather than passed on.
+     * and a wildcard video type say nothing about which extractor to use — so those are treated as
+     * absent rather than passed on.
+     *
+     * (That sentence used to name the wildcard literally. A slash-star inside a block comment
+     * opens a *nested* comment in Kotlin, so the whole file failed to compile — which is why it
+     * is described rather than quoted.)
      */
     fun hintFor(mimeType: String?, displayName: String?, uri: String?): String? {
         val declared = mimeType?.trim()?.lowercase()
@@ -75,9 +79,7 @@ object PlaybackMime {
     fun isUsable(mimeType: String): Boolean {
         if (mimeType.isBlank()) return false
         if (mimeType == "application/octet-stream") return false
-        // A wildcard subtype names no format. Written as a check for a trailing star rather
-        // than with a literal slash-star in a string, which reads like the start of a comment
-        // and — as this file found out — does not compile.
+        // A wildcard subtype names no format: a trailing star covers both "*/*" and "video/*".
         if (mimeType.endsWith("*")) return false
         return mimeType.startsWith("video/") ||
             mimeType.startsWith("audio/") ||

@@ -43,11 +43,10 @@ class PlaybackMimeTest {
     @Test
     fun aGenericTypeIsTreatedAsAbsent() {
         assertFalse(PlaybackMime.isUsable("application/octet-stream"))
-        // Built by joining rather than written out: a literal slash-star inside a string is
-        // read as the start of a comment by the Kotlin lexer, which is how the first version of
-        // this file failed to compile.
-        assertFalse(PlaybackMime.isUsable("*" + "/" + "*"))
-        assertFalse(PlaybackMime.isUsable("video/" + "*"))
+        // A slash-star inside a string is perfectly valid Kotlin; it is inside a *comment* that
+        // it opens a nested comment and breaks the file. Written plainly here.
+        assertFalse(PlaybackMime.isUsable("*/*"))
+        assertFalse(PlaybackMime.isUsable("video/*"))
         assertFalse(PlaybackMime.isUsable(""))
         assertEquals("video/mp4", hint(mime = "application/octet-stream", name = "clip.mp4"))
     }
