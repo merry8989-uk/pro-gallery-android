@@ -27,6 +27,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.18.0]
+Playback failures say what actually went wrong.
+
+### Fixed
+- **Every playback failure was blamed on the codec, and most of them were not codec problems.**
+  The user's screenshot showed `ERROR_CODE_IO_FILE_NOT_FOUND` — the file was never opened —
+  reported as "the codec inside it may not be supported by this device", which sends someone
+  looking in entirely the wrong place.
+  - Each of Media3's error codes now maps to its real reason: a file that could not be
+    opened, a permission that was not given, a container Android cannot read, a codec the
+    device cannot decode, a damaged file, a server that refused, plain http that Android
+    blocks, and so on. The mapping is pure and every claim is unit tested.
+  - **A missing file is no longer described as a codec problem**, and the real causes are
+    named instead — it was moved or deleted, or it is in a folder Android does not let the
+    app read, such as another app's media folder.
+- **The failure now offers what can actually be done about it.** The snackbar's action depends
+  on the reason: a stale entry offers **"Check again"** (which re-reads the library and retries,
+  because the entry may simply be out of date), an unsupported codec offers **"Open with"**
+  another app, and a network failure offers **"Try again"**. Previously nothing was offered at
+  all.
+- **The failing file is named.** With thirty-two videos in a playlist, "3 / 32" does not say
+  which one failed — so the message quotes the file, and the player's top bar now shows the
+  name beside the position.
+
+### Changed
+- The audio player, the URI player and the WebDAV player all use the same explanations, so a
+  failure reads the same wherever it happens.
+
+### Tests
+- `PlaybackFailureTest` — a missing file is not blamed on the codec; a missing file offers a
+  rescan; a permission failure says "permission"; an unsupported codec *is* where the codec is
+  mentioned; an unsupported container is distinguished from an unsupported codec; a damaged
+  file does not blame the device; a network failure offers a retry and not another app; a web
+  page instead of a file is explained; plain http is explained as Android blocking it; every
+  known code gives a reason and a detail; an unknown code still says something useful; and the
+  message names the file when it is known and omits it when it is not.
+
 ## [1.17.0]
 Cloud folders, browsed inside the app — and no repeated sign-in.
 

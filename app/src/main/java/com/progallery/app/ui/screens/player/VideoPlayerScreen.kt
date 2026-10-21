@@ -46,6 +46,8 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.common.Player
 import androidx.compose.material3.SnackbarResult
 import com.progallery.app.data.media.PlaybackFailure
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material3.MaterialTheme
 
 /**
  * Full-screen video playback with a swipe between videos.
@@ -185,6 +187,20 @@ fun VideoPlayerScreen(
                     color = Color.White,
                     modifier = Modifier.padding(start = 4.dp),
                 )
+                // Which video this is, not just which number. With thirty-two videos in the
+                // list, a position alone does not say what is on screen.
+                viewModel.item.value?.displayName?.let { name ->
+                    Text(
+                        text = name,
+                        color = Color.White.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .weight(1f, fill = false),
+                    )
+                }
             }
         }
 

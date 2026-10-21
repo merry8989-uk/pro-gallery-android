@@ -122,6 +122,11 @@ Base exists (~45 settings). Missing from the Settings master prompt:
 
 ---
 
+## 6f. Playback reasons — v1.18.0
+
+**✅ Failures explain themselves.** Every Media3 error code maps to its real reason and to the
+action that helps; a missing file is no longer described as a codec problem.
+
 ## 6e. Cloud inside the app — v1.17.0
 
 **✅ Cloud folders browsed in-app**, with no sign-in of the app's own: a folder is granted
