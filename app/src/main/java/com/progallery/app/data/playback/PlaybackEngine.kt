@@ -36,6 +36,10 @@ class PlaybackEngine @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
 
+    // Media3 marks its builder, its renderers factory and its media source factory as unstable
+    // API. Opting in here — on the one function that touches them — keeps the opt-in where the
+    // unstable calls actually are instead of over the whole file.
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     fun build(dataSourceFactory: DataSource.Factory? = null): ExoPlayer {
         val renderers = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
         val source = if (dataSourceFactory != null) {
