@@ -65,6 +65,7 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import com.progallery.app.util.runCatchingCancellable
 import androidx.media3.common.MediaItem
+import com.progallery.app.data.playback.PlaybackEngine
 
 data class AudioEditorUiState(
     val uri: Uri? = null,
@@ -83,6 +84,7 @@ class AudioEditorViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val trimmer: MediaTrimmer,
     private val repository: MediaRepository,
+    private val playbackEngine: PlaybackEngine,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AudioEditorUiState())
@@ -135,7 +137,7 @@ class AudioEditorViewModel @Inject constructor(
     /** Plays only the selected range, so the trim can be heard before exporting. */
     fun togglePreview() {
         val uri = _state.value.uri ?: return
-        val exo = player ?: ExoPlayer.Builder(context).build().also { built ->
+        val exo = player ?: playbackEngine.build().also { built ->
             player = built
             built.addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {

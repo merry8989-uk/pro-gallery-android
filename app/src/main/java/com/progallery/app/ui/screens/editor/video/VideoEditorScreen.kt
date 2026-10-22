@@ -42,6 +42,7 @@ import androidx.media3.ui.PlayerView
 import com.progallery.app.edit.video.ResolutionPreset
 import com.progallery.app.util.MediaFormatUtils
 import androidx.media3.common.util.UnstableApi
+import com.progallery.app.data.playback.rememberPlaybackEngine
 
 // Two different opt-in mechanisms are at work here: Material 3 uses Kotlin's
 // @RequiresOptIn, Media3's UnstableApi uses the AndroidX one. Both annotations are
@@ -64,9 +65,10 @@ fun VideoEditorScreen(
         state.message?.let { snackbarHostState.showSnackbar(it); viewModel.consumeMessage() }
     }
 
-    val player = remember {
-        ExoPlayer.Builder(context).build().apply { playWhenReady = true }
-    }
+    // Through the engine, so a preview here falls back to a software decoder exactly as the
+    // player does — an editor preview is still a player, and it had the same missing fallback.
+    val engine = rememberPlaybackEngine()
+    val player = remember { engine.build() }
     LaunchedEffect(state.uri) {
         state.uri?.let {
             player.setMediaItem(MediaItem.fromUri(it))

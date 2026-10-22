@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.EmojiEmotions
+import androidx.compose.material.icons.filled.CheckCircle
 
 /**
  * The sidebar.
@@ -84,6 +85,7 @@ private fun DrawerContents(onNavigate: (String) -> Unit) {
             // and anything else that keeps files in a folder of its own.
             DrawerItem(Icons.Filled.Forum, "App media", Routes.APP_MEDIA, onNavigate)
             DrawerItem(Icons.Filled.EmojiEmotions, "Stickers", Routes.STICKERS, onNavigate)
+            DrawerItem(Icons.Filled.CheckCircle, "Format support", Routes.CAPABILITY, onNavigate)
             DrawerItem(Icons.Filled.Image, "Photos", Routes.PHOTOS, onNavigate)
             DrawerItem(Icons.Filled.VideoLibrary, "Videos", Routes.VIDEOS, onNavigate)
             DrawerItem(Icons.Filled.MusicNote, "Audio", Routes.AUDIO, onNavigate)

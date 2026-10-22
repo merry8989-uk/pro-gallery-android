@@ -35,6 +35,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.progallery.app.data.media.PlaybackFailure
+import com.progallery.app.data.playback.rememberPlaybackEngine
 
 /**
  * Plays one address.
@@ -67,10 +68,12 @@ fun StreamPlayerScreen(
 
     var failure by remember { mutableStateOf<Int?>(null) }
 
+    val engine = rememberPlaybackEngine()
     val player = remember(address) {
-        ExoPlayer.Builder(context).build().apply {
-            playWhenReady = true
-            setMediaItem(MediaItem.fromUri(address))
+        engine.build().apply {
+            // An address with no extension is the case the hint exists for: sniffing has nothing
+            // to go on, and a certain extension mapping tells Media3 which extractor to use.
+            setMediaItem(engine.mediaItem(address))
             prepare()
         }
     }

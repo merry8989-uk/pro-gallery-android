@@ -38,6 +38,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.progallery.app.data.media.PlaybackFailure
+import com.progallery.app.data.playback.rememberPlaybackEngine
 
 /**
  * Plays a file straight off a WebDAV server.
@@ -66,19 +67,16 @@ fun WebDavPlayerScreen(
     var failure by remember { mutableStateOf<Int?>(null) }
 
     val resolved = auth
+    val engine = rememberPlaybackEngine()
     val player = remember(resolved, address) {
         val auth = resolved ?: return@remember null
-        // The sign-in rides on the data source, and the data source is handed to the
-        // player as a media source. ExoPlayer.Builder has no DataSource.Factory overload
-        // in this Media3 version, so this is the supported way to inject it.
-        val source = DefaultMediaSourceFactory(
-            DefaultHttpDataSource.Factory()
-                .setAllowCrossProtocolRedirects(true)
-                .apply { auth.header?.let { setDefaultRequestProperties(mapOf("Authorization" to it)) } },
-        )
-        ExoPlayer.Builder(context, source).build().apply {
-            playWhenReady = true
-            setMediaItem(MediaItem.fromUri(address))
+        // The sign-in rides on the data source, and the engine takes it as a parameter — which
+        // is the only difference between this player and the others.
+        val dataSource = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+            .apply { auth.header?.let { setDefaultRequestProperties(mapOf("Authorization" to it)) } }
+        engine.build(dataSource).apply {
+            setMediaItem(engine.mediaItem(address))
             prepare()
         }
     }

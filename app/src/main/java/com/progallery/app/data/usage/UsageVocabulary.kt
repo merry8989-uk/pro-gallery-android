@@ -36,6 +36,7 @@ enum class FeatureId(val id: String) {
     MEMORIES("memories"),
     APP_MEDIA("app_media"),
     STICKERS("stickers"),
+    CAPABILITY("capability"),
     ANDROID_FOLDERS("android_folders"),
     CLOUD("cloud"),
     WEBDAV("webdav"),
@@ -59,6 +60,7 @@ enum class PerfOperation(val id: String) {
     MEMORIES("memories"),
     APP_MEDIA("app_media"),
     STICKERS("stickers"),
+    CAPABILITY("capability"),
 }
 
 /**
