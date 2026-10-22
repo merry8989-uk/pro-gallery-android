@@ -18,7 +18,6 @@ import com.progallery.app.data.model.ScanSummary
 import com.progallery.app.data.settings.SettingsRepository
 import com.progallery.app.util.PermissionUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
@@ -30,6 +29,7 @@ import java.io.File
 import java.io.FileInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.data.scan.ScanPauseGate
 
 /**
  * Scans the locations under `Android/` that a **non-rooted** app is actually
@@ -46,6 +46,7 @@ class AndroidFolderScanner @Inject constructor(
     private val classifier: FileClassifier,
     private val hasher: FileHasher,
     private val settingsRepository: SettingsRepository,
+    private val pauseGate: ScanPauseGate,
 ) {
 
     private val detector = DuplicateDetector(
@@ -84,7 +85,8 @@ class AndroidFolderScanner @Inject constructor(
                 ),
             )
         }
-    }.flowOn(Dispatchers.IO)
+    // Bounded by the concurrency setting, asked of the gate so there is one reader of it.
+    }.flowOn(pauseGate.scanDispatcher)
 
     private fun scanInternal(targets: List<AndroidFolderTarget>): Flow<ScanState> = flow {
         val settings = settingsRepository.current()
@@ -114,6 +116,7 @@ class AndroidFolderScanner @Inject constructor(
 
         for (target in requested) {
             currentCoroutineContext().ensureActive()
+            pauseGate.awaitIfPaused()
             val root = rootFor(target)
             if (root == null || !root.exists()) {
                 errors += "${target.label}: folder not present on this device."
@@ -129,6 +132,8 @@ class AndroidFolderScanner @Inject constructor(
 
             while (stack.isNotEmpty()) {
                 currentCoroutineContext().ensureActive()
+                pauseGate.awaitIfPaused()
+            pauseGate.awaitIfPaused()
                 val (dir, path, depth) = stack.removeLast()
                 directoriesScanned++
 
@@ -145,6 +150,9 @@ class AndroidFolderScanner @Inject constructor(
 
                 for (child in children) {
                     currentCoroutineContext().ensureActive()
+                    pauseGate.awaitIfPaused()
+                pauseGate.awaitIfPaused()
+            pauseGate.awaitIfPaused()
                     val name = child.name
 
                     if (child.isDirectory) {

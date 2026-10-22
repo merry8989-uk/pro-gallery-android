@@ -17,6 +17,7 @@ import com.progallery.app.data.memories.MemoriesScheduler
 import com.progallery.app.data.usage.UsageEvent
 import com.progallery.app.data.usage.UsageStore
 import com.progallery.app.data.eventlog.EventLogStore
+import com.progallery.app.data.scan.AppForegroundState
 import com.progallery.app.data.eventlog.EventName
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +41,7 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
     @Inject lateinit var memoriesScheduler: MemoriesScheduler
     @Inject lateinit var usageStore: UsageStore
     @Inject lateinit var eventLog: EventLogStore
+    @Inject lateinit var foregroundState: AppForegroundState
 
     /** For recording that must never hold up startup. */
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -118,6 +120,10 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
                 )
             }
         }
+
+        // Whether the app is in front, so a scan that was asked to pause in the background has
+        // something true to ask. Registered before anything can start scanning.
+        foregroundState.attach(this)
 
         installCrashRecorder()
         thumbnailCacheLimitMb = runCatching {

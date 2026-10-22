@@ -25,6 +25,7 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.progallery.app.util.runCatchingCancellable
+import com.progallery.app.data.scan.ScanPauseGate
 
 /** Progress + result states emitted while a deep scan runs. */
 sealed interface ScanState {
@@ -58,6 +59,7 @@ class DeepScanRepository @Inject constructor(
     private val hasher: FileHasher,
     private val classifier: FileClassifier,
     private val settingsRepository: SettingsRepository,
+    private val pauseGate: ScanPauseGate,
 ) {
 
     private val detector = DuplicateDetector(
@@ -113,7 +115,8 @@ class DeepScanRepository @Inject constructor(
         } catch (t: Throwable) {
             emit(ScanState.Failed(describeFailure(t)))
         }
-    }.flowOn(Dispatchers.IO)
+    // Bounded by the concurrency setting, asked of the gate so there is one reader of it.
+    }.flowOn(pauseGate.scanDispatcher)
 
     /** The failure text shown to the user, naming the type when there is no message. */
     private fun describeFailure(t: Throwable): String =
@@ -173,6 +176,8 @@ class DeepScanRepository @Inject constructor(
 
             while (stack.isNotEmpty()) {
                 currentCoroutineContext().ensureActive()
+                pauseGate.awaitIfPaused()
+            pauseGate.awaitIfPaused()
                 val (dir, path, depth) = stack.removeLast()
                 directoriesScanned++
 
@@ -183,6 +188,9 @@ class DeepScanRepository @Inject constructor(
 
                 for (child in children) {
                     currentCoroutineContext().ensureActive()
+                    pauseGate.awaitIfPaused()
+                pauseGate.awaitIfPaused()
+            pauseGate.awaitIfPaused()
                     val name = child.name ?: continue
 
                     if (child.isDirectory) {

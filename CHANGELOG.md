@@ -27,6 +27,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.37.0]
+The five switches that changed nothing now change something.
+
+### The finding
+An audit of the whole app found five settings **declared, persisted, written into the export, and
+rendered as real controls — and read by no logic anywhere**. Not decorative in appearance;
+decorative in effect, which is worse, because a person changes one and believes something happened.
+That is a direct breach of this project's own rule, stated twice in the Advanced Settings master
+prompt: *"Every setting must affect real application behaviour"* and *"No fake switches."*
+
+### Fixed
+- **Theme.** `MainActivity` called `ProGalleryTheme { … }` with **no argument**, so the app was
+  always whatever the system was. It now passes `ThemeMode.isDark(systemDark)`, a pure function, so
+  System / Light / Dark reach the theme.
+- **Performance mode** was a label. It is now a **preset that writes real numbers**, with the
+  **Custom** value the master prompt always asked for:
+  | Mode | Concurrent tasks | Batch size | Background |
+  | --- | --- | --- | --- |
+  | Battery saver | 2 | 250 | pauses |
+  | Balanced | 4 | 500 | keeps scanning |
+  | Performance | 8 | 1000 | keeps scanning |
+  | Custom | the controls below | the controls below | the controls below |
+
+  Choosing a mode writes those numbers, so the effect is visible in the rows underneath; touching
+  any of the three controls switches the mode to Custom, because that is what editing a custom
+  option means.
+- **Max concurrent tasks** now bounds something real: the dispatcher the three scanners run on, via
+  `limitedParallelism`. A scan's parallelism is the honest reader for "how many files at once".
+- **Batch size** now reaches the index read.
+- **Pause when backgrounded** now pauses. A `ScanPauseGate` the scanners wait at, beside their
+  existing cancellation points: it **waits** rather than cancels — a paused scan resumes where it
+  stopped — and it can **say why**, because a scan that looks stuck without a reason is
+  indistinguishable from one that has hung. The battery-saver preset turns it on, which is what
+  makes it a battery saver.
+
+### Removed
+- **`experimentalMethodsEnabled` is gone.** It gated features that do not exist, and its own
+  subtitle admitted it — *"Enabling it does not unlock anything unverified."* The master prompt says
+  a toggle must not unlock what has not been implemented and tested, so it goes until there is
+  something behind it.
+
+### Why it cannot happen again the same way
+The raw fields are now read only by `effectiveConcurrency`, `effectiveBatchSize` and
+`effectivePauseWhenBackgrounded`, and every consumer reads those. Reading a raw field cannot quietly
+reintroduce the bug, and the mode and the individual controls cannot disagree about what the
+scanner is doing.
+
+### Tests
+`PerformanceModeTest` pins the presets: every mode stands for real numbers, Custom stands for none,
+the saver is the gentlest of the three and the only one that pauses, and a preset overrides the
+controls while Custom uses them. `ThemeModeTest` pins System/Light/Dark against a dark and a light
+device.
+
 ## [1.36.0]
 Supabase removed, at the user's request. The diagnostics stay; the upload path goes.
 

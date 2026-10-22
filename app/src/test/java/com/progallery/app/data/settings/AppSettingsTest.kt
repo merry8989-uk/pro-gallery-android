@@ -18,7 +18,6 @@ class AppSettingsTest {
         // Dangerous / experimental features are off out of the box.
         assertFalse("advanced mode starts hidden", d.advancedMode)
         assertFalse("root status is opt-in", d.showRootStatus)
-        assertFalse("experimental methods are off", d.experimentalMethodsEnabled)
         assertFalse("hidden files excluded by default", d.includeHiddenFiles)
         assertFalse("background pause is opt-in", d.pauseWhenBackgrounded)
         // Ordinary discovery is on.
@@ -100,8 +99,8 @@ class AppSettingsTest {
 
     @Test
     fun sanitized_doesNotEnableDangerousFeatures() {
-        val s = AppSettings.Defaults.copy(experimentalMethodsEnabled = false).sanitized()
-        assertFalse(s.experimentalMethodsEnabled)
+        val s = AppSettings.Defaults.sanitized()
+        assertFalse("background pause is opt-in", s.pauseWhenBackgrounded)
     }
 
     @Test

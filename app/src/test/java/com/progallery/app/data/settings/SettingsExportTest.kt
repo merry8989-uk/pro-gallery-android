@@ -43,7 +43,6 @@ class SettingsExportTest {
         scanBatchSize = 250,
         pauseWhenBackgrounded = true,
         showRootStatus = true,
-        experimentalMethodsEnabled = true,
         themeMode = ThemeMode.DARK,
         defaultLayout = LayoutMode.LIST,
         gridSize = GridSize.LARGE,

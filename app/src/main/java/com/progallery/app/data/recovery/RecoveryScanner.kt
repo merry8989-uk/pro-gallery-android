@@ -15,7 +15,6 @@ import com.progallery.app.data.repository.TrashRepository
 import com.progallery.app.data.settings.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +24,7 @@ import kotlinx.coroutines.flow.flowOn
 import java.io.FileInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.data.scan.ScanPauseGate
 
 /**
  * Quick Scan: finds media this app can actually reach and says where each piece
@@ -49,6 +49,7 @@ class RecoveryScanner @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val scanDirectoryDao: ScanDirectoryDao,
     private val boundsReader: ImageBoundsReader,
+    private val pauseGate: ScanPauseGate,
 ) {
 
     fun quickScan(): Flow<RecoveryScanState> = scan(RecoveryScanMode.QUICK)
@@ -66,7 +67,8 @@ class RecoveryScanner @Inject constructor(
                 ),
             )
         }
-    }.flowOn(Dispatchers.IO)
+    // Bounded by the concurrency setting, asked of the gate so there is one reader of it.
+    }.flowOn(pauseGate.scanDispatcher)
 
     private fun scanInternal(mode: RecoveryScanMode): Flow<RecoveryScanState> = flow {
         val settings = settingsRepository.current()
@@ -166,6 +168,7 @@ class RecoveryScanner @Inject constructor(
 
         for (entity in directories) {
             currentCoroutineContext().ensureActive()
+            pauseGate.awaitIfPaused()
             val root = DocumentFile.fromTreeUri(context, Uri.parse(entity.treeUri))
             if (root == null || !root.canRead()) {
                 errors += "Cannot read ${entity.displayName} — the grant may have been revoked."
@@ -178,6 +181,8 @@ class RecoveryScanner @Inject constructor(
 
             while (stack.isNotEmpty()) {
                 currentCoroutineContext().ensureActive()
+                pauseGate.awaitIfPaused()
+            pauseGate.awaitIfPaused()
                 if (results.size >= settings.maxScanResults) {
                     errors += "Stopped at the configured limit of ${settings.maxScanResults} results."
                     break
@@ -203,6 +208,9 @@ class RecoveryScanner @Inject constructor(
 
                 for (child in children) {
                     currentCoroutineContext().ensureActive()
+                    pauseGate.awaitIfPaused()
+                pauseGate.awaitIfPaused()
+            pauseGate.awaitIfPaused()
                     val name = child.name ?: continue
 
                     if (child.isDirectory) {

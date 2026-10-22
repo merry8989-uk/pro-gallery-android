@@ -138,7 +138,6 @@ class SettingsDependenciesTest {
             includePathsInLogs = false,
             showRootStatus = false,
             advancedMode = false,
-            experimentalMethodsEnabled = false,
         )
         val resolved = SettingsDependencies.resolve(off)
         listOf(
@@ -148,7 +147,7 @@ class SettingsDependenciesTest {
             resolved.documentPreviews, resolved.includeHiddenFiles, resolved.exportEnabled,
             resolved.recoveryQuickScanEnabled, resolved.recoveryThumbnailCacheEnabled,
             resolved.saveDiagnosticLogs, resolved.includePathsInLogs, resolved.showRootStatus,
-            resolved.advancedMode, resolved.experimentalMethodsEnabled,
+            resolved.advancedMode,
         ).forEach { assertFalse("resolve must not enable anything", it) }
     }
 
