@@ -14,6 +14,7 @@ import android.os.Build
 import coil.decode.ImageDecoderDecoder
 import coil.decode.GifDecoder
 import com.progallery.app.data.memories.MemoriesScheduler
+import com.progallery.app.data.upload.LogUploadScheduler
 import com.progallery.app.data.usage.UsageEvent
 import com.progallery.app.data.usage.UsageStore
 import kotlinx.coroutines.withTimeoutOrNull
@@ -36,6 +37,8 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
 
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var memoriesScheduler: MemoriesScheduler
+    @Inject lateinit var logUploadScheduler: LogUploadScheduler
+    @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var usageStore: UsageStore
 
     /** For recording that must never hold up startup. */
@@ -73,6 +76,16 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
         // Scheduled here, so the reminder needs no setting and no first visit to Memories.
         // WorkManager keeps it across reboots.
         runCatching { memoriesScheduler.ensureScheduled() }
+
+        // Sending is scheduled only if the user asked for it. Checked at startup as well as on the
+        // switch, because the work may have been cancelled by the system or the app reinstalled.
+        applicationScope.launch {
+            runCatching {
+                if (settingsRepository.current().uploadDiagnosticsEnabled) {
+                    logUploadScheduler.ensureScheduled()
+                }
+            }
+        }
 
         // Counted, not described: the event has no field that could hold a filename. Launched
         // rather than awaited, because recording must never delay the app starting.

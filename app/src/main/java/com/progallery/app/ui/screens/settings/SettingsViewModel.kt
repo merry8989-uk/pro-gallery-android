@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.progallery.app.data.settings.AppSettings
 import com.progallery.app.data.settings.SettingsRepository
+import com.progallery.app.data.upload.LogUploadScheduler
 import com.progallery.app.util.MediaFormatUtils
 import com.progallery.app.util.RootDetector
 import com.progallery.app.util.ThumbnailCacheManager
@@ -41,6 +42,7 @@ class SettingsViewModel @Inject constructor(
     private val updateDownloader: UpdateDownloader,
     private val updateInstaller: UpdateInstaller,
     private val usageStore: UsageStore,
+    private val logUploadScheduler: LogUploadScheduler,
 ) : ViewModel() {
 
     private val _cacheSizeBytes = MutableStateFlow(0L)
@@ -332,6 +334,18 @@ class SettingsViewModel @Inject constructor(
             val before = settingsRepository.current()
             settingsRepository.update(transform)
             val after = settingsRepository.current()
+
+            // Turning the switch off has to stop work that is already queued, not just prevent
+            // new work: a consent gate with a job still running behind it is not a consent gate.
+            if (after.uploadDiagnosticsEnabled != before.uploadDiagnosticsEnabled) {
+                runCatching {
+                    if (after.uploadDiagnosticsEnabled) {
+                        logUploadScheduler.ensureScheduled()
+                    } else {
+                        logUploadScheduler.cancel()
+                    }
+                }
+            }
             val notes = SettingsDependencies.explain(before, after)
             if (notes.isNotEmpty()) {
                 _settingsMessage.value = notes.joinToString(" ")

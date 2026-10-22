@@ -933,10 +933,24 @@ private fun buildRows(
             title = "Anonymised usage data",
             subtitle = "Keeps counts of which features are used, how long loading takes, the " +
                 "device model and Android version, and reduced crash records — on this device " +
-                "only. Nothing is uploaded, and it is deleted by the button below.",
+                "only, unless you turn on sending below. It is deleted by the button below.",
             section = "Diagnostics & experimental",
             checked = settings.usageDataEnabled,
             onCheckedChange = { value -> update { it.copy(usageDataEnabled = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Send diagnostics to the developer",
+            subtitle = "Off by default. When on, the events you can read on the Access screen " +
+                "are sent to a server every few hours, so a problem can be found without you " +
+                "having to send anything. What goes: those events, your device code, the device " +
+                "model and Android version. What never goes: photos, file names, file paths, " +
+                "search terms, contacts, location, or anything that names you. Turning this off " +
+                "stops it immediately, including anything already queued.",
+            section = "Diagnostics & experimental",
+            checked = settings.uploadDiagnosticsEnabled,
+            onCheckedChange = { value -> update { it.copy(uploadDiagnosticsEnabled = value) } },
         ),
     )
     add(
