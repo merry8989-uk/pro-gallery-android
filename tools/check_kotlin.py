@@ -176,10 +176,19 @@ def main() -> int:
             for declaration in re.findall(r"^private fun ([A-Za-z_]\w*)\s*\(", raw, re.M):
                 if declaration in {"main"}:
                     continue
-                # Called, or referenced as a function value.
-                if re.search(r"\b" + re.escape(declaration) + r"\s*\(", haystack.replace(
-                    f"private fun {declaration}", "", 1
-                )) or re.search(r"::" + re.escape(declaration) + r"\b", haystack):
+                # Called, referenced as a function value, or called with a trailing lambda.
+                #
+                # The trailing-lambda form is the one that was missed: a composable whose last
+                # parameter is a lambda is called as `Centred { ... }`, with no parentheses at
+                # all — so the rule called a function with four call sites "never called". A
+                # check that cries wolf is a check people learn to skip.
+                without_declaration = haystack.replace(f"private fun {declaration}", "", 1)
+                called = (
+                    re.search(r"\b" + re.escape(declaration) + r"\s*\(", without_declaration)
+                    or re.search(r"\b" + re.escape(declaration) + r"\s*\{", without_declaration)
+                    or re.search(r"::" + re.escape(declaration) + r"\b", without_declaration)
+                )
+                if called:
                     continue
                 problems.append(
                     f"{name}: private fun {declaration}() is never called — "
