@@ -5,6 +5,7 @@ import com.progallery.app.data.model.ImageDecodability
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.stickers.Stickers
 import com.progallery.app.data.text.TextFormats
+import com.progallery.app.data.documents.DocumentFormats
 
 /** What the app can do with a format. */
 enum class Capability(val label: String) {
@@ -178,6 +179,12 @@ object CapabilityMatrix {
 
     private fun document(ext: String, kind: MediaType): FormatCapability = when {
         ext == "pdf" -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)
+        DocumentFormats.canRead(ext) -> FormatCapability(
+            ext,
+            kind,
+            Capability.OPENS_HERE,
+            "${DocumentFormats.kindOf(ext).label}, read as text",
+        )
         TextFormats.canRead(ext) -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)
         Stickers.isSticker(ext, null) -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)
         else -> FormatCapability(

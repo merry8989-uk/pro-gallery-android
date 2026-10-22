@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.progallery.app.data.documents.DocumentFormats
+import com.progallery.app.data.documents.DocumentText
 
 data class TextUiState(
     val loading: Boolean = true,
@@ -62,13 +64,49 @@ class TextViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null, tidy = false, tidyError = null) }
 
-            val kind = TextFormats.kind(extensionOf(name))
+            val extension = extensionOf(name)
+            val kind = TextFormats.kind(extension)
             val bytes = withContext(Dispatchers.IO) { readBounded(uri) }
 
             if (bytes == null) {
                 _state.update {
                     it.copy(loading = false, kind = kind, error = "This file could not be opened.")
                 }
+                return@launch
+            }
+
+            // A document is a zip container, so it goes through its own reader rather than being
+            // decoded as bytes — the text reader refuses these formats for exactly that reason.
+            if (DocumentFormats.canRead(extension)) {
+                val document = withContext(Dispatchers.IO) {
+                    runCatching { DocumentText.read(extension, bytes) }
+                }
+                document.fold(
+                    onSuccess = { text ->
+                        original = text
+                        _state.update {
+                            it.copy(
+                                loading = false,
+                                kind = TextKind.DOCUMENT,
+                                text = text,
+                                // No encoding to report: the text was extracted from XML, not
+                                // decoded from bytes, and saying "UTF-8" here would be noise.
+                                encoding = "",
+                                guessed = false,
+                                truncated = false,
+                            )
+                        }
+                    },
+                    onFailure = { failure ->
+                        _state.update {
+                            it.copy(
+                                loading = false,
+                                kind = TextKind.DOCUMENT,
+                                error = failure.message ?: "This document could not be read.",
+                            )
+                        }
+                    },
+                )
                 return@launch
             }
 
