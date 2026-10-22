@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * the migration tests, so the two can never disagree.
  */
 object DatabaseVersion {
-    const val CURRENT = 5
+    const val CURRENT = 6
 }
 
 /**
@@ -16,7 +16,7 @@ object DatabaseVersion {
  * or out-of-order migration fails the build rather than a user's upgrade.
  */
 object MigrationSteps {
-    val ALL: List<Pair<Int, Int>> = listOf(1 to 2, 2 to 3, 3 to 4, 4 to 5)
+    val ALL: List<Pair<Int, Int>> = listOf(1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 to 6)
 }
 
 /**
@@ -31,6 +31,22 @@ object MigrationSql {
      * `IndexedMediaEntity` exactly, or the migration fails at runtime on a real upgrade —
      * which `MigrationCoverageTest` checks against the entity itself.
      */
+    /**
+     * Where playback got to.
+     *
+     * Column names and nullability must match `PlaybackPositionEntity` exactly, or the upgrade
+     * fails on a real device — which `MigrationCoverageTest` checks against the entity itself.
+     */
+    val MIGRATION_5_6_CREATE_PLAYBACK_POSITION = """
+        CREATE TABLE IF NOT EXISTS `playback_position` (
+            `mediaKey` TEXT NOT NULL,
+            `positionMs` INTEGER NOT NULL,
+            `durationMs` INTEGER NOT NULL,
+            `updatedAt` INTEGER NOT NULL,
+            PRIMARY KEY(`mediaKey`)
+        )
+    """
+
     val MIGRATION_4_5_CREATE_INDEXED_MEDIA = """
         CREATE TABLE IF NOT EXISTS `indexed_media` (
             `mediaKey` TEXT NOT NULL,
@@ -158,5 +174,15 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(MigrationSql.MIGRATION_4_5_CREATE_INDEXED_MEDIA)
+    }
+}
+
+/**
+ * Adds the playback positions. Nothing already in the database is touched: favourites, albums,
+ * trash, the scan folders, the recovery history and the app's own index all survive the upgrade.
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(MigrationSql.MIGRATION_5_6_CREATE_PLAYBACK_POSITION)
     }
 }

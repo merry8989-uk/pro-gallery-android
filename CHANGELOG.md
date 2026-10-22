@@ -27,6 +27,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.31.0]
+A video picks up where you left it — and, more importantly, knows when not to.
+
+### Added
+- **Position memory.** Returning to a video resumes where it was left, with the two rules that
+  make resuming not annoying, both pinned in tests at their boundaries:
+  - **A position near the end starts over.** A video watched to within fifteen seconds — or to
+    95% of its length — is finished, and restoring it means pressing play to watch the titles.
+  - **A position barely past the start is not worth restoring.** Ten seconds in is not "in
+    progress", and restoring it makes every file look half-watched.
+  - An **unknown duration** trusts the position: a stream that has not reported its length yet
+    still resumes, because refusing would mean never resuming anything played from a network.
+- **The distinction between *finished* and *barely started*, which is the part that matters.**
+  Finishing a video **forgets** the position so the next open starts from the beginning — but
+  opening a file you are twenty minutes into and closing it after three seconds must not throw
+  those twenty minutes away, so a too-early position is **left alone** rather than overwritten.
+  A plain upsert would have got this wrong in one direction or the other.
+  - Positions are saved **on pause**, **on leaving the screen** and **when swiping to the next
+    video** — on the view model's scope, because the most important save happens as the screen is
+    going away and a coroutine started from the composition is cancelled at exactly that moment.
+  - Room goes to **version 6** with a migration the coverage test checks against the entity, and
+    the table is bounded so a convenience does not outgrow its usefulness.
+
+### What the build caught
+- **Hilt refused to build the repository**: the new DAO had no provider. Every other DAO on the
+  database has one and this was the only one missing — so the whole set was checked afterwards
+  rather than just the one, and all nine now have a provider.
+
 ## [1.30.0]
 The diagnostics log can be sent to a server — off by default, and with the database doing the
 enforcing.

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaType
+import com.progallery.app.data.playback.PlaybackPositionRepository
 import com.progallery.app.data.repository.MediaRepository
 import com.progallery.app.data.repository.ViewerContext
 import com.progallery.app.ui.components.sameUri
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.progallery.app.data.media.PlaybackFailure
 import com.progallery.app.util.runCatchingCancellable
+import androidx.media3.common.Player
 
 /**
  * Backs the video player, including moving between videos.
@@ -31,6 +33,7 @@ class VideoPlayerViewModel @Inject constructor(
     private val repository: MediaRepository,
     private val mediaActions: MediaActions,
     private val viewerContext: ViewerContext,
+    private val playbackPositions: PlaybackPositionRepository,
 ) : ViewModel() {
 
     private val _items = MutableStateFlow<List<MediaItem>>(emptyList())
@@ -38,6 +41,29 @@ class VideoPlayerViewModel @Inject constructor(
 
     private val _item = MutableStateFlow<MediaItem?>(null)
     val item: StateFlow<MediaItem?> = _item.asStateFlow()
+
+    /** Where this file was left, or zero. Suspends, so the caller can seek before preparing. */
+    suspend fun resumeAt(item: MediaItem): Long = playbackPositions.resumeAt(item.mediaKey)
+
+    /**
+     * Remembers where a file was left.
+     *
+     * Launched on the view model's scope rather than the composition's, because the most
+     * important save happens as the screen is going away — and a coroutine started from the
+     * composition is cancelled at exactly that moment.
+     */
+    fun savePosition(item: MediaItem?, positionMs: Long, durationMs: Long) {
+        val key = item?.mediaKey ?: return
+        viewModelScope.launch { playbackPositions.save(key, positionMs, durationMs) }
+    }
+
+    /** Reads the position off the player and saves it, if there is one to read. */
+    fun savePositionOf(player: Player) {
+        val current = _item.value ?: return
+        val position = runCatching { player.currentPosition }.getOrNull() ?: return
+        val duration = runCatching { player.duration }.getOrNull() ?: 0L
+        savePosition(current, position, if (duration > 0) duration else 0L)
+    }
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
