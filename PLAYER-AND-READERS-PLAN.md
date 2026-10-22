@@ -120,7 +120,8 @@ instead of staying silent — that will tell us which it is.
 | PDF | **Built-in reader** (the platform's own renderer) |
 | Plain text, JSON, XML, CSV, logs | **Readable** — a reader for these is planned (Part 7) and is easy |
 | DOCX, XLSX, ODT, ODS, EPUB | **Readable** — a reader for these is built in (Part G, v1.32.0) |
-| PPTX | **No reader.** A presentation is a different shape of document; hand off to another app |
+| PPTX | **Readable** — the same container as Word, read in the deck's own order (v1.33.0) |
+| PPT (the old binary format) | **No reader.** A different container entirely; hand off |
 
 ---
 
@@ -234,7 +235,8 @@ photo instead of in a separate list. That is this part.
 
 ### Part G — Document readers ✅ **done, v1.19.0 and v1.32.0** (text/JSON/CSV/log/code; then Word, Excel, OpenDocument and ePub)
 
-Remaining in this part: **PPTX** only. Word, Excel, OpenDocument and ePub are read now — without a
+Remaining in this part: **nothing** — Word, Excel, OpenDocument, ePub and PowerPoint are all read,
+and the old binary `.ppt` is the only one handed off, on purpose. Word, Excel, OpenDocument and ePub are read now — without a
 library, because they are zip containers with XML inside and the reader is a bounded unzip plus a
 walk over a tokeniser the app owns. A presentation is a different shape of document and is still
 handed off rather than half-supported.

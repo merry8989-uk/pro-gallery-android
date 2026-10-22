@@ -27,6 +27,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.33.0]
+Presentations open too — and the earlier decision about them was wrong.
+
+### Added
+- **`.pptx`, `.pptm`, `.potx` and `.ppsx` are read.** In v1.32.0 I said a presentation is a
+  different shape of document and that handing it off was better than half-supporting it. The
+  shape turns out to be **the same one Word uses** — a zip with the words in `<a:t>` and the
+  pretty-printing between the elements — so it gets the same reader, and the earlier call is
+  reversed rather than quietly left standing.
+  - **The order is the deck's, not the filenames'.** Slides are named `slide1.xml`, `slide2.xml`
+    and so on, and they are *usually* in that order — which is exactly why reading by filename
+    looks correct until a slide is reordered or deleted and the numbers stop matching the running
+    order. `presentation.xml` lists the slides in reading order and the relationships file says
+    which file each one is. The filename is the **fallback**, for a file missing its own
+    description, not the rule — and the test builds a deck where `slide1.xml` is the *second*
+    slide, so a reader that guessed would be caught.
+  - Each slide is labelled, so the text reads as a deck rather than as one long page.
+- **The old binary `.ppt` is still handed off**, deliberately. It is a completely different
+  container — not a zip — and the capability screen says so, which is the honest answer rather
+  than claiming a format the app cannot open.
+
+### Also in this release
+- The **capability screen** changed with the code, as it is built to: presentations now report
+  that they open here, derived from the same table the reader uses.
+
 ## [1.32.0]
 Word, Excel, OpenDocument and ePub files open in the app instead of being handed away.
 
