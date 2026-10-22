@@ -43,7 +43,10 @@ class PlaybackEngine @Inject constructor(
         } else {
             DefaultMediaSourceFactory(context)
         }
-        return ExoPlayer.Builder(context, source, renderers).build().apply {
+        // The order is (context, renderersFactory, mediaSourceFactory). It reads backwards from
+        // the way the components are described, and getting it the other way round is a
+        // compile error rather than a wrong player — which is how it was caught.
+        return ExoPlayer.Builder(context, renderers, source).build().apply {
             playWhenReady = true
         }
     }
