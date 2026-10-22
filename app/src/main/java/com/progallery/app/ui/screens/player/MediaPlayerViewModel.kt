@@ -9,6 +9,8 @@ import androidx.media3.common.Player
 import com.progallery.app.data.media.PlaybackFailure
 import com.progallery.app.data.model.MediaItem
 import com.progallery.app.data.model.MediaType
+import com.progallery.app.data.eventlog.EventLogStore
+import com.progallery.app.data.eventlog.EventName
 import com.progallery.app.data.playback.PlaybackPositionRepository
 import com.progallery.app.data.repository.MediaRepository
 import com.progallery.app.data.repository.TrashRepository
@@ -77,6 +79,7 @@ class MediaPlayerViewModel @Inject constructor(
     private val mediaActions: MediaActions,
     private val viewerContext: ViewerContext,
     private val playbackPositions: PlaybackPositionRepository,
+    private val eventLog: EventLogStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(MediaPlayerUiState())
@@ -176,6 +179,17 @@ class MediaPlayerViewModel @Inject constructor(
      */
     fun reportPlaybackFailure(errorCode: Int, fileName: String?) {
         val explanation = PlaybackFailure.explain(errorCode)
+        // The reason the app could not play something is the single most useful thing it knows
+        // about a failure, and it used to live only in a snackbar that disappeared.
+        viewModelScope.launch {
+            eventLog.log(
+                EventName.PLAYBACK_FAILED,
+                details = mapOf(
+                    "error_code" to errorCode.toString(),
+                    "reason" to explanation.action.name.lowercase(),
+                ),
+            )
+        }
         _state.update {
             it.copy(
                 playing = false,

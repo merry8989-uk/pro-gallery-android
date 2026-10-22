@@ -23,6 +23,12 @@ import com.progallery.app.data.local.MIGRATION_4_5
 import com.progallery.app.data.local.MIGRATION_5_6
 import com.progallery.app.data.local.dao.IndexedMediaDao
 import com.progallery.app.data.local.dao.PlaybackPositionDao
+import com.progallery.app.data.local.DatabaseVersion
+import com.progallery.app.data.eventlog.EventName
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import com.progallery.app.data.eventlog.EventLogStore
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -30,11 +36,36 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): ProGalleryDatabase =
+    fun provideDatabase(
+        @ApplicationContext context: Context,
+        eventLog: EventLogStore,
+    ): ProGalleryDatabase =
         Room.databaseBuilder(context, ProGalleryDatabase::class.java, "progallery.db")
             // Explicit migration: re-keys media references by URI and keeps
             // existing favourites, hidden items and album membership.
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addCallback(object : RoomDatabase.Callback() {
+                override fun onOpen(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    super.onOpen(db)
+                    // That the database opened, and at which version. A migration that half-ran is
+                    // otherwise a silent data problem: everything looks fine until a row is gone.
+                    //
+                    // The scope is deliberately not a screen's or a view model's: this fires once
+                    // per process and must survive whichever component happened to touch the
+                    // database first.
+                    CoroutineScope(Dispatchers.IO).launch {
+                        runCatching {
+                            eventLog.log(
+                                EventName.MIGRATION_EVENT,
+                                details = mapOf(
+                                    "opened_version" to db.version.toString(),
+                                    "expected_version" to DatabaseVersion.CURRENT.toString(),
+                                ),
+                            )
+                        }
+                    }
+                }
+            })
             .build()
 
     @Provides fun provideFavouriteDao(db: ProGalleryDatabase): FavouriteDao = db.favouriteDao()

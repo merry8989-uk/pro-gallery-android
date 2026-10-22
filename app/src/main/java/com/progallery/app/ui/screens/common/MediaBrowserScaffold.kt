@@ -51,6 +51,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.progallery.app.ui.components.PagedMediaCollection
+import com.progallery.app.data.eventlog.EventName
+import com.progallery.app.data.eventlog.rememberEventLog
 
 /**
  * Standard scaffold used by Photos, Videos, Favourites and Search. Owns the
@@ -72,6 +74,9 @@ fun MediaBrowserScaffold(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val eventLog = rememberEventLog()
+    val sawSomething = remember { mutableStateOf(false) }
+    val openedAt = remember { System.currentTimeMillis() }
 
     val deleteLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult(),
@@ -215,7 +220,17 @@ fun MediaBrowserScaffold(
             }
             header?.let { it() }
             when {
-                state.error != null -> ErrorBanner(state.error!!) { viewModel.refresh() }
+                state.error != null -> {
+                    // An error the user is actually looking at, not one that was swallowed.
+                    LaunchedEffect(state.error) {
+                        eventLog.log(
+                            EventName.ERROR_STATE_SHOWN,
+                            screen = title,
+                            details = mapOf("error_code" to "media_load"),
+                        )
+                    }
+                    ErrorBanner(state.error!!) { viewModel.refresh() }
+                }
                 pagedItems.loadState.refresh is LoadState.Loading && pagedItems.itemCount == 0 ->
                     LoadingState()
                 pagedItems.loadState.refresh is LoadState.Error && pagedItems.itemCount == 0 ->
@@ -228,8 +243,22 @@ fun MediaBrowserScaffold(
                     title = emptyTitle,
                     subtitle = emptySubtitle,
                 )
-                else -> PagedMediaCollection(
-                    items = pagedItems,
+                else -> {
+                    LaunchedEffect(pagedItems.itemCount) {
+                        if (!sawSomething.value && pagedItems.itemCount > 0) {
+                            sawSomething.value = true
+                            eventLog.log(
+                                EventName.TIME_TO_FIRST_VALUE,
+                                screen = title,
+                                details = mapOf(
+                                    "result" to "shown",
+                                    "until_first_items_ms" to (System.currentTimeMillis() - openedAt).toString(),
+                                ),
+                            )
+                        }
+                    }
+                    PagedMediaCollection(
+                            items = pagedItems,
                     columns = state.columns,
                     viewMode = state.viewMode,
                     selectionMode = state.selectionMode,
@@ -257,6 +286,7 @@ fun MediaBrowserScaffold(
                     showSize = state.showFileSize,
                     showDetails = state.showResolution,
                 )
+                }
             }
         }
             }

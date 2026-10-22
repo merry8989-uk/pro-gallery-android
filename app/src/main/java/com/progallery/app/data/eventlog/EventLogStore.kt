@@ -54,6 +54,38 @@ class EventLogStore @Inject constructor(
 
     private fun file(): File = File(context.filesDir, FILE)
 
+    /**
+     * Records an event, filling in the session context.
+     *
+     * The convenience exists so a call site cannot forget the parts that make an event joinable —
+     * the code, the session and the timestamp. Building the entry by hand at thirty call sites is
+     * thirty chances to leave one out, and an event with no session cannot be followed through
+     * anything.
+     *
+     * It is a no-op when logging is switched off, which is the consent gate: the check lives here
+     * rather than at each call site, because a gate each caller must remember to respect is a gate
+     * that will be missed.
+     */
+    suspend fun log(
+        event: EventName,
+        screen: String? = null,
+        attemptId: String? = null,
+        details: Map<String, String> = emptyMap(),
+    ) {
+        if (!settingsRepository.current().usageDataEnabled) return
+        record(
+            LogEntry(
+                event = event,
+                timestampMillis = System.currentTimeMillis(),
+                userCode = code(),
+                sessionId = session(),
+                attemptId = attemptId,
+                screen = screen,
+                details = details,
+            ),
+        )
+    }
+
     suspend fun record(entry: LogEntry) = withContext(Dispatchers.IO) {
         if (!settingsRepository.current().usageDataEnabled) {
             _enabled.value = false

@@ -47,8 +47,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.progallery.app.data.usage.UsageEvent
 import com.progallery.app.data.usage.featureForRoute
 import com.progallery.app.data.usage.rememberUsageStore
+import com.progallery.app.data.eventlog.EventName
+import com.progallery.app.data.eventlog.rememberEventLog
 import com.progallery.app.ui.screens.stickers.StickerScreen
 import com.progallery.app.ui.screens.capability.CapabilityScreen
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProGalleryNavHost(
@@ -60,6 +66,8 @@ fun ProGalleryNavHost(
 ) {
     val navController = rememberNavController()
     val usageStore = rememberUsageStore()
+    val eventLog = rememberEventLog()
+    val currentScope = androidx.compose.runtime.rememberCoroutineScope()
 
     // Which part of the app is being used, recorded once per route. The mapping is pure and
     // tested; an unknown route records nothing rather than guessing.
@@ -69,6 +77,45 @@ fun ProGalleryNavHost(
             usageStore.recordEvent(UsageEvent.FEATURE_OPENED)
             usageStore.recordFeature(feature)
         }
+        // The screen view, as its own event. The usage store above counts features for the
+        // weekly review; this is the line that says which screen, and when.
+        route?.destination?.route?.let { current ->
+            eventLog.log(EventName.SCREEN_VIEW, screen = current)
+        }
+    }
+
+    // Pressing back three times inside two seconds is what being lost looks like, and it is the
+    // one friction signal the navigation host can see on its own.
+    val backPresses = remember { mutableListOf<Long>() }
+    BackHandler(enabled = true) {
+        val now = System.currentTimeMillis()
+        backPresses.add(now)
+        backPresses.removeAll { now - it > 2_000 }
+        if (backPresses.size >= 3) {
+            backPresses.clear()
+            currentScope.launch {
+                eventLog.log(EventName.BACK_BUTTON_SPAM, screen = route?.destination?.route)
+            }
+        }
+        navController.popBackStack()
+    }
+
+    // Where the session ended. The standard calls this a drop-off: the last screen a person was
+    // on before they stopped. It is recorded when the app goes to the background, which is the
+    // last moment it can be sure of the answer.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, route) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                route?.destination?.route?.let { current ->
+                    currentScope.launch {
+                        eventLog.log(EventName.DROP_OFF, screen = current)
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // One place decides where a tapped item goes, by its kind.

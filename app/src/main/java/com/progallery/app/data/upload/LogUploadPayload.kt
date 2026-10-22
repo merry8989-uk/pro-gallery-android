@@ -36,6 +36,7 @@ object LogUploadPayload {
         context.network?.let { put("network_type", it) }
         entry.screen?.let { put("screen_or_route", it) }
         put("log_level", entry.level.wire)
+        put("category", entry.event.category.wire)
         put("release_channel", context.releaseChannel)
         if (entry.details.isNotEmpty()) put("details", entry.details)
     }

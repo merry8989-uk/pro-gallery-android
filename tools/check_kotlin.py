@@ -207,6 +207,34 @@ def main() -> int:
                     f"{os.path.basename(entry['path'])}: calls {fname}() (from {home_pkg}) with no import"
                 )
 
+    # ---- An event the app declares but never emits ----
+    #
+    # The vocabulary is a promise about what is collected. An event in it with no call site is a
+    # promise the app does not keep — and the failure is silent: the log simply never contains it,
+    # and nothing says why. The rule is the same shape as the one below for private functions,
+    # because it is the same mistake: something declared and never used.
+    vocabulary = pathlib.Path(ROOT) / "java" / "com" / "progallery" / "app" / "data" / "eventlog" / "LogVocabulary.kt"
+    if not vocabulary.exists():
+        # Not a silent skip. A rule that quietly does nothing when it cannot find its input is a
+        # rule that is decorative, and this one was: the path was built from the wrong root and it
+        # had never run once.
+        problems.append(f"the event vocabulary was not found at {vocabulary}")
+    else:
+        text = vocabulary.read_text()
+        declared = re.findall(r"^\s+[A-Z][A-Z_0-9]*\(\"([a-z_0-9]+)\",\s*LogLevel", text, re.M)
+        haystack = "\n".join(
+            strip_comments_and_strings(pathlib.Path(p).read_text())
+            for p in kotlin_files(ROOT)
+            if not p.endswith("LogVocabulary.kt")
+        )
+        for event in declared:
+            constant = event.upper()
+            if not re.search(r"EventName\." + re.escape(constant) + r"\b", haystack):
+                problems.append(
+                    f"LogVocabulary.kt: declares '{event}' but nothing emits it — "
+                    "an event with no call site is never collected"
+                )
+
     # ---- A private top-level function that nothing calls ----
     #
     # This rule exists because of a real bug that shipped: a settings dialog was declared,

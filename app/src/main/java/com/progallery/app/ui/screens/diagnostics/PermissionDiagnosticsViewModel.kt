@@ -105,6 +105,14 @@ class PermissionDiagnosticsViewModel @Inject constructor(
             // items" are the same state and completely different problems.
             val visual = rows.firstOrNull { it.id == AccessId.MEDIA_VISUAL }?.state
             if (visual != null) {
+                // A refusal is a security event in its own right: the app asked for access and
+                // did not get it, which is exactly what a security log is for.
+                if (visual.wire() != "granted") {
+                    record(
+                        event = EventName.PERMISSION_DENIED,
+                        details = mapOf("permission" to "photos_and_videos", "state" to visual.wire()),
+                    )
+                }
                 record(
                     event = EventName.PERMISSION_STATE_RESOLVED,
                     details = mapOf(
@@ -125,6 +133,16 @@ class PermissionDiagnosticsViewModel @Inject constructor(
             // Written down before the tap is acted on, because the app can be killed while the
             // user is in Settings — which is precisely when the answer arrives.
             pendingFix.put(PendingFix(attemptId, row.id, row.state, action))
+
+            // The same permission being asked for again and again is what being stuck looks like,
+            // and it is the one signal that says the fix on offer is not the fix that is needed.
+            fixAttempts++
+            if (fixAttempts == LOOP_THRESHOLD) {
+                record(
+                    event = EventName.PERMISSION_LOOP,
+                    details = mapOf("permission" to row.id.name.lowercase(), "attempts" to fixAttempts.toString()),
+                )
+            }
             record(
                 event = EventName.ACCESS_FIX_REQUESTED,
                 attemptId = attemptId,
@@ -137,10 +155,19 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         }
     }
 
+    private companion object {
+        /** Three attempts is a loop; two is a person trying again. */
+        const val LOOP_THRESHOLD = 3
+    }
+
     fun setFilter(filter: LogFilter) = _state.update { it.copy(filter = filter) }
 
     fun clearLog() {
         viewModelScope.launch {
+            // Recorded before the clear, because after it there is nowhere to record it — and
+            // "the log was emptied" is exactly the kind of thing an audit trail is for.
+            val removed = _state.value.log.size
+            record(EventName.DATA_DELETED, details = mapOf("what" to "diagnostics_log", "events" to removed.toString()))
             eventLog.clear()
             _state.update { it.copy(message = "The log was cleared.") }
         }
@@ -152,7 +179,10 @@ class PermissionDiagnosticsViewModel @Inject constructor(
     fun logFileFor(format: LogFormat, onReady: (File) -> Unit, onFailed: (String) -> Unit) {
         viewModelScope.launch {
             runCatching { eventLog.exportFile(format) }.fold(
-                onSuccess = onReady,
+                onSuccess = { file ->
+                    record(EventName.DATA_EXPORTED, details = mapOf("what" to "diagnostics_log", "format" to format.label))
+                    onReady(file)
+                },
                 onFailure = { onFailed(it.message ?: "The log could not be written.") },
             )
         }
@@ -171,6 +201,9 @@ class PermissionDiagnosticsViewModel @Inject constructor(
                 context.contentResolver.openOutputStream(uri)?.use { stream -> stream.write(body.toByteArray()) }
                 true
             }.getOrDefault(false)
+            if (written) {
+                record(EventName.DATA_EXPORTED, details = mapOf("what" to "diagnostics_log", "format" to format.label))
+            }
             onDone(written)
         }
     }

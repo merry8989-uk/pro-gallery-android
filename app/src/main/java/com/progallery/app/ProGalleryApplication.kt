@@ -17,6 +17,8 @@ import com.progallery.app.data.memories.MemoriesScheduler
 import com.progallery.app.data.upload.LogUploadScheduler
 import com.progallery.app.data.usage.UsageEvent
 import com.progallery.app.data.usage.UsageStore
+import com.progallery.app.data.eventlog.EventLogStore
+import com.progallery.app.data.eventlog.EventName
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +41,7 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
     @Inject lateinit var memoriesScheduler: MemoriesScheduler
     @Inject lateinit var logUploadScheduler: LogUploadScheduler
     @Inject lateinit var usageStore: UsageStore
+    @Inject lateinit var eventLog: EventLogStore
 
     /** For recording that must never hold up startup. */
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -60,6 +63,17 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
             runCatching {
                 runBlocking {
                     withTimeoutOrNull(2_000) { usageStore.recordCrash(throwable) }
+                    // The same fault, as a structured event: the usage store counts crashes, the
+                    // event log carries the line that says when and in which session.
+                    withTimeoutOrNull(2_000) {
+                        eventLog.log(
+                            EventName.CRASH,
+                            details = mapOf(
+                                "exception_type" to (throwable.javaClass.name.substringAfterLast('.')),
+                                "fatal" to "true",
+                            ),
+                        )
+                    }
                 }
             }
             previous?.uncaughtException(thread, throwable)
@@ -90,6 +104,31 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
         // rather than awaited, because recording must never delay the app starting.
         applicationScope.launch {
             runCatching { usageStore.recordEvent(UsageEvent.APP_OPENED) }
+        }
+
+        // The start of the session, and what the process found on the device it started on. The
+        // phone is the infrastructure this app runs on, so this is the honest equivalent of a
+        // server's startup line: memory available, and nothing about the person.
+        applicationScope.launch {
+            runCatching {
+                val runtime = Runtime.getRuntime()
+                eventLog.log(
+                    EventName.SESSION_START,
+                    details = mapOf(
+                        "start_type" to "cold",
+                        "memory_max_mb" to (runtime.maxMemory() / (1024 * 1024)).toString(),
+                        "memory_free_mb" to (runtime.freeMemory() / (1024 * 1024)).toString(),
+                    ),
+                )
+                eventLog.log(
+                    EventName.MEMORY_REPORT,
+                    details = mapOf(
+                        "memory_total_mb" to (runtime.totalMemory() / (1024 * 1024)).toString(),
+                        "memory_free_mb" to (runtime.freeMemory() / (1024 * 1024)).toString(),
+                        "processors" to runtime.availableProcessors().toString(),
+                    ),
+                )
+            }
         }
 
         installCrashRecorder()

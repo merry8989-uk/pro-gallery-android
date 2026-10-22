@@ -20,8 +20,8 @@ object LogExport {
     /** The envelope columns, in the order the schema lists them. */
     private val ENVELOPE_COLUMNS = listOf(
         "timestamp", "user_code", "session_id", "attempt_id", "event_name", "log_level",
-        "screen_or_route", "platform", "app_version", "os", "device_model", "network_type",
-        "release_channel", "schema_version",
+        "category", "screen_or_route", "platform", "app_version", "os", "device_model",
+        "network_type", "release_channel", "schema_version",
     )
 
     fun render(entries: List<LogEntry>, context: LogContext, format: LogFormat): String =
@@ -120,6 +120,7 @@ object LogExport {
             "attempt_id" -> entry.attemptId.orEmpty()
             "event_name" -> entry.event.wire
             "log_level" -> entry.level.wire
+            "category" -> entry.event.category.wire
             "screen_or_route" -> entry.screen.orEmpty()
             "platform" -> context.platform
             "app_version" -> context.appVersion
