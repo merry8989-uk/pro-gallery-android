@@ -114,7 +114,7 @@ class LogFilterTest {
 
     @Test
     fun aFilterThatMatchesNothingReturnsNothing() {
-        assertTrue(LogFilters.apply(entries, LogFilter(event = EventName.ANR)).isEmpty())
+        assertTrue(LogFilters.apply(entries, LogFilter(event = EventName.PLAYBACK_FAILED)).isEmpty())
     }
 
     @Test

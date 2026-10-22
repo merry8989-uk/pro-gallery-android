@@ -50,7 +50,7 @@ class SettingsAuditTest {
                 scanVideos = !base.scanVideos, scanImages = !base.scanImages,
                 scanAudio = !base.scanAudio, scanDocuments = !base.scanDocuments,
                 scanArchives = !base.scanArchives, scanOtherFiles = !base.scanOtherFiles,
-                scanStickers = !base.scanStickers, keepActivityHistory = !base.keepActivityHistory,
+                keepActivityHistory = !base.keepActivityHistory, saveDiagnosticLogs = !base.saveDiagnosticLogs,
             ),
         )
         assertEquals(SettingsAudit.MAX_REPORTED, changed.size)
