@@ -64,13 +64,13 @@ object ZipArchive {
     }
 
     /** Reads one entry, refusing to grow past [limit] rather than allocating on trust. */
-    private fun readBounded(zip: ZipInputStream, limit: Int): ByteArray {
+    private fun readBounded(zip: ZipInputStream, limit: Long): ByteArray {
         val out = java.io.ByteArrayOutputStream()
         val buffer = ByteArray(16 * 1024)
         while (true) {
             val read = zip.read(buffer)
             if (read <= 0) break
-            if (out.size() + read > limit) {
+            if (out.size().toLong() + read > limit) {
                 throw TooLarge("a part of this archive is larger than 32 MB")
             }
             out.write(buffer, 0, read)
