@@ -10,7 +10,6 @@ import com.progallery.app.ui.screens.albums.AlbumDetailScreen
 import com.progallery.app.ui.screens.albums.AlbumsScreen
 import com.progallery.app.ui.screens.albums.CustomAlbumDetailScreen
 import com.progallery.app.data.model.MediaItem
-import com.progallery.app.ui.screens.audio.AudioPlayerScreen
 import com.progallery.app.ui.screens.audio.AudioScreen
 import com.progallery.app.ui.screens.documents.DocumentsScreen
 import com.progallery.app.ui.screens.editor.audio.AudioEditorScreen
@@ -25,7 +24,7 @@ import com.progallery.app.ui.screens.editor.video.VideoEditorScreen
 import com.progallery.app.ui.screens.favourites.FavouritesScreen
 import com.progallery.app.ui.screens.home.HomeScreen
 import com.progallery.app.ui.screens.photos.PhotosScreen
-import com.progallery.app.ui.screens.player.VideoPlayerScreen
+import com.progallery.app.ui.screens.player.MediaPlayerScreen
 import com.progallery.app.ui.screens.search.SearchScreen
 import com.progallery.app.ui.screens.trash.TrashScreen
 import com.progallery.app.data.model.MediaType
@@ -76,8 +75,8 @@ fun ProGalleryNavHost(
     val openItem: (MediaItem) -> Unit = { item ->
         when {
             item.isImage -> navController.navigate(Routes.viewer(item.uri.toString(), item.mediaType.name))
-            item.isAudio -> navController.navigate(Routes.audioPlayer(item.uri.toString()))
-            item.isVideo -> navController.navigate(Routes.videoPlayer(item.uri.toString()))
+            item.isAudio -> navController.navigate(Routes.mediaPlayer(item.uri.toString()))
+            item.isVideo -> navController.navigate(Routes.mediaPlayer(item.uri.toString()))
             item.isPdf -> navController.navigate(Routes.pdfViewer(item.uri.toString()))
             // The app's own reader for text, JSON, CSV and code. Without it these went to
             // "open with another app", which often found nothing.
@@ -120,7 +119,7 @@ fun ProGalleryNavHost(
         composable(Routes.AUDIO) {
             AudioScreen(
                 onBack = { navController.popBackStack() },
-                onOpenPlayer = { uri -> navController.navigate(Routes.audioPlayer(uri)) },
+                onOpenPlayer = { uri -> navController.navigate(Routes.mediaPlayer(uri)) },
             )
         }
         composable(Routes.DOCUMENTS) {
@@ -144,7 +143,7 @@ fun ProGalleryNavHost(
                 onBack = { navController.popBackStack() },
                 onOpen = { entry, inPlayer ->
                     if (inPlayer) {
-                        navController.navigate(Routes.videoPlayer(entry.item.uri.toString()))
+                        navController.navigate(Routes.mediaPlayer(entry.item.uri.toString()))
                     } else {
                         navController.navigate(
                             Routes.viewer(entry.item.uri.toString(), entry.item.mediaType.name),
@@ -206,7 +205,7 @@ fun ProGalleryNavHost(
         composable(Routes.VIDEOS) {
             VideosScreen(
                 onBack = { navController.popBackStack() },
-                onOpenPlayer = { uri -> navController.navigate(Routes.videoPlayer(uri)) },
+                onOpenPlayer = { uri -> navController.navigate(Routes.mediaPlayer(uri)) },
                 onEdit = { uri -> navController.navigate(Routes.videoEditor(uri)) },
             )
         }
@@ -352,17 +351,26 @@ fun ProGalleryNavHost(
                         if (isVideo) Routes.videoEditor(targetUri) else Routes.photoEditor(targetUri),
                     )
                 },
-                onPlayVideo = { targetUri -> navController.navigate(Routes.videoPlayer(targetUri)) },
+                onPlayVideo = { targetUri -> navController.navigate(Routes.mediaPlayer(targetUri)) },
             )
         }
+        // One player for both. Which surface it shows is decided by the file, not by the route,
+        // so there is no way for the two to drift apart again — and the editor it opens follows
+        // the same rule.
         composable(
-            route = "${Routes.VIDEO_PLAYER}?uri={uri}",
+            route = "${Routes.MEDIA_PLAYER}?uri={uri}",
             arguments = listOf(navArgument("uri") { type = NavType.StringType }),
         ) { entry ->
-            VideoPlayerScreen(
+            MediaPlayerScreen(
                 uri = entry.arguments?.getString("uri") ?: "",
                 onBack = { navController.popBackStack() },
-                onEdit = { navController.navigate(Routes.videoEditor(it)) },
+                onEdit = { targetUri, isAudio, cut ->
+                    if (isAudio) {
+                        navController.navigate(Routes.audioEditor(targetUri, cut))
+                    } else {
+                        navController.navigate(Routes.videoEditor(targetUri))
+                    }
+                },
             )
         }
         composable(
@@ -381,18 +389,6 @@ fun ProGalleryNavHost(
             PdfViewerScreen(
                 uri = entry.arguments?.getString("uri") ?: "",
                 onBack = { navController.popBackStack() },
-            )
-        }
-        composable(
-            route = "${Routes.AUDIO_PLAYER}?uri={uri}",
-            arguments = listOf(navArgument("uri") { type = NavType.StringType }),
-        ) { entry ->
-            AudioPlayerScreen(
-                uri = entry.arguments?.getString("uri") ?: "",
-                onBack = { navController.popBackStack() },
-                onEdit = { targetUri, cut ->
-                    navController.navigate(Routes.audioEditor(targetUri, cut))
-                },
             )
         }
         composable(

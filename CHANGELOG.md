@@ -27,6 +27,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.34.0]
+One player. Audio and video were two screens with two players; now there is one.
+
+### Changed
+- **`MediaPlayerScreen` replaces `VideoPlayerScreen` and `AudioPlayerScreen`** — one screen, one
+  route, one view model, one player. They had already drifted, and that drift is what made the
+  same codec play as video and fail as audio: two players meant two places for the decoder
+  fallback to be missing from.
+  - What still differs is what should. **Video** fills the screen in a pager, so swiping moves to
+    the next file in the order of the grid it was opened from, with trim, advanced edit and share.
+    **Audio** shows the file with its controls and offers edit, cut, share, move, copy, info and
+    delete — because an audio file is a file you manage, not only one you play.
+  - Everything else is shared, because it is the same problem: the item, the queue, the position
+    memory, the failure reasons, and the snackbar that offers what can actually be done about them.
+  - Which surface to show is decided by **the file**, not by the route that opened it, so the two
+    cannot disagree — and the editor the trim button opens follows the same rule.
+  - **The view model does not own the player, and that is the load-bearing decision.** The player
+    has to be attached to a `PlayerView`, released with the composition, and read for its position
+    as the screen goes away — all of which are the screen's to do. What lives in the view model is
+    everything that is not the player. The audio path's 500 ms position poll moved to the screen
+    with it, so there is one loop for both surfaces instead of one per screen.
+
+### The tooling, because a missing import cost a round trip
+- **The checker now catches a project function called without its import.** It only looked at
+  capitalised type names, so `sameUri` and `runCatchingCancellable` — both top-level functions in
+  this project — could be called with no import and nothing noticed until the compiler did.
+  - The new rule had **two blind spots of its own**, both found while testing it and both fixed: a
+    declaration with a type parameter (`fun <T> foo(`) was not collected, and a call written as a
+    trailing lambda (`foo { ... }`) has no parentheses to match. It is verified four ways: it fires
+    on both real cases, a proper import silences it, and the clean tree passes.
+  - It also made the checker **read the tree once** and share that between rules. The new rule on
+    its own pushed a run past a minute, which is slower than the build it exists to save time on;
+    it takes about fifteen seconds now.
+
 ## [1.33.0]
 Presentations open too — and the earlier decision about them was wrong.
 
