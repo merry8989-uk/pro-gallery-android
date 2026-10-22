@@ -363,8 +363,11 @@ object DocumentText {
                     when {
                         name in cellTags -> {
                             cellDepth++
-                            cellStart = line.length
                             if (line.isNotEmpty()) line.append('\t')
+                            // After the tab, not before: the marker is where the cell's own text
+                            // starts, and a marker left on the far side of the tab makes the tab
+                            // itself look like cell content.
+                            cellStart = line.length
                         }
                         name in rowTags -> if (cellDepth == 0) flushLine()
                         name in tabTags -> line.append('\t')

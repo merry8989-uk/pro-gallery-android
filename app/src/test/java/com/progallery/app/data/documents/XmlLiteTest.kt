@@ -23,8 +23,9 @@ class XmlLiteTest {
 
     @Test
     fun aSelfClosingTagProducesStartAndEnd() {
+        // Six: <a> start, then <b/> as start+end, then <c/> as start+end, then </a>.
         val events = XmlLite.events("<a><b/><c/></a>")
-        assertEquals(4, events.size)
+        assertEquals(6, events.size)
         assertTrue(events[1] is XmlLite.Event.Start)
         assertTrue(events[2] is XmlLite.Event.End)
     }
@@ -46,7 +47,12 @@ class XmlLiteTest {
 
     @Test
     fun commentsAreSkipped() {
-        assertEquals(listOf("ab"), texts("<a>a<!-- not this -->b</a>"))
+        // Two text events rather than one joined run: the tokeniser flushes before every tag, and
+        // a comment is a tag. The readers append every text event to the same line, so the split
+        // makes no difference to what a document reads as — and asserting the join here would be
+        // asserting something the tokeniser does not promise.
+        assertEquals(listOf("a", "b"), texts("<a>a<!-- not this -->b</a>"))
+        assertEquals("ab", texts("<a>a<!-- not this -->b</a>").joinToString(""))
     }
 
     @Test

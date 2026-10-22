@@ -179,12 +179,9 @@ object CapabilityMatrix {
 
     private fun document(ext: String, kind: MediaType): FormatCapability = when {
         ext == "pdf" -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)
-        DocumentFormats.canRead(ext) -> FormatCapability(
-            ext,
-            kind,
-            Capability.OPENS_HERE,
-            "${DocumentFormats.kindOf(ext).label}, read as text",
-        )
+        // No reason, deliberately: the table's rule is that a format which simply opens needs no
+        // explanation, and a reason on one is noise the screen would then show on every line.
+        DocumentFormats.canRead(ext) -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)
         TextFormats.canRead(ext) -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)
         Stickers.isSticker(ext, null) -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)
         else -> FormatCapability(
