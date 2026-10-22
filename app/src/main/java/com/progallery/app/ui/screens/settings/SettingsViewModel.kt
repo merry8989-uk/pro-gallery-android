@@ -3,6 +3,9 @@ package com.progallery.app.ui.screens.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.progallery.app.data.settings.AppSettings
+import com.progallery.app.data.eventlog.EventLogStore
+import com.progallery.app.data.settings.SettingsAudit
+import com.progallery.app.data.eventlog.EventName
 import com.progallery.app.data.settings.SettingsRepository
 import com.progallery.app.data.upload.LogUploadScheduler
 import com.progallery.app.util.MediaFormatUtils
@@ -36,6 +39,7 @@ import com.progallery.app.data.usage.UsageStore
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
+    private val eventLog: EventLogStore,
     private val thumbnailCache: ThumbnailCacheManager,
     private val diagnosticLog: DiagnosticLog,
     private val updateChecker: UpdateChecker,
@@ -334,6 +338,19 @@ class SettingsViewModel @Inject constructor(
             val before = settingsRepository.current()
             settingsRepository.update(transform)
             val after = settingsRepository.current()
+
+            // What changed, from what to what. There is no administrator in an app, so this is
+            // the audit trail it can honestly keep — and it is also how "why did the app start
+            // behaving differently" gets answered.
+            if (before != after) {
+                runCatching {
+                    eventLog.log(
+                        EventName.SETTINGS_CHANGED,
+                        screen = "Settings",
+                        details = SettingsAudit.changed(before, after),
+                    )
+                }
+            }
 
             // Turning the switch off has to stop work that is already queued, not just prevent
             // new work: a consent gate with a job still running behind it is not a consent gate.

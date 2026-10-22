@@ -68,6 +68,12 @@ class LogUploader @Inject constructor(
         var sent = 0
         var batches = 0
         for (batch in LogUploadBatch.batches(pending)) {
+            // One line per step of the upload, at the trace level: this is what "detailed
+            // execution" means, and it is why the level exists separately from debug.
+            store.log(
+                EventName.TRACE_MARKER,
+                details = mapOf("step" to "upload_batch", "size" to batch.size.toString()),
+            )
             val accepted = post(LogUploadPayload.batch(batch, context))
             if (accepted == null) {
                 // Stop at the first failure rather than hammering. Whatever is left is still

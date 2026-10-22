@@ -11,6 +11,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.progallery.app.data.eventlog.EventLogStore
+import com.progallery.app.data.eventlog.EventName
 
 /**
  * The app's own index of files the system's does not hand over.
@@ -26,6 +28,7 @@ import kotlinx.coroutines.withContext
 class IndexedMediaRepository @Inject constructor(
     private val dao: IndexedMediaDao,
     private val settingsRepository: SettingsRepository,
+    private val eventLog: EventLogStore,
 ) {
 
     private companion object {
@@ -49,8 +52,10 @@ class IndexedMediaRepository @Inject constructor(
             .filter { it.source != MediaSource.MEDIA_STORE }
             .take(MAX_INDEXED)
             .map { it.toEntity() }
-        dao.clear()
-        if (entities.isNotEmpty()) dao.upsert(entities)
+        guarded("replace_from_scan") {
+            dao.clear()
+            if (entities.isNotEmpty()) dao.upsert(entities)
+        }
     }
 
     /** Adds or updates without removing anything — for a scan that only covered part of a tree. */
@@ -59,7 +64,28 @@ class IndexedMediaRepository @Inject constructor(
             .filter { it.source != MediaSource.MEDIA_STORE }
             .take(MAX_INDEXED)
             .map { it.toEntity() }
-        if (entities.isNotEmpty()) dao.upsert(entities)
+        guarded("add_from_scan") { if (entities.isNotEmpty()) dao.upsert(entities) }
+    }
+
+    /**
+     * Runs a write, and records it if the database refuses.
+     *
+     * The exception's **message is never stored** — it can carry a path or a file name — only
+     * which operation it was and what kind of failure it is. A write that fails silently is how
+     * an index quietly stops matching the library.
+     */
+    private suspend fun guarded(operation: String, block: suspend () -> Unit) {
+        runCatching { block() }.onFailure { failure ->
+            runCatching {
+                eventLog.log(
+                    EventName.DATABASE_ERROR,
+                    details = mapOf(
+                        "operation" to operation,
+                        "exception_type" to failure.javaClass.name.substringAfterLast('.'),
+                    ),
+                )
+            }
+        }
     }
 
     suspend fun clear() = withContext(Dispatchers.IO) { dao.clear() }

@@ -28,12 +28,15 @@ object LogRetention {
 
         // Over the limit: drop the oldest of the least useful level, repeatedly, until it fits.
         val keep = recent.toMutableList()
-        val droppable = listOf(LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN)
+        // Least useful first, so a trace is dropped before a debug, a debug before an info, and
+        // so on. Errors and fatals are not on this list at all — they are the reason a log exists,
+        // and the standard asks for 100% of them.
+        val droppable = listOf(LogLevel.TRACE, LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN)
 
         while (keep.size > keepEvents) {
             val victim = droppable.firstNotNullOfOrNull { level ->
                 keep.withIndex().firstOrNull { it.value.level == level }?.index
-            } ?: 0 // nothing droppable left: the oldest error goes, and the cap is still honoured
+            } ?: 0 // nothing droppable left: the oldest error goes, and the cap is honoured
             keep.removeAt(victim)
         }
         return keep

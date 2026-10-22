@@ -35,7 +35,7 @@ class LogUploadTest {
             setOf(
                 "event_name", "schema_version", "timestamp", "session_id", "attempt_id",
                 "user_code", "platform", "app_version", "os", "device_model", "network_type",
-                "screen_or_route", "log_level", "release_channel", "details",
+                "screen_or_route", "log_level", "category", "release_channel", "details",
             ),
             payload.keys,
         )

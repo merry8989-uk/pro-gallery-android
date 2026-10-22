@@ -24,6 +24,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import com.progallery.app.data.model.MediaCollectionChoice
 import com.progallery.app.data.model.MediaStoreCollection
+import com.progallery.app.data.eventlog.EventLogStore
+import com.progallery.app.data.eventlog.EventName
 
 /**
  * Reads files from the platform [MediaStore].
@@ -49,6 +51,7 @@ import com.progallery.app.data.model.MediaStoreCollection
  */
 @Singleton
 class MediaStoreDataSource @Inject constructor(
+    private val eventLog: EventLogStore,
     @ApplicationContext private val context: Context,
 ) {
 
@@ -87,8 +90,38 @@ class MediaStoreDataSource @Inject constructor(
     /** Loads files of the enabled [kinds] only, in one go. */
     suspend fun loadMedia(kinds: Set<MediaType> = DEFAULT_KINDS): List<MediaItem> =
         withContext(Dispatchers.IO) {
+            val startedAt = System.currentTimeMillis()
             val all = ArrayList<MediaItem>()
             loadMediaBatches(kinds, DEFAULT_BATCH_SIZE).collect { all += it }
+
+            // The database log for this app is the system's media index, so this is the query
+            // that matters: how many rows, and how long. Both go in one event because a count
+            // without its duration cannot be compared with anything.
+            val took = System.currentTimeMillis() - startedAt
+            runCatching {
+                eventLog.log(
+                    EventName.MEDIA_QUERY_RESULT,
+                    details = mapOf(
+                        "item_count" to all.size.toString(),
+                        "query_ms" to took.toString(),
+                        "kinds" to kinds.joinToString(",") { it.name.lowercase() },
+                    ),
+                )
+                eventLog.log(
+                    EventName.PERFORMANCE_MARKER,
+                    details = mapOf("flow" to "library_load", "duration_ms" to took.toString()),
+                )
+                if (took >= SLOW_MS) {
+                    eventLog.log(
+                        EventName.SLOW_OPERATION,
+                        details = mapOf(
+                            "operation" to "library_load",
+                            "duration_ms" to took.toString(),
+                            "item_count" to all.size.toString(),
+                        ),
+                    )
+                }
+            }
             all
         }
 
@@ -312,6 +345,9 @@ class MediaStoreDataSource @Inject constructor(
     }
 
     companion object {
+        /** A library load past this is worth noticing rather than only tolerating. */
+        const val SLOW_MS = 3_000L
+
         /** Rows read before the index is published again. */
         const val DEFAULT_BATCH_SIZE = 500
 
