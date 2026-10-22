@@ -73,6 +73,7 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import androidx.media3.common.PlaybackException
 import com.progallery.app.data.media.PlaybackFailure
+import com.progallery.app.data.playback.PlaybackEngine
 
 data class AudioPlayerUiState(
     val item: MediaItem? = null,
@@ -95,6 +96,7 @@ class AudioPlayerViewModel @Inject constructor(
     private val mediaActions: MediaActions,
     private val repository: MediaRepository,
     private val trashRepository: TrashRepository,
+    private val playbackEngine: PlaybackEngine,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AudioPlayerUiState())
@@ -114,9 +116,12 @@ class AudioPlayerViewModel @Inject constructor(
             _state.update { it.copy(item = item, loading = item == null, error = if (item == null) "This audio file is no longer available" else null) }
             _folders.value = repository.folders()
 
-            val exo = ExoPlayer.Builder(context).build()
+            // Built through the engine, so this player falls back to a software decoder exactly
+            // as the video player does — the two used to differ, which is what made "the same
+            // codec plays as video and fails as audio" possible.
+            val exo = playbackEngine.build()
             player = exo
-            exo.setMediaItem(androidx.media3.common.MediaItem.fromUri(uri))
+            exo.setMediaItem(playbackEngine.mediaItem(uri, item?.mimeType, item?.displayName))
             exo.addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(state: Int) {
                     val duration = exo.duration.takeIf { it > 0 } ?: 0L

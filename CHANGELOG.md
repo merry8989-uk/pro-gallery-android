@@ -27,6 +27,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.29.0]
+One place builds a player — and the app can finally answer "can I open this?" before you try.
+
+### Changed
+- **A single `PlaybackEngine`.** There were four players and two editor previews, each building its
+  own `ExoPlayer`, and they had already drifted: **only the video player fell back to a software
+  decoder.** So a codec this device lacks would play as a video and fail as the same audio — which
+  reads as "the app is broken" rather than "this file needs another app". Every player now gets
+  the same fallback, and the drift cannot come back, because there is nowhere else to build one.
+  - The data source is a parameter rather than an afterthought: the WebDAV player's sign-in rides
+    on it, and that is the only difference between it and the others.
+  - The **editors' preview players** are included. An editor preview is still a player, and it had
+    the same missing fallback.
+- **Each player is told what the file is when the app is sure, and left to sniff it when it is
+  not.** Sniffing is good and usually right; the hint removes the guess for a container with an
+  ambiguous header and for an address with no extension at all. It is never guessed — an uncertain
+  mapping returns nothing and the player sniffs, which is the honest default.
+
+### Added
+- **Format support**, a screen that answers the question before the attempt: every format the app
+  knows, grouped by whether it opens here, opens with a caveat, or needs another app — **with the
+  reason**. Being told that `.wmv` needs another app is a different experience from a file that
+  fails when tapped.
+  - It is generated from the same tables the players and the readers use, so it cannot promise
+    something the app does not do.
+  - Searchable by extension, by the verdict's own wording and by the reason — someone looking for
+    ".wmv" and someone looking for "Windows Media" are asking the same question.
+  - It already found two real gaps while being built: `m3u8`/`m3u`/`mpd` were missing from the
+    registry although the app plays them, and several audio formats in the registry (`ape`, `wma`,
+    `ra`, `caf`, `dsf`, tracker modules) have no Android decoder at all.
+
+### What the compiler and lint caught, in order
+1. `ExoPlayer.Builder` has **no three-argument overload in the order I assumed**. It is
+   `(context, renderersFactory, mediaSourceFactory)` — the two are easy to write the wrong way
+   round, and the reference documentation settled it rather than a guess.
+2. Media3 marks the builder, the renderers factory and the media source factory as **unstable
+   API**; the opt-in is now on the one function that touches them rather than over the whole file.
+
 ## [1.28.0]
 The log, live, on the access screen — and the half that was missing.
 

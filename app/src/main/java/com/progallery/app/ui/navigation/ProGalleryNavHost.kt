@@ -49,6 +49,7 @@ import com.progallery.app.data.usage.UsageEvent
 import com.progallery.app.data.usage.featureForRoute
 import com.progallery.app.data.usage.rememberUsageStore
 import com.progallery.app.ui.screens.stickers.StickerScreen
+import com.progallery.app.ui.screens.capability.CapabilityScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -134,6 +135,9 @@ fun ProGalleryNavHost(
                 onBack = { navController.popBackStack() },
                 onOpen = openItem,
             )
+        }
+        composable(Routes.CAPABILITY) {
+            CapabilityScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.STICKERS) {
             StickerScreen(

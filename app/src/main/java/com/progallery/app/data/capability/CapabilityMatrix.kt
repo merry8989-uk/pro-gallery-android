@@ -204,4 +204,31 @@ object CapabilityMatrix {
 
     fun byVerdict(): Map<Capability, List<FormatCapability>> =
         all().groupBy { it.verdict }
+
+    /**
+     * Narrows the list for the screen.
+     *
+     * Pure, so the screen cannot disagree with itself about what "searching" means — and the
+     * query matches the extension, the verdict's own wording and the reason, because someone
+     * looking for ".wmv" and someone looking for "Windows Media" are asking the same question.
+     */
+    fun search(
+        entries: List<FormatCapability>,
+        query: String = "",
+        verdict: Capability? = null,
+    ): List<FormatCapability> {
+        val needle = query.trim()
+        return entries.filter { entry ->
+            if (verdict != null && entry.verdict != verdict) return@filter false
+            if (needle.isEmpty()) return@filter true
+            entry.extension.contains(needle, ignoreCase = true) ||
+                entry.verdict.label.contains(needle, ignoreCase = true) ||
+                entry.kind.name.contains(needle, ignoreCase = true) ||
+                entry.reason?.contains(needle, ignoreCase = true) == true
+        }
+    }
+
+    /** How many formats fall in each verdict, for the counts beside the filter. */
+    fun counts(entries: List<FormatCapability>): Map<Capability, Int> =
+        Capability.entries.associateWith { verdict -> entries.count { it.verdict == verdict } }
 }

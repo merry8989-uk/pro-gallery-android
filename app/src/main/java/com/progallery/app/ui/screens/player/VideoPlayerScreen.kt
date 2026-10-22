@@ -48,6 +48,7 @@ import androidx.compose.material3.SnackbarResult
 import com.progallery.app.data.media.PlaybackFailure
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.MaterialTheme
+import com.progallery.app.data.playback.rememberPlaybackEngine
 
 /**
  * Full-screen video playback with a swipe between videos.
@@ -78,13 +79,10 @@ fun VideoPlayerScreen(
     val currentItem by viewModel.item.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val player = remember {
-        // A codec this device lacks should not end playback outright: Media3 is allowed to
-        // fall back to a software decoder when the hardware one refuses. That switch lives
-        // on the renderers factory, not on the player builder.
-        val renderers = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
-        ExoPlayer.Builder(context, renderers).build().apply { playWhenReady = true }
-    }
+    // Built through the engine, so this player and the audio, stream and WebDAV ones cannot
+    // drift apart again about the decoder fallback.
+    val engine = rememberPlaybackEngine()
+    val player = remember { engine.build() }
 
     DisposableEffect(player) {
         // A video that cannot be decoded used to show a black screen with no explanation.
@@ -143,7 +141,7 @@ fun VideoPlayerScreen(
         val current = items.getOrNull(pagerState.currentPage)
         if (current != null) {
             viewModel.setCurrent(current)
-            player.setMediaItem(MediaItem.fromUri(current.uri))
+            player.setMediaItem(engine.mediaItem(current.uri, current.mimeType, current.displayName))
             player.prepare()
             player.playWhenReady = true
         }

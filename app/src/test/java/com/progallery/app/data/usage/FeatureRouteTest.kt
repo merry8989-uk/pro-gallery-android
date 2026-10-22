@@ -59,7 +59,7 @@ class FeatureRouteTest {
             "audio_editor", "videos", "favourites", "trash", "deep_scan", "search", "stream",
             "stream_player", "memories", "app_media", "text_viewer", "cloud", "cloud_viewer",
             "webdav", "webdav_player", "viewer", "video_player", "photo_editor", "video_editor",
-            "album_detail", "custom_album", "stickers",
+            "album_detail", "custom_album", "stickers", "capability",
         )
         val unmapped = routes.filter { featureForRoute(it) == null }
         assertEquals("these routes are not accounted for: $unmapped", emptyList<String>(), unmapped)
