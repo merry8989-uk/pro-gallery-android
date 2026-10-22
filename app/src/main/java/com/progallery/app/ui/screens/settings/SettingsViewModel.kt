@@ -7,7 +7,6 @@ import com.progallery.app.data.eventlog.EventLogStore
 import com.progallery.app.data.settings.SettingsAudit
 import com.progallery.app.data.eventlog.EventName
 import com.progallery.app.data.settings.SettingsRepository
-import com.progallery.app.data.upload.LogUploadScheduler
 import com.progallery.app.util.MediaFormatUtils
 import com.progallery.app.util.RootDetector
 import com.progallery.app.util.ThumbnailCacheManager
@@ -46,7 +45,6 @@ class SettingsViewModel @Inject constructor(
     private val updateDownloader: UpdateDownloader,
     private val updateInstaller: UpdateInstaller,
     private val usageStore: UsageStore,
-    private val logUploadScheduler: LogUploadScheduler,
 ) : ViewModel() {
 
     private val _cacheSizeBytes = MutableStateFlow(0L)
@@ -352,15 +350,19 @@ class SettingsViewModel @Inject constructor(
                 }
             }
 
-            // Turning the switch off has to stop work that is already queued, not just prevent
-            // new work: a consent gate with a job still running behind it is not a consent gate.
-            if (after.uploadDiagnosticsEnabled != before.uploadDiagnosticsEnabled) {
+            // The consent gate, recorded where it is now the only thing that changes: the usage
+            // data switch. Nothing leaves the device either way — this is the record that the
+            // person chose.
+            if (after.usageDataEnabled != before.usageDataEnabled) {
                 runCatching {
-                    if (after.uploadDiagnosticsEnabled) {
-                        logUploadScheduler.ensureScheduled()
-                    } else {
-                        logUploadScheduler.cancel()
-                    }
+                    eventLog.log(
+                        EventName.CONSENT_CHANGED,
+                        screen = "Settings",
+                        details = mapOf(
+                            "consent" to "usage_data",
+                            "granted" to after.usageDataEnabled.toString(),
+                        ),
+                    )
                 }
             }
             val notes = SettingsDependencies.explain(before, after)
