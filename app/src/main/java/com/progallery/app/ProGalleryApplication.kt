@@ -38,7 +38,6 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var memoriesScheduler: MemoriesScheduler
     @Inject lateinit var logUploadScheduler: LogUploadScheduler
-    @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var usageStore: UsageStore
 
     /** For recording that must never hold up startup. */

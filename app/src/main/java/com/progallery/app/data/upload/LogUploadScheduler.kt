@@ -3,6 +3,7 @@ package com.progallery.app.data.upload
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -37,7 +38,7 @@ class LogUploadScheduler @Inject constructor(
             .setConstraints(
                 Constraints.Builder()
                     .setRequiresBatteryNotLow(true)
-                    .setRequiresUnmeteredNetwork(true)
+                    .setRequiredNetworkType(NetworkType.UNMETERED)
                     .build(),
             )
             .build()
