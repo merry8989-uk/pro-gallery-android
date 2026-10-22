@@ -147,6 +147,15 @@ class MediaStoreDataSource @Inject constructor(
                         if (item.mediaType !in kinds) continue
                         batch += item
                         if (batch.size >= effectiveBatch) {
+                            // One line per step, at the trace level. This is what "detailed
+                            // execution" means and why the level exists apart from debug: a
+                            // debug line says something was slow, a trace says which part.
+                            runCatching {
+                                eventLog.log(
+                                    EventName.TRACE_MARKER,
+                                    details = mapOf("step" to "library_batch", "size" to batch.size.toString()),
+                                )
+                            }
                             emit(batch.toList())
                             batch.clear()
                         }

@@ -170,15 +170,6 @@ data class AppSettings(
     val usageDataEnabled: Boolean = true,
 
     /**
-     * Whether the diagnostics log is sent to the server. **Off by default.**
-     *
-     * Off, and not on, because this is the one setting that moves data off the device. The
-     * standard asks for consent, and consent that is assumed is not consent — the local log
-     * works fully without it, so nothing is lost by defaulting to no.
-     */
-    val uploadDiagnosticsEnabled: Boolean = false,
-
-    /**
      * Whether files the app found in app folders — the photos messaging apps keep under
      * `Android/media` — are merged into the gallery.
      *

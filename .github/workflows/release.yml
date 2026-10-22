@@ -94,7 +94,7 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon -Pprogallery.logIngestUrl="${{ vars.PROGALLERY_LOG_INGEST_URL }}" -Pprogallery.supabasePublishableKey="${{ vars.PROGALLERY_SUPABASE_PUBLISHABLE_KEY }}"
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Collect APK
         run: |
@@ -103,7 +103,7 @@ jobs:
           ls -la out
 
       - name: Build signed release bundle (Play-ready AAB)
-        run: ./gradlew bundleRelease --stacktrace --no-daemon -Pprogallery.logIngestUrl="${{ vars.PROGALLERY_LOG_INGEST_URL }}" -Pprogallery.supabasePublishableKey="${{ vars.PROGALLERY_SUPABASE_PUBLISHABLE_KEY }}"
+        run: ./gradlew bundleRelease --stacktrace --no-daemon
 
       - name: Collect AAB
         run: |

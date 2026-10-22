@@ -61,7 +61,7 @@ class SettingsAuditTest {
         // The point of building on the export: every field it names is diffed. If this ever
         // returns nothing for a change, the export has stopped naming that field — which its own
         // test would have caught first.
-        val changed = SettingsAudit.changed(base, base.copy(uploadDiagnosticsEnabled = true))
-        assertEquals(setOf("uploadDiagnosticsEnabled"), changed.keys)
+        val changed = SettingsAudit.changed(base, base.copy(includeAppMediaInGallery = true))
+        assertEquals(setOf("includeAppMediaInGallery"), changed.keys)
     }
 }
