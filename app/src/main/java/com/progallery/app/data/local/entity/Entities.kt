@@ -140,3 +140,20 @@ data class IndexedMediaEntity(
     val mediaType: String,
     val indexedAt: Long = System.currentTimeMillis(),
 )
+
+/**
+ * Where playback got to, so a long video can be picked up again.
+ *
+ * Keyed by the media key — the same key the rest of the app identifies an item by — so a position
+ * follows the file and not the screen it was opened from.
+ *
+ * `durationMs` is stored alongside rather than looked up, because the resume rules need it and
+ * the file may not be readable when the question is asked.
+ */
+@Entity(tableName = "playback_position")
+data class PlaybackPositionEntity(
+    @PrimaryKey val mediaKey: String,
+    val positionMs: Long,
+    val durationMs: Long,
+    val updatedAt: Long = System.currentTimeMillis(),
+)

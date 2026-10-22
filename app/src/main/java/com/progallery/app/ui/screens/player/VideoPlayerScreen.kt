@@ -93,9 +93,20 @@ fun VideoPlayerScreen(
                 // the listener was created.
                 viewModel.reportPlaybackFailure(error.errorCode, viewModel.item.value?.displayName)
             }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                // Saved on every pause, not on a timer: pausing is the moment a person is done
+                // watching for now, and it is also the last moment the position is certainly
+                // still valid.
+                if (!isPlaying) viewModel.savePositionOf(player)
+            }
         }
         player.addListener(listener)
-        onDispose { player.removeListener(listener) }
+        onDispose {
+            // Before the release, because after it there is nothing left to read.
+            viewModel.savePositionOf(player)
+            player.removeListener(listener)
+        }
     }
 
     ImmersiveSystemBars(hide = true)
@@ -140,8 +151,18 @@ fun VideoPlayerScreen(
     LaunchedEffect(pagerState.currentPage, items) {
         val current = items.getOrNull(pagerState.currentPage)
         if (current != null) {
+            // Swiping to the next video is leaving the last one, so its position is saved before
+            // the player is pointed somewhere else.
+            viewModel.item.value?.takeIf { it.mediaKey != current.mediaKey }?.let {
+                viewModel.savePositionOf(player)
+            }
+
             viewModel.setCurrent(current)
             player.setMediaItem(engine.mediaItem(current.uri, current.mimeType, current.displayName))
+            // Seek before preparing: Media3 takes this as the position to start from, so the
+            // video opens where it was left rather than at the beginning and then jumping.
+            val resume = viewModel.resumeAt(current)
+            if (resume > 0) player.seekTo(resume)
             player.prepare()
             player.playWhenReady = true
         }
