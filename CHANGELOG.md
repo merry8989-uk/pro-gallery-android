@@ -27,6 +27,66 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.30.0]
+The diagnostics log can be sent to a server — off by default, and with the database doing the
+enforcing.
+
+### Added
+- **A Supabase project for the log** (`progallery-logs`, Mumbai), with the schema, the ingest
+  function and the retention job in the repository as versioned migrations.
+  - **The table is append-only through the API.** There is an INSERT policy and deliberately no
+    SELECT, UPDATE or DELETE policy, and `anon` holds only the INSERT grant. So a leaked
+    publishable key — which ships in every copy of the app — can add junk and **cannot read one
+    row of anybody's log**. That is the whole security model, and it is what makes shipping a
+    publishable key safe.
+  - **The closed vocabulary is enforced by CHECK constraints, not by convention.** An event name
+    or a log level outside the list is refused by the database. A column that accepts free text is
+    a column that will eventually hold a filename.
+  - **A guard rejects what must never be stored**, on both sides. The client redacts; the database
+    repeats it, because a client is a thing you ship once and cannot fix. A detail key named
+    `filename`, a value that is a path, a `content://` URI, an email address, a phone number or a
+    media extension is refused — and every one of those was verified by attempting it.
+  - **The salted hash is computed by the database**, from a salt in a table with row level
+    security on and **no policies at all**, so nothing reaches it through the API. A hash the
+    client computes is a hash whose salt the client holds, and that protects nothing. A trigger
+    fills it, so a client that forgets still gets one.
+- **Sending is opt-in, and off by default.** The local log works fully without it, so nothing is
+  lost by defaulting to no — and consent that is assumed is not consent.
+  - Turning the switch **off cancels the work that is already queued**, not just new work. A
+    consent gate with a job still running behind it is not a consent gate.
+  - The watermark only advances once the server has accepted a batch, so a crash mid-upload
+    cannot lose events.
+  - The endpoint and the key come from the build, never from the source: a key committed to a
+    repository is a key that has to be rotated.
+- **The settings export** now carries the new setting, which the export guard demanded — without
+  it, the choice would have been silently lost on a backup and restore.
+
+### Fixed — what the security advisors found, which reading the SQL had not
+- **`prune_log_events` was callable by `anon`.** It is `security definer` — that is what lets it
+  delete past row level security — and it takes the retention window as an argument. So anyone
+  holding the publishable key could call `prune_log_events(-99999)` and **delete the entire
+  table** in one unauthenticated request. The window is a parameter and the function was exposed;
+  those two facts together were the hole. Execute is now the service role's alone.
+- **Two `security definer` functions had a mutable `search_path`**, which is a privilege
+  escalation: a caller who can create a function earlier in the path can have it resolved instead
+  of the real one. Both are pinned now.
+- The remaining lint is deliberate and documented: `log_hash_salt` has RLS on and no policies,
+  because the intent is that nothing reaches it through the API at all.
+
+### Found by testing rather than by reading
+- **`page_view` was refused.** The table has a `platform` column that accepts `web`, so it was
+  built to hold both sides — but the vocabulary had only ever learned the Android names, so half
+  the rows it was designed for could not be written. Both platforms' names are now allowed, and
+  the two that differ (`rage_tap`/`rage_click`, `api_request`/`api_call`) keep both spellings
+  rather than renaming one side and invalidating what is already written.
+
+### Not verified, and said plainly
+The HTTP path — the app to the function — could not be exercised from the build environment,
+because its egress proxy does not reach `*.supabase.co`. What **was** verified is the database
+side, directly: a valid event stores a 64-character hash, and a file path, an email address, a
+forbidden key, an out-of-vocabulary event name, an out-of-vocabulary level and a malformed device
+code are each refused. The end-to-end call is the one thing left for a device to confirm.
+
 ## [1.29.0]
 One place builds a player — and the app can finally answer "can I open this?" before you try.
 

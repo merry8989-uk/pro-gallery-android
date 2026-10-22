@@ -174,6 +174,12 @@ action that helps; a missing file is no longer described as a codec problem.
 **✅ Cloud folders browsed in-app**, with no sign-in of the app's own: a folder is granted
 once through the system picker and persisted, and the service keeps its own session.
 
+## 6g. The log, collected — v1.30.0
+
+**✅ A Supabase project with the schema, the ingest function and the retention job.** Append-only
+through the API, closed vocabularies as constraints, a guard that refuses what must never be
+stored, and the salted hash computed where the salt lives. Sending is opt-in and off by default.
+
 ## 6f. Player engine and the capability screen — v1.29.0
 
 **✅ Parts B and C, step 2**: one engine builds every player, the decoder fallback is everywhere,

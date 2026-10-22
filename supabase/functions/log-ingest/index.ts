@@ -2,11 +2,11 @@
 //
 // Why a function rather than letting the app insert directly:
 //
-// **The salted hash has to be computed somewhere the salt is not the client's.** The standard
-// says `user_id` is stored only as a salted hash. If the app hashed it, the app would hold the
-// salt, and a salt the client holds protects nothing — anyone with the app could recompute it.
-// So the app sends the device code and this function, which is the only holder of the salt,
-// derives the hash.
+// **The salted hash is computed by the database, not here.** The standard says `user_id` is
+// stored only as a salted hash. If the app hashed it, the app would hold the salt, and a salt the
+// client holds protects nothing. So the app sends the device code, and a trigger fills the hash
+// from a salt in a table with no API policies at all — which also means a client that forgets to
+// send a hash still gets one.
 //
 // **The redaction is repeated here.** The client redacts; this does not trust that it did. A
 // client is a thing you ship once and cannot fix; this is a thing you can.
@@ -76,21 +76,6 @@ function overLimit(address: string): boolean {
   }
   entry.count += 1;
   return entry.count > MAX_REQUESTS_PER_MINUTE;
-}
-
-/** HMAC-SHA256(salt, code), hex. The salt never leaves this function. */
-async function saltedHash(salt: string, code: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(salt),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(code));
-  return Array.from(new Uint8Array(signature))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 function looksPersonal(value: string): boolean {
@@ -185,10 +170,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return new Response(JSON.stringify({ error: "too many requests" }), { status: 429 });
   }
 
-  const salt = Deno.env.get("LOG_HASH_SALT");
   const url = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!salt || !url || !serviceKey) {
+  if (!url || !serviceKey) {
     // Said plainly rather than pretending to accept and dropping the data.
     return new Response(JSON.stringify({ error: "the ingest function is not configured" }), {
       status: 500,
@@ -224,7 +208,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
       rejected += 1;
       continue;
     }
-    row.user_id_hash = await saltedHash(salt, row.user_code as string);
+    // `user_id_hash` is deliberately not set here: the database fills it from a trigger, because
+    // the salt lives in a table this function cannot read. A hash computed here would need the
+    // salt here, and a salt in one more place is one more place to leak it.
     rows.push(row);
   }
 
