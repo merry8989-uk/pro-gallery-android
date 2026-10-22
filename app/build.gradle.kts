@@ -39,6 +39,18 @@ android {
         targetSdk = 36
         versionCode = 44
         versionName = "1.28.0"
+        // The ingest endpoint and the publishable key come from the build, never from the source:
+        // a key committed to a repository is a key that has to be rotated. Both are read from
+        // gradle.properties / local.properties, and an empty value simply means sending is off.
+        //
+        // The publishable key is designed to be public — it ships in every Supabase client. What
+        // protects the data is the row level security on the table: insert only, no reads.
+        buildConfigField("String", "LOG_INGEST_URL", "\"${project.findProperty("progallery.logIngestUrl") ?: ""}\"")
+        buildConfigField(
+            "String",
+            "SUPABASE_PUBLISHABLE_KEY",
+            "\"${project.findProperty("progallery.supabasePublishableKey") ?: ""}\"",
+        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -88,18 +100,6 @@ android {
         compose = true
         buildConfig = true
 
-        // The ingest endpoint and the publishable key come from the build, never from the source:
-        // a key committed to a repository is a key that has to be rotated. Both are read from
-        // gradle.properties / local.properties, and an empty value simply means sending is off.
-        //
-        // The publishable key is designed to be public — it ships in every Supabase client. What
-        // protects the data is the row level security on the table: insert only, no reads.
-        buildConfigField("String", "LOG_INGEST_URL", "\"${project.findProperty("progallery.logIngestUrl") ?: ""}\"")
-        buildConfigField(
-            "String",
-            "SUPABASE_PUBLISHABLE_KEY",
-            "\"${project.findProperty("progallery.supabasePublishableKey") ?: ""}\"",
-        )
     }
 
     packaging {
