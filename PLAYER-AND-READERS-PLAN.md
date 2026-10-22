@@ -166,7 +166,7 @@ Three real gaps, and none of them is cosmetic:
 - **B3 — position memory.** ✅ **done, v1.31.0** — Returning to a video resumes where it was left, with the two rules
   that make it not annoying: a position near the end starts over, and a position near the start
   is not worth restoring. Pure and tested.
-- **B4 — one screen.** `MediaPlayerScreen` for audio and video on the same surface, replacing the
+- **B4 — one screen.** ✅ **done, v1.34.0** — `MediaPlayerScreen` for audio and video on the same surface, replacing the
   internals of `VideoPlayerScreen` and `AudioPlayerScreen`. The audio player's queue and the
   video player's gestures stay.
 - **B5 — failures.** The existing `PlaybackFailure` reasons and actions move to the new screen,
