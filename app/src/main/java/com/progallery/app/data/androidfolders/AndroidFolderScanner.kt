@@ -30,6 +30,8 @@ import java.io.File
 import java.io.FileInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.data.scan.ScanPauseGate
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /**
  * Scans the locations under `Android/` that a **non-rooted** app is actually
@@ -46,6 +48,7 @@ class AndroidFolderScanner @Inject constructor(
     private val classifier: FileClassifier,
     private val hasher: FileHasher,
     private val settingsRepository: SettingsRepository,
+    private val pauseGate: ScanPauseGate,
 ) {
 
     private val detector = DuplicateDetector(
@@ -84,7 +87,12 @@ class AndroidFolderScanner @Inject constructor(
                 ),
             )
         }
-    }.flowOn(Dispatchers.IO)
+    }.flowOn(
+        // The setting has to bound something real, and what a scan uses in parallel is its
+        // dispatcher. A limited view of the IO pool is the honest reader for "how many files at
+        // once" — the shared pool is every other caller's as much as ours.
+        Dispatchers.IO.limitedParallelism(settings.effectiveConcurrency),
+    )
 
     private fun scanInternal(targets: List<AndroidFolderTarget>): Flow<ScanState> = flow {
         val settings = settingsRepository.current()
@@ -114,6 +122,7 @@ class AndroidFolderScanner @Inject constructor(
 
         for (target in requested) {
             currentCoroutineContext().ensureActive()
+            pauseGate.awaitIfPaused()
             val root = rootFor(target)
             if (root == null || !root.exists()) {
                 errors += "${target.label}: folder not present on this device."
@@ -129,6 +138,8 @@ class AndroidFolderScanner @Inject constructor(
 
             while (stack.isNotEmpty()) {
                 currentCoroutineContext().ensureActive()
+                pauseGate.awaitIfPaused()
+            pauseGate.awaitIfPaused()
                 val (dir, path, depth) = stack.removeLast()
                 directoriesScanned++
 
@@ -145,6 +156,9 @@ class AndroidFolderScanner @Inject constructor(
 
                 for (child in children) {
                     currentCoroutineContext().ensureActive()
+                    pauseGate.awaitIfPaused()
+                pauseGate.awaitIfPaused()
+            pauseGate.awaitIfPaused()
                     val name = child.name
 
                     if (child.isDirectory) {

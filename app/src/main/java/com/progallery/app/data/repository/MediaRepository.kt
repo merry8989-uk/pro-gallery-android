@@ -197,7 +197,7 @@ class MediaRepository @Inject constructor(
         // Read the index in batches and publish each one, so the grid can paint
         // after the first batch instead of waiting for the whole library.
         val accumulated = ArrayList<MediaItem>()
-        mediaStore.loadMediaBatches(current.enabledKinds, current.scanBatchSize).collect { batch ->
+        mediaStore.loadMediaBatches(current.enabledKinds, current.effectiveBatchSize).collect { batch ->
             accumulated += batch
             cache.value = accumulated.toList()
         }

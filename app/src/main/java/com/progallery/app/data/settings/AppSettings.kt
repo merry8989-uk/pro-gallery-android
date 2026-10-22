@@ -3,12 +3,46 @@ package com.progallery.app.data.settings
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.SortOrder
 
-/** How aggressively scanning uses the device. */
+/**
+ * How aggressively scanning uses the device.
+ *
+ * A mode is a **preset that writes real numbers**, not a label. Before this, the selector was
+ * stored, exported and shown while nothing read it — the numbers below were the only thing the
+ * scanner ever saw, so choosing "Battery saver" changed nothing at all.
+ *
+ * [CUSTOM] is the one that does not write anything: it means "use the individual controls as they
+ * are", which is why they are the settings a person edits and these are the settings a person
+ * picks.
+ */
 enum class PerformanceMode(val label: String) {
     BATTERY_SAVER("Battery saver"),
     BALANCED("Balanced"),
     PERFORMANCE("Performance"),
+    CUSTOM("Custom"),
+    ;
+
+    /** The numbers this mode stands for, or null for [CUSTOM], which stands for the user's own. */
+    val policy: PerformancePolicy?
+        get() = when (this) {
+            BATTERY_SAVER -> PerformancePolicy(
+                concurrentTasks = 2,
+                batchSize = 250,
+                // A battery saver that keeps scanning while the app is in the background is not a
+                // battery saver.
+                pauseWhenBackgrounded = true,
+            )
+            BALANCED -> PerformancePolicy(concurrentTasks = 4, batchSize = 500, pauseWhenBackgrounded = false)
+            PERFORMANCE -> PerformancePolicy(concurrentTasks = 8, batchSize = 1_000, pauseWhenBackgrounded = false)
+            CUSTOM -> null
+        }
 }
+
+/** What a [PerformanceMode] actually means, in numbers the scanner can use. */
+data class PerformancePolicy(
+    val concurrentTasks: Int,
+    val batchSize: Int,
+    val pauseWhenBackgrounded: Boolean,
+)
 
 /** App theme selection. */
 /**
@@ -26,6 +60,20 @@ enum class ThemeMode(val label: String) {
     SYSTEM("System"),
     LIGHT("Light"),
     DARK("Dark"),
+    ;
+
+    /**
+     * Whether to draw dark, given what the system says.
+     *
+     * The choice used to reach nothing: `MainActivity` called the theme with no argument, so the
+     * app was always whatever the system was and the control was decorative. This is the one place
+     * that answers the question, and it is pure so it is tested rather than trusted.
+     */
+    fun isDark(systemInDarkTheme: Boolean): Boolean = when (this) {
+        SYSTEM -> systemInDarkTheme
+        LIGHT -> false
+        DARK -> true
+    }
 }
 
 /** Default layout for media lists. */
@@ -116,7 +164,6 @@ data class AppSettings(
      * Gates experimental detection. Enabling it does NOT unlock anything that
      * has not been implemented and tested.
      */
-    val experimentalMethodsEnabled: Boolean = false,
 
     // ---- I. UI ----------------------------------------------------------
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -232,6 +279,27 @@ data class AppSettings(
         return isMaxSizeUnlimited || sizeBytes <= maxFileSizeBytes
     }
 
+    /*
+     * What the scanner actually uses.
+     *
+     * The mode and the individual controls are two ways of saying the same thing, and only one of
+     * them can win. When a mode is chosen it wins; when Custom is chosen the controls win. Reading
+     * the raw fields anywhere would quietly go back to the old bug — a control that is stored,
+     * shown, and ignored — so every consumer reads these instead.
+     */
+
+    /** How many files may be worked on at once. */
+    val effectiveConcurrency: Int
+        get() = performanceMode.policy?.concurrentTasks ?: maxConcurrentTasks
+
+    /** How many rows are read before the index is published again. */
+    val effectiveBatchSize: Int
+        get() = performanceMode.policy?.batchSize ?: scanBatchSize
+
+    /** Whether scanning should wait while the app is in the background. */
+    val effectivePauseWhenBackgrounded: Boolean
+        get() = performanceMode.policy?.pauseWhenBackgrounded ?: pauseWhenBackgrounded
+
     /** Human-readable form of the range, for the settings summary. */
     val sizeRangeLabel: String
         get() = "${describeSize(minFileSizeBytes)} – " +
@@ -285,7 +353,6 @@ data class AppSettings(
             autoClearLogsAfterDays = autoClearLogsAfterDays.coerceIn(1, 365),
             // Experimental and root-related features stay off unless explicitly
             // enabled by the user; a sanitized copy never turns them on.
-            experimentalMethodsEnabled = experimentalMethodsEnabled,
         )
     }
 
@@ -341,7 +408,6 @@ data class AppSettings(
         "Detection" -> copy(
             includeHiddenFiles = Defaults.includeHiddenFiles,
             includeExtensionlessFiles = Defaults.includeExtensionlessFiles,
-            experimentalMethodsEnabled = Defaults.experimentalMethodsEnabled,
         )
         "Scan limits" -> copy(
             maxRecursionDepth = Defaults.maxRecursionDepth,

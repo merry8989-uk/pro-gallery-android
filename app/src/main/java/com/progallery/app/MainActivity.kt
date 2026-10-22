@@ -16,9 +16,16 @@ import com.progallery.app.ui.navigation.ProGalleryNavHost
 import com.progallery.app.ui.theme.ProGalleryTheme
 import dagger.hilt.android.AndroidEntryPoint
 import com.progallery.app.data.memories.MemoriesNotifier
+import com.progallery.app.data.settings.SettingsRepository
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var settingsRepository: SettingsRepository
 
     /**
      * A media URI handed to us by another app (ACTION_VIEW). Set when the user
@@ -41,7 +48,14 @@ class MainActivity : ComponentActivity() {
         openMemories = intent?.getBooleanExtra(MemoriesNotifier.EXTRA_OPEN_MEMORIES, false) == true
 
         setContent {
-            ProGalleryTheme {
+            // The theme the person chose, which until now reached nothing: this call had no
+            // argument, so the app was always whatever the system was and the control was
+            // decorative. `ThemeMode.isDark` is the one place that answers it.
+            val settings by settingsRepository.settings.collectAsStateWithLifecycle(
+                initialValue = null,
+            )
+            val systemDark = isSystemInDarkTheme()
+            ProGalleryTheme(darkTheme = settings?.themeMode?.isDark(systemDark) ?: systemDark) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,

@@ -143,7 +143,6 @@ class SettingsRepository @Inject constructor(
         val pauseWhenBackgrounded = booleanPreferencesKey("pause_backgrounded")
 
         val showRootStatus = booleanPreferencesKey("show_root_status")
-        val experimental = booleanPreferencesKey("experimental")
 
         val themeMode = stringPreferencesKey("theme_mode")
         val defaultLayout = stringPreferencesKey("default_layout")
@@ -198,7 +197,6 @@ class SettingsRepository @Inject constructor(
             maxConcurrentTasks = p[Keys.maxConcurrentTasks] ?: d.maxConcurrentTasks,
             pauseWhenBackgrounded = p[Keys.pauseWhenBackgrounded] ?: d.pauseWhenBackgrounded,
             showRootStatus = p[Keys.showRootStatus] ?: d.showRootStatus,
-            experimentalMethodsEnabled = p[Keys.experimental] ?: d.experimentalMethodsEnabled,
             themeMode = enumOrDefault(p[Keys.themeMode], ThemeMode.entries, d.themeMode),
             defaultLayout = enumOrDefault(p[Keys.defaultLayout], LayoutMode.entries, d.defaultLayout),
             gridSize = enumOrDefault(p[Keys.gridSize], GridSize.entries, d.gridSize),
@@ -250,7 +248,6 @@ class SettingsRepository @Inject constructor(
         p[Keys.maxConcurrentTasks] = s.maxConcurrentTasks
         p[Keys.pauseWhenBackgrounded] = s.pauseWhenBackgrounded
         p[Keys.showRootStatus] = s.showRootStatus
-        p[Keys.experimental] = s.experimentalMethodsEnabled
         p[Keys.themeMode] = s.themeMode.name
         p[Keys.defaultLayout] = s.defaultLayout.name
         p[Keys.gridSize] = s.gridSize.name

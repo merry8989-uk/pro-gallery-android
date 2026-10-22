@@ -789,13 +789,27 @@ private fun buildRows(
     add(
         SettingsRow.Choice(
             title = "Performance mode",
+            subtitle = settings.performanceMode.policy?.let { policy ->
+                "Sets ${policy.concurrentTasks} concurrent task(s), a batch of ${policy.batchSize}, " +
+                    if (policy.pauseWhenBackgrounded) "and pauses in the background." else "and keeps scanning in the background."
+            } ?: "The three settings below are used as they are.",
             section = "Performance",
             advanced = true,
             options = PerformanceMode.entries.map { it.label },
             selected = settings.performanceMode.label,
             onSelect = { label ->
-                update {
-                    it.copy(performanceMode = PerformanceMode.entries.first { m -> m.label == label })
+                val mode = PerformanceMode.entries.first { m -> m.label == label }
+                update { current ->
+                    // Choosing a mode writes the numbers it stands for, so the mode is a preset
+                    // rather than a label — which is what it was before.
+                    mode.policy?.let { policy ->
+                        current.copy(
+                            performanceMode = mode,
+                            maxConcurrentTasks = policy.concurrentTasks,
+                            scanBatchSize = policy.batchSize,
+                            pauseWhenBackgrounded = policy.pauseWhenBackgrounded,
+                        )
+                    } ?: current.copy(performanceMode = mode)
                 }
             },
         ),
@@ -808,7 +822,7 @@ private fun buildRows(
             advanced = true,
             value = settings.maxConcurrentTasks,
             range = 1..16,
-            onChange = { value -> update { it.copy(maxConcurrentTasks = value) } },
+            onChange = { value -> update { it.copy(maxConcurrentTasks = value, performanceMode = PerformanceMode.CUSTOM) } },
         ),
     )
 
@@ -821,7 +835,7 @@ private fun buildRows(
             advanced = true,
             value = settings.scanBatchSize,
             range = 100..5000,
-            onChange = { value -> update { it.copy(scanBatchSize = value) } },
+            onChange = { value -> update { it.copy(scanBatchSize = value, performanceMode = PerformanceMode.CUSTOM) } },
         ),
     )
     add(
@@ -830,7 +844,7 @@ private fun buildRows(
             section = "Performance",
             advanced = true,
             checked = settings.pauseWhenBackgrounded,
-            onCheckedChange = { value -> update { it.copy(pauseWhenBackgrounded = value) } },
+            onCheckedChange = { value -> update { it.copy(pauseWhenBackgrounded = value, performanceMode = PerformanceMode.CUSTOM) } },
         ),
     )
 
@@ -1102,19 +1116,8 @@ private fun buildRows(
                 advanced = true,
             ),
         )
+        }
     }
-    add(
-        SettingsRow.Switch(
-            title = "Experimental detection",
-            subtitle = "Reserved for detection methods that are implemented and tested. Enabling it does not unlock anything unverified.",
-            section = "Diagnostics & experimental",
-            advanced = true,
-            experimental = true,
-            checked = settings.experimentalMethodsEnabled,
-            onCheckedChange = { value -> update { it.copy(experimentalMethodsEnabled = value) } },
-        ),
-    )
-}
 
 @Composable
 private fun SummaryCard(settings: AppSettings) {
