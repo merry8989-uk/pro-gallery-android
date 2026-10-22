@@ -161,7 +161,7 @@ Three real gaps, and none of them is cosmetic:
   it is a real media type, else a well-known extension mapping, else **null so Media3 sniffs**.
   A *wrong* hint is worse than none — it picks the wrong extractor — so only mappings that are
   certain are in the table, and every one is tested.
-- **B3 — position memory.** Returning to a video resumes where it was left, with the two rules
+- **B3 — position memory.** ✅ **done, v1.31.0** — Returning to a video resumes where it was left, with the two rules
   that make it not annoying: a position near the end starts over, and a position near the start
   is not worth restoring. Pure and tested.
 - **B4 — one screen.** `MediaPlayerScreen` for audio and video on the same surface, replacing the
