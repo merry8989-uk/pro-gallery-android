@@ -27,6 +27,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.36.0]
+Supabase removed, at the user's request. The diagnostics stay; the upload path goes.
+
+### Removed
+- **The whole upload path**: the uploader, its worker, its scheduler, the watermark, the payload
+  builder and the "send diagnostics to the developer" switch.
+- **The build-time endpoint and key**, and the two repository variables that fed them, so the
+  release workflow no longer passes anything about a server.
+- **The database migrations and the ingest function**, because there is no database to apply them
+  to.
+- **The settings export field**, so a backup no longer carries a setting that no longer exists.
+
+### Why
+The project could not be used. The organisation is at its **two-free-project limit**, so the log
+project could not be brought back from inactive — restoring it was refused. Rather than free a
+slot by touching another project, the path goes. The user asked for it to be removed entirely.
+
+### What stays, which is the part that was always the useful half
+- **The local log**, and everything built on it: the live view on the Access screen, the filter by
+  level, event, device code and free text, the four export formats, and the email hand-off.
+- **The 12 categories, 6 levels and 30 events** from v1.35.0, all still emitted and still written
+  locally. Nothing about the app's own diagnostics ever depended on a server.
+
+### Two events the removal would have orphaned
+Both were emitted **only** by the uploader, and both would have been left declaring themselves with
+no call site — which the checker rule caught immediately, twice:
+- **`consent_changed`** moved to the usage-data switch, which is now the only consent there is.
+- **`trace_marker`** moved to each batch of the library read, which is a real step inside a real
+  operation — which is what a trace is for.
+
+### Also
+- The usage-data row's subtitle no longer hedges about "unless you turn on sending below", because
+  there is no sending. It says what is true: nothing leaves the device.
+
 ## [1.35.0]
 All twelve log categories — and every event the app declares now has a call site.
 
