@@ -225,7 +225,7 @@ class DocumentTextTest {
         ZipOutputStream(out).use { zip ->
             zip.putNextEntry(ZipEntry("word/document.xml"))
             val zeros = ByteArray(1 shl 20)
-            repeat(ZipArchive.MAX_ENTRY_BYTES / zeros.size + 8) { zip.write(zeros) }
+            repeat((ZipArchive.MAX_ENTRY_BYTES / zeros.size).toInt() + 8) { zip.write(zeros) }
             zip.closeEntry()
         }
         val failure = runCatching { DocumentText.docx(out.toByteArray()) }.exceptionOrNull()
