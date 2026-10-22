@@ -5,6 +5,7 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import com.progallery.app.data.eventlog.EventLogStore
 
 /**
  * How the worker reaches the app's dependencies.
@@ -19,6 +20,7 @@ interface MemoriesEntryPoint {
 
     fun memoriesRepository(): MemoriesRepository
     fun memoriesNotifier(): MemoriesNotifier
+    fun eventLogStore(): EventLogStore
 
     companion object {
         fun from(context: Context): MemoriesEntryPoint =

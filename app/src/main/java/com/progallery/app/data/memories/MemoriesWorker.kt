@@ -28,7 +28,7 @@ class MemoriesWorker(
             entryPoint.memoriesNotifier().notifyIfAnything(memories, LocalDate.now())
             eventLog.log(
                 EventName.JOB_FINISHED,
-                details = mapOf("job" to JOB, "outcome" to "success", "found" to memories.size.toString()),
+                details = mapOf("job" to JOB, "outcome" to "success", "found" to memories.itemCount.toString()),
             )
             Result.success()
         }.getOrElse { failure ->

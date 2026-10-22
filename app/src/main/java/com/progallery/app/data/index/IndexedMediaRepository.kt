@@ -74,7 +74,7 @@ class IndexedMediaRepository @Inject constructor(
      * which operation it was and what kind of failure it is. A write that fails silently is how
      * an index quietly stops matching the library.
      */
-    private suspend fun guarded(operation: String, block: () -> Unit) {
+    private suspend fun guarded(operation: String, block: suspend () -> Unit) {
         runCatching { block() }.onFailure { failure ->
             runCatching {
                 eventLog.log(

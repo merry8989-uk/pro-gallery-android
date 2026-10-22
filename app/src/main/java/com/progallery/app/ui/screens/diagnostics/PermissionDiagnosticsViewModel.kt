@@ -58,6 +58,9 @@ class PermissionDiagnosticsViewModel @Inject constructor(
     private val _state = MutableStateFlow(PermissionDiagnosticsUiState())
     val state: StateFlow<PermissionDiagnosticsUiState> = _state.asStateFlow()
 
+    /** How many times a fix has been asked for this session. Three is a loop; two is trying again. */
+    private var fixAttempts = 0
+
     init {
         // The log is shown from the store's own flow, so an event appears on the screen as it is
         // written rather than when someone remembers to refresh.

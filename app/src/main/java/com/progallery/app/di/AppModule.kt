@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
 import com.progallery.app.data.eventlog.EventLogStore
+import androidx.room.RoomDatabase
 
 @Module
 @InstallIn(SingletonComponent::class)
