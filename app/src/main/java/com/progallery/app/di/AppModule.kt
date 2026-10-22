@@ -22,6 +22,7 @@ import javax.inject.Singleton
 import com.progallery.app.data.local.MIGRATION_4_5
 import com.progallery.app.data.local.MIGRATION_5_6
 import com.progallery.app.data.local.dao.IndexedMediaDao
+import com.progallery.app.data.local.dao.PlaybackPositionDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -46,6 +47,9 @@ object AppModule {
     /** The app's own index, which the gallery merges into the system's rows. */
     @Provides fun provideIndexedMediaDao(db: ProGalleryDatabase): IndexedMediaDao =
         db.indexedMediaDao()
+
+    @Provides fun providePlaybackPositionDao(db: ProGalleryDatabase): PlaybackPositionDao =
+        db.playbackPositionDao()
 
     @Provides fun provideRecoveryHistoryDao(db: ProGalleryDatabase): RecoveryHistoryDao =
         db.recoveryHistoryDao()
