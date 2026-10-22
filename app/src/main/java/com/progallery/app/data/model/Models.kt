@@ -2,6 +2,7 @@ package com.progallery.app.data.model
 
 import android.net.Uri
 import com.progallery.app.data.text.TextFormats
+import com.progallery.app.data.documents.DocumentFormats
 
 /**
  * Broad category of a file, used for browsing and filtering.
@@ -82,7 +83,7 @@ data class MediaItem(
      * an office file is left to another app rather than shown as noise.
      */
     val isTextReadable: Boolean
-        get() = TextFormats.canRead(extension)
+        get() = TextFormats.canRead(extension) || DocumentFormats.canRead(extension)
 
     /** Whether the app can render an inline preview (image or video). */
     val isPreviewable: Boolean

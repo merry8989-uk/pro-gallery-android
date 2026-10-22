@@ -119,7 +119,8 @@ instead of staying silent — that will tell us which it is.
 |---|---|
 | PDF | **Built-in reader** (the platform's own renderer) |
 | Plain text, JSON, XML, CSV, logs | **Readable** — a reader for these is planned (Part 7) and is easy |
-| DOCX, XLSX, PPTX, ODT, EPUB | **No reader.** Needs a library; hand off to another app |
+| DOCX, XLSX, ODT, ODS, EPUB | **Readable** — a reader for these is built in (Part G, v1.32.0) |
+| PPTX | **No reader.** A presentation is a different shape of document; hand off to another app |
 
 ---
 
@@ -231,9 +232,12 @@ photo instead of in a separate list. That is this part.
 - a decision on TIFF and JPEG-2000, which have decoders available as libraries but are
   large for how rarely they are used.
 
-### Part G — Document readers ✅ **done, v1.19.0** (text/JSON/CSV/log/code)
+### Part G — Document readers ✅ **done, v1.19.0 and v1.32.0** (text/JSON/CSV/log/code; then Word, Excel, OpenDocument and ePub)
 
-Remaining in this part: DOCX/XLSX/PPTX/EPUB still hand off, unless a library is added.
+Remaining in this part: **PPTX** only. Word, Excel, OpenDocument and ePub are read now — without a
+library, because they are zip containers with XML inside and the reader is a bounded unzip plus a
+walk over a tokeniser the app owns. A presentation is a different shape of document and is still
+handed off rather than half-supported.
 
 ### Part G (original) — Document readers ⬜
 

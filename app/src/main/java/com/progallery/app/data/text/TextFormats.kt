@@ -8,6 +8,15 @@ enum class TextKind(val label: String) {
     CODE("Code"),
     MARKUP("Markup"),
     PLAIN("Text"),
+
+    /**
+     * A zip container read by [com.progallery.app.data.documents.DocumentText].
+     *
+     * Its own kind rather than `PLAIN`, because the two arrive differently: plain text is decoded
+     * from bytes, a document is unzipped and walked. Saying so on screen is also the honest
+     * answer to "why did my Word file open as text".
+     */
+    DOCUMENT("Document"),
 }
 
 /**
