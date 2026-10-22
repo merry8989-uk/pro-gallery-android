@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
@@ -80,6 +81,23 @@ class ScanPauseGate @Inject constructor(
     private val pausesWhenBackgrounded = settingsRepository.settings
         .map { it.effectivePauseWhenBackgrounded }
         .stateIn(scope, SharingStarted.Eagerly, false)
+
+    /** The same, for the concurrency the performance mode or the slider asks for. */
+    private val concurrency = settingsRepository.settings
+        .map { it.effectiveConcurrency }
+        .stateIn(scope, SharingStarted.Eagerly, 4)
+
+    /**
+     * The dispatcher a scan runs on, bounded by what the person chose.
+     *
+     * The scanners ask the gate rather than reading the setting themselves, and that is deliberate:
+     * the setting has to bound something real, and the thing a scan uses in parallel is its
+     * dispatcher. A limited view of the IO pool is the honest reader for "how many files at once" —
+     * the shared pool is every other caller's as much as ours. One reader means the mode and the
+     * slider cannot end up disagreeing about it.
+     */
+    val scanDispatcher: CoroutineDispatcher
+        get() = Dispatchers.IO.limitedParallelism(concurrency.value.coerceIn(1, 64))
 
     /**
      * Suspends while the scan should be waiting, and returns immediately otherwise.

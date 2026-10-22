@@ -15,7 +15,6 @@ import com.progallery.app.data.repository.TrashRepository
 import com.progallery.app.data.settings.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
@@ -26,7 +25,6 @@ import java.io.FileInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.progallery.app.data.scan.ScanPauseGate
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /**
  * Quick Scan: finds media this app can actually reach and says where each piece
@@ -69,12 +67,8 @@ class RecoveryScanner @Inject constructor(
                 ),
             )
         }
-    }.flowOn(
-        // The setting has to bound something real, and what a scan uses in parallel is its
-        // dispatcher. A limited view of the IO pool is the honest reader for "how many files at
-        // once" — the shared pool is every other caller's as much as ours.
-        Dispatchers.IO.limitedParallelism(settings.effectiveConcurrency),
-    )
+    // Bounded by the concurrency setting, asked of the gate so there is one reader of it.
+    }.flowOn(pauseGate.scanDispatcher)
 
     private fun scanInternal(mode: RecoveryScanMode): Flow<RecoveryScanState> = flow {
         val settings = settingsRepository.current()

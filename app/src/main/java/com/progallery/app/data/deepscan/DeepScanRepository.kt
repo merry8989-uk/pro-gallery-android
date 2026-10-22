@@ -26,7 +26,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import com.progallery.app.util.runCatchingCancellable
 import com.progallery.app.data.scan.ScanPauseGate
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /** Progress + result states emitted while a deep scan runs. */
 sealed interface ScanState {
@@ -116,12 +115,8 @@ class DeepScanRepository @Inject constructor(
         } catch (t: Throwable) {
             emit(ScanState.Failed(describeFailure(t)))
         }
-    }.flowOn(
-        // The setting has to bound something real, and what a scan uses in parallel is its
-        // dispatcher. A limited view of the IO pool is the honest reader for "how many files at
-        // once" — the shared pool is every other caller's as much as ours.
-        Dispatchers.IO.limitedParallelism(settings.effectiveConcurrency),
-    )
+    // Bounded by the concurrency setting, asked of the gate so there is one reader of it.
+    }.flowOn(pauseGate.scanDispatcher)
 
     /** The failure text shown to the user, naming the type when there is no message. */
     private fun describeFailure(t: Throwable): String =

@@ -18,7 +18,6 @@ import com.progallery.app.data.model.ScanSummary
 import com.progallery.app.data.settings.SettingsRepository
 import com.progallery.app.util.PermissionUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
@@ -31,7 +30,6 @@ import java.io.FileInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.progallery.app.data.scan.ScanPauseGate
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /**
  * Scans the locations under `Android/` that a **non-rooted** app is actually
@@ -87,12 +85,8 @@ class AndroidFolderScanner @Inject constructor(
                 ),
             )
         }
-    }.flowOn(
-        // The setting has to bound something real, and what a scan uses in parallel is its
-        // dispatcher. A limited view of the IO pool is the honest reader for "how many files at
-        // once" — the shared pool is every other caller's as much as ours.
-        Dispatchers.IO.limitedParallelism(settings.effectiveConcurrency),
-    )
+    // Bounded by the concurrency setting, asked of the gate so there is one reader of it.
+    }.flowOn(pauseGate.scanDispatcher)
 
     private fun scanInternal(targets: List<AndroidFolderTarget>): Flow<ScanState> = flow {
         val settings = settingsRepository.current()
