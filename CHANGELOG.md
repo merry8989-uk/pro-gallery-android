@@ -27,6 +27,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.35.0]
+All twelve log categories — and every event the app declares now has a call site.
+
+### The finding this is built on
+- **The vocabulary declared thirty events and the app emitted four of them.** The rest were
+  promises with nothing behind them, and nothing said so: the log simply never contained them. That
+  is the same failure the 21 October log showed, in a different place — a log that looks complete
+  and is not.
+- **A checker rule now fails the build when a declared event has no call site**, the same shape as
+  the rule for a private function nothing calls. Writing it found that **it had never run once**:
+  its path was built from the wrong root, so it was silently decorative. It now fails loudly if it
+  cannot find its input, rather than passing by doing nothing.
+
+### Added — the twelve categories
+| Category | What it holds on a phone |
+| --- | --- |
+| application | the session, and every screen view |
+| error | crashes, a file that would not play, an error on screen |
+| security | access asked for, refused, and retried |
+| performance | library load time, the media query, slow operations |
+| user activity | navigation, and the friction signals the app can honestly see |
+| infrastructure | what the process found on the device — memory, processors |
+| network | the update check: the call, its latency, and its failures |
+| database | the database opened and upgraded, and any read or write that failed |
+| audit | a setting changed, data exported, data deleted |
+| analytics | counted in the usage store, deliberately not logged — the standard says to keep them apart |
+| background | the memories reminder and the log upload, start to outcome |
+| trace | the steps inside an operation |
+
+The categories written for a service are given the honest thing they hold on a phone rather than
+left empty: there is no deployment to log from an app and no administrator to audit.
+
+### Added — the two missing severity levels
+- **`trace`**, for the steps inside an operation, which is what `debug` was being asked to do.
+- **`fatal`**, for a failure the app cannot continue past — not the same as an error it can report
+  and survive. Retention drops a trace before a debug and keeps fatals alongside errors.
+- The `category` travels as its own field and its own column, so the database can be asked for
+  "everything about the database" without parsing JSON.
+
+### Removed, on purpose
+- **`rage_tap`, `dead_click` and `scroll_depth` are gone from the vocabulary**, and `anr` with
+  them. Each needs instrumentation that does not exist yet — counting taps on an element that did
+  nothing, reading the scroll position of a list that has no list state, a watchdog with real
+  battery cost. An enum entry is a promise, and these would have been a false one. They go back in
+  when their call sites do.
+
+### Also
+- **The settings audit is a diff of the export, not of the data class.** The export already names
+  every field and is guarded by a test that fails when a new setting is added without being listed,
+  so the audit cannot quietly stop reporting a field added later — which is how an audit trail goes
+  stale while still looking complete.
+- A failed index write is recorded as a database error **without its message**, which is where a
+  path or a file name would be.
+
+### Known state
+- **The database migration for these events (`0005`) is in the repository but not yet applied to
+  the live project** — the connection to it was timing out. Until it is applied, an upload carrying
+  a new event name is refused by the closed `event_name` constraint. Nothing is lost: the uploader
+  stops at the first failed batch and does **not** advance its watermark, so those events stay
+  pending and go out on the next run once the constraint knows them.
+
 ## [1.34.0]
 One player. Audio and video were two screens with two players; now there is one.
 
