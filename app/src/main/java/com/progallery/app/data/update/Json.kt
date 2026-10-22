@@ -33,6 +33,81 @@ internal object Json {
     fun booleanAt(container: Map<String, Any?>, key: String): Boolean? =
         container[key] as? Boolean
 
+    fun numberAt(container: Map<String, Any?>, key: String): Double? =
+        (container[key] as? Number)?.toDouble()
+
+    /**
+     * Writes a value as JSON.
+     *
+     * The reader had no matching writer, which is how a request body ends up assembled with
+     * string concatenation — and a value containing a quote then produces a body the server
+     * rejects, or worse, one it accepts and reads differently.
+     *
+     * Handles the shapes this app actually sends: maps, lists, strings, numbers, booleans and
+     * null. Anything else is written as its string form rather than silently dropped.
+     */
+    fun write(value: Any?): String = buildString { writeInto(this, value) }
+
+    private fun writeInto(out: StringBuilder, value: Any?) {
+        when (value) {
+            null -> out.append("null")
+            is String -> writeString(out, value)
+            is Boolean -> out.append(value.toString())
+            is Int, is Long -> out.append(value.toString())
+            is Double, is Float -> {
+                // A whole number must not go up as 412.0: the column is a count.
+                val double = (value as Number).toDouble()
+                if (double == double.toLong().toDouble()) {
+                    out.append(double.toLong().toString())
+                } else {
+                    out.append(double.toString())
+                }
+            }
+            is Map<*, *> -> {
+                out.append('{')
+                var first = true
+                value.forEach { (key, item) ->
+                    if (!first) out.append(',')
+                    first = false
+                    writeString(out, key?.toString().orEmpty())
+                    out.append(':')
+                    writeInto(out, item)
+                }
+                out.append('}')
+            }
+            is Iterable<*> -> {
+                out.append('[')
+                var first = true
+                value.forEach { item ->
+                    if (!first) out.append(',')
+                    first = false
+                    writeInto(out, item)
+                }
+                out.append(']')
+            }
+            else -> writeString(out, value.toString())
+        }
+    }
+
+    private fun writeString(out: StringBuilder, value: String) {
+        out.append('"')
+        value.forEach { character ->
+            when (character) {
+                '"' -> out.append("\\\"")
+                '\\' -> out.append("\\\\")
+                '\n' -> out.append("\\n")
+                '\r' -> out.append("\\r")
+                '\t' -> out.append("\\t")
+                else -> if (character < ' ') {
+                    out.append("\\u").append(character.code.toString(16).padStart(4, '0'))
+                } else {
+                    out.append(character)
+                }
+            }
+        }
+        out.append('"')
+    }
+
     private class Reader(private val text: String) {
         var position = 0
             private set
