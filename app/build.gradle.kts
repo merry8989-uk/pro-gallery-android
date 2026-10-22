@@ -37,8 +37,8 @@ android {
         applicationId = "com.progallery.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 47
-        versionName = "1.31.0"
+        versionCode = 48
+        versionName = "1.32.0"
         // The ingest endpoint and the publishable key come from the build, never from the source:
         // a key committed to a repository is a key that has to be rotated. Both are read from
         // gradle properties, and an empty value simply means sending is off.

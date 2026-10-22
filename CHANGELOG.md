@@ -27,6 +27,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.32.0]
+Word, Excel, OpenDocument and ePub files open in the app instead of being handed away.
+
+### Added
+- **A reader for the documents that are zip containers.** `.docx`, `.docm`, `.xlsx`, `.odt`, `.ods`,
+  `.odp` and `.epub` now open and read. They were previously listed and then sent to "open with
+  another app", which often found nothing — and the text reader **deliberately refused** them, for
+  the reason its own comment gives: a `.docx` is a zip, and showing its bytes shows compressed
+  noise. So they get a reader that understands the container.
+  - **A bounded unzip.** The cap is enforced *while reading*, not by trusting the size the archive
+    declares — which is exactly what a zip bomb relies on. A file that would expand past the limit
+    is refused with a reason rather than half-read.
+  - **A hand-written XML tokeniser**, because `XmlPullParser` lives in `android.jar` whose stubs
+    throw in a JVM test. A document reader that is only tested on a device is a document reader
+    nobody tests, so this runs anywhere and the formats are tested against containers the tests
+    build themselves.
+  - **Four walks over that tokeniser**, differing only in what counts as a paragraph: `w:p` in
+    Word, a row in a spreadsheet, a chapter in an eBook, `text:p` in OpenDocument.
+  - **Shared strings are resolved** in a spreadsheet, so a cell reads as the word it holds rather
+    than as the index into the string table — the classic spreadsheet-reader bug, and the reason
+    that case is tested on its own.
+  - **An ePub is read in spine order, not file order**, so chapter two does not appear before
+    chapter one when the filenames happen to sort that way.
+  - The **capability screen** now says these open here, because it derives its answer from the
+    same table the reader uses — the verdict changed with the code rather than being written down
+    twice, and the test that asserted "office files have no reader here" was updated with it.
+
+### What the tests caught, in order
+1. **A real bug in tables**: the marker for "where this cell's text starts" was set *before* the
+   tab was appended, so the check for content saw the tab itself and put a space after every one —
+   `Name\t Age` instead of `Name\tAge`.
+2. **A real bug that only a pretty-printed document shows**: Word files are indented, and the
+   whitespace between tags is not part of the document. It came through, so a formatted document
+   read as its own layout. Text is now taken from inside `<w:t>`, where whitespace is significant,
+   and only non-blank text from outside it — and **both directions are tested**, because the fix
+   could not simply be "drop whitespace": a run that is a single space is a real space between two
+   words.
+3. **An invariant worth keeping**: a format that simply opens must carry **no reason**, or the
+   screen shows an explanation on every line of a list where nothing is wrong.
+4. And two of my own test mistakes, which is the honest half of the count: a self-closing tag
+   count that forgot the outer element, and an assertion that the tokeniser joins text around a
+   comment when it flushes before every tag.
+
 ## [1.31.0]
 A video picks up where you left it — and, more importantly, knows when not to.
 
