@@ -6,6 +6,7 @@ enum class DocumentKind(val label: String) {
     XLSX("Spreadsheet"),
     EPUB("eBook"),
     ODT("OpenDocument"),
+    PPTX("Presentation"),
     NONE(""),
 }
 
@@ -26,6 +27,7 @@ object DocumentFormats {
     private val XLSX = setOf("xlsx", "xlsm", "xltx", "xlsb")
     private val EPUB = setOf("epub")
     private val ODT = setOf("odt", "ott", "ods", "ots", "odp", "otp", "odg", "fodt")
+    private val PPTX = setOf("pptx", "pptm", "potx", "ppsx")
 
     fun canRead(extension: String): Boolean = kindOf(extension) != DocumentKind.NONE
 
@@ -36,12 +38,13 @@ object DocumentFormats {
             ext in XLSX -> DocumentKind.XLSX
             ext in EPUB -> DocumentKind.EPUB
             ext in ODT -> DocumentKind.ODT
+            ext in PPTX -> DocumentKind.PPTX
             else -> DocumentKind.NONE
         }
     }
 
     /** Every extension with a reader, for the capability screen. */
-    fun allExtensions(): List<String> = (DOCX + XLSX + EPUB + ODT).sorted()
+    fun allExtensions(): List<String> = (DOCX + XLSX + EPUB + ODT + PPTX).sorted()
 }
 
 /**
@@ -66,6 +69,7 @@ object DocumentText {
         DocumentKind.XLSX -> xlsx(bytes)
         DocumentKind.EPUB -> epub(bytes)
         DocumentKind.ODT -> odt(bytes)
+        DocumentKind.PPTX -> pptx(bytes)
         DocumentKind.NONE -> throw Unreadable("The app has no reader for .$extension")
     }
 
@@ -312,6 +316,89 @@ object DocumentText {
         }
         if (out.isEmpty()) throw Unreadable("This ePub has no readable chapters")
         return out.toString()
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // PowerPoint
+    // ---------------------------------------------------------------------------------------
+
+    fun pptx(bytes: ByteArray): String {
+        val entries = openContainer(bytes)
+        val slides = slidePathsInOrder(entries)
+        if (slides.isEmpty()) {
+            throw Unreadable("This does not look like a presentation — it has no slides")
+        }
+
+        val out = StringBuilder()
+        slides.forEachIndexed { index, path ->
+            val content = entries[path] ?: return@forEachIndexed
+            val text = paragraphs(
+                xml = XmlLite.decodeText(content),
+                paragraphTags = setOf("p"),
+                breakTags = setOf("br"),
+                cellTags = emptySet(),
+                rowTags = emptySet(),
+                tabTags = setOf("tab"),
+                // PowerPoint keeps its words in `<a:t>`, exactly as Word keeps them in `<w:t>`,
+                // and puts the pretty-printing between elements — so the same rule applies.
+                textTags = setOf("t"),
+            )
+            if (text.isNotBlank()) {
+                if (out.isNotEmpty()) out.append("\n\n")
+                out.append("Slide ").append(index + 1).append('\n').append(text)
+            }
+        }
+        if (out.isEmpty()) throw Unreadable("This presentation has no readable text")
+        return out.toString()
+    }
+
+    /**
+     * The slides, in the order the presentation says — not the order the files sort in.
+     *
+     * A deck's slides are named `slide1.xml`, `slide2.xml` and so on, and they are *usually* in
+     * that order, which is exactly why reading them by filename looks correct until a slide is
+     * reordered or deleted and the numbers no longer match the running order. `presentation.xml`
+     * lists the slides in reading order and the relationships file says which file each one is;
+     * the filename is the fallback, not the rule.
+     */
+    private fun slidePathsInOrder(entries: Map<String, ByteArray>): List<String> {
+        val presentation = ZipArchive.find(entries, "ppt/presentation.xml")
+        val relationships = ZipArchive.find(entries, "ppt/_rels/presentation.xml.rels")
+
+        if (presentation != null && relationships != null) {
+            val targets = mutableMapOf<String, String>()
+            XmlLite.events(XmlLite.decodeText(relationships)).forEach { event ->
+                if (event is XmlLite.Event.Start &&
+                    XmlLite.localName(event.name) == "Relationship"
+                ) {
+                    val id = event.attributes["Id"]
+                    val target = event.attributes["Target"]
+                    if (id != null && target != null) targets[id] = target
+                }
+            }
+
+            val order = mutableListOf<String>()
+            XmlLite.events(XmlLite.decodeText(presentation)).forEach { event ->
+                if (event is XmlLite.Event.Start && XmlLite.localName(event.name) == "sldId") {
+                    // The attribute is namespaced, so the key carries the prefix and the local
+                    // name is what to match on.
+                    val id = event.attributes.entries
+                        .firstOrNull { XmlLite.localName(it.key) == "id" }?.value
+                    if (id != null) targets[id]?.let { order.add(it) }
+                }
+            }
+
+            val resolved = order.mapNotNull { target ->
+                val trimmed = target.removePrefix("/")
+                val path = if (trimmed.startsWith("ppt/")) trimmed else "ppt/$trimmed"
+                entries.keys.firstOrNull { it.equals(path, ignoreCase = true) }
+            }
+            if (resolved.isNotEmpty()) return resolved
+        }
+
+        return entries.keys
+            .filter { Regex("^ppt/slides/slide\\d+\\.xml$", RegexOption.IGNORE_CASE).matches(it) }
+            .sortedBy { it.substringAfterLast("slide").substringBefore('.').toIntOrNull() ?: 0 }
     }
 
     // ---------------------------------------------------------------------------------------

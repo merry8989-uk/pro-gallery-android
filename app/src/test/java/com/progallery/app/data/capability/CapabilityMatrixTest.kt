@@ -137,12 +137,12 @@ class CapabilityMatrixTest {
         // These now have a reader of their own, so the answer changed with the code — which is
         // the point of deriving the verdict from the same tables the reader uses rather than
         // writing it down twice.
-        listOf("docx", "docm", "xlsx", "odt", "ods", "epub").forEach { ext ->
+        listOf("docx", "docm", "xlsx", "odt", "ods", "epub", "pptx", "pptm").forEach { ext ->
             assertEquals(ext, Capability.OPENS_HERE, CapabilityMatrix.forExtension(ext).verdict)
         }
-        // A presentation still has none: the reader covers documents and spreadsheets, and
-        // claiming otherwise would be the kind of promise this screen exists to avoid.
-        listOf("pptx", "ppt").forEach { ext ->
+        // The old `.ppt` is a different container entirely — a binary one, not a zip — so it is
+        // still handed off rather than claimed.
+        listOf("ppt").forEach { ext ->
             assertEquals(
                 ext,
                 Capability.NEEDS_ANOTHER_APP,

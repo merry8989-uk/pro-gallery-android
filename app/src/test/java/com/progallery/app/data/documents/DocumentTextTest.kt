@@ -247,6 +247,84 @@ class DocumentTextTest {
         assertEquals("A\t1\nB\t2", DocumentText.odt(bytes))
     }
 
+    // ---- PowerPoint ----
+
+    /** A deck whose relationships deliberately put slide1 second, so order cannot be guessed. */
+    private fun pptx(
+        presentation: String? = """<p:presentation><p:sldIdLst>
+            <p:sldId id="256" r:id="rId2"/><p:sldId id="257" r:id="rId1"/>
+          </p:sldIdLst></p:presentation>""",
+        rels: String? = """<Relationships>
+            <Relationship Id="rId1" Target="slides/slide1.xml"/>
+            <Relationship Id="rId2" Target="slides/slide2.xml"/>
+          </Relationships>""",
+        slides: Map<String, String> = mapOf(
+            "ppt/slides/slide1.xml" to "<p:sld><a:t>Second slide</a:t></p:sld>",
+            "ppt/slides/slide2.xml" to "<p:sld><a:t>First slide</a:t></p:sld>",
+        ),
+    ): ByteArray = zip(
+        *listOfNotNull(
+            presentation?.let { "ppt/presentation.xml" to it },
+            rels?.let { "ppt/_rels/presentation.xml.rels" to it },
+        ).toTypedArray() + slides.toList().toTypedArray(),
+    )
+
+    @Test
+    fun slidesAreReadInThePresentationsOrderNotTheFilenamesOrder() {
+        // slide1.xml is the *second* slide. A reader that sorted by filename would show the deck
+        // backwards, which looks correct until a slide is reordered or deleted.
+        val text = DocumentText.pptx(pptx())
+        assertEquals("Slide 1\nSecond slide\n\nSlide 2\nFirst slide", text)
+    }
+
+    @Test
+    fun runsInsideAParagraphStayOnOneLine() {
+        val bytes = pptx(
+            presentation = "<p:presentation><p:sldIdLst><p:sldId id=\"256\" r:id=\"rId1\"/></p:sldIdLst></p:presentation>",
+            rels = "<Relationships><Relationship Id=\"rId1\" Target=\"slides/slide1.xml\"/></Relationships>",
+            slides = mapOf(
+                "ppt/slides/slide1.xml" to
+                    "<p:sld><a:p><a:r><a:t>Title</a:t></a:r><a:r><a:t> continued</a:t></a:r></a:p></p:sld>",
+            ),
+        )
+        assertEquals("Slide 1\nTitle continued", DocumentText.pptx(bytes))
+    }
+
+    @Test
+    fun thePrettyPrintingBetweenTagsIsNotTextHereEither() {
+        val bytes = pptx(
+            presentation = "<p:presentation><p:sldIdLst><p:sldId id=\"1\" r:id=\"rId1\"/></p:sldIdLst></p:presentation>",
+            rels = "<Relationships><Relationship Id=\"rId1\" Target=\"slides/slide1.xml\"/></Relationships>",
+            slides = mapOf(
+                "ppt/slides/slide1.xml" to
+                    """
+                    <p:sld>
+                        <a:p>
+                            <a:r>
+                                <a:t>Indented</a:t>
+                            </a:r>
+                        </a:p>
+                    </p:sld>
+                    """.trimIndent(),
+            ),
+        )
+        assertEquals("Slide 1\nIndented", DocumentText.pptx(bytes))
+    }
+
+    @Test
+    fun aDeckWithoutItsRelationshipsFallsBackToTheSlideNumbers() {
+        // The fallback is for a file that is missing its own description, not the normal path.
+        val bytes = pptx(presentation = null, rels = null)
+        assertEquals("Slide 1\nSecond slide\n\nSlide 2\nFirst slide", DocumentText.pptx(bytes))
+    }
+
+    @Test
+    fun aDeckWithNoSlidesIsRefused() {
+        val failure = runCatching { DocumentText.pptx(zip("junk.txt" to "x")) }.exceptionOrNull()
+        assertTrue(failure is DocumentText.Unreadable)
+        assertTrue(failure!!.message!!.contains("slides"))
+    }
+
     // ---- the container guard ----
 
     @Test
