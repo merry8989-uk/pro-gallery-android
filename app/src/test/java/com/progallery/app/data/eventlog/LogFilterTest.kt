@@ -120,10 +120,15 @@ class LogFilterTest {
     @Test
     fun countsByLevelCountsEveryLevel() {
         val counts = LogFilters.countsByLevel(entries)
-        assertEquals(4, counts.size)
+        // Every level the vocabulary defines, including the two that carry nothing here: a filter
+        // that hides a level with no entries would be a filter that hides a level.
+        assertEquals(LogLevel.entries.size, counts.size)
+        assertEquals(6, counts.size)
         assertEquals(1, counts[LogLevel.ERROR])
         assertEquals(3, counts[LogLevel.INFO])
         assertEquals(0, counts[LogLevel.WARN])
+        assertEquals(0, counts[LogLevel.TRACE])
+        assertEquals(0, counts[LogLevel.FATAL])
     }
 
     @Test
