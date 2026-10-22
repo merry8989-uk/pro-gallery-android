@@ -81,7 +81,7 @@ fun featureForRoute(route: String?): FeatureId? {
 
     return when (clean) {
         "viewer", "pdf_viewer", "text_viewer" -> FeatureId.VIEWER
-        "video_player", "audio_player", "stream_player", "webdav_player" -> FeatureId.PLAYER
+        "media_player", "stream_player", "webdav_player" -> FeatureId.PLAYER
         "photo_editor", "video_editor", "audio_editor" -> FeatureId.EDITOR
         "cloud_viewer" -> FeatureId.CLOUD
         "album_detail", "custom_album" -> FeatureId.ALBUMS

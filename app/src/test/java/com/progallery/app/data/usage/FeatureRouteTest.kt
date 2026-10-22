@@ -29,8 +29,8 @@ class FeatureRouteTest {
     fun viewersBelongToTheFeatureThatOpenedThem() {
         assertEquals(FeatureId.VIEWER, featureForRoute("pdf_viewer"))
         assertEquals(FeatureId.VIEWER, featureForRoute("text_viewer"))
-        assertEquals(FeatureId.PLAYER, featureForRoute("video_player"))
-        assertEquals(FeatureId.PLAYER, featureForRoute("audio_player"))
+        assertEquals(FeatureId.PLAYER, featureForRoute("media_player"))
+        assertEquals(FeatureId.PLAYER, featureForRoute("media_player"))
         assertEquals(FeatureId.PLAYER, featureForRoute("stream_player"))
         assertEquals(FeatureId.EDITOR, featureForRoute("photo_editor"))
     }
@@ -55,10 +55,10 @@ class FeatureRouteTest {
         // unrecorded or, worse, be mapped to the wrong feature by accident.
         val routes = listOf(
             "home", "photos", "albums", "audio", "documents", "all_files", "settings",
-            "permission_diagnostics", "android_folders", "recovery", "pdf_viewer", "audio_player",
+            "permission_diagnostics", "android_folders", "recovery", "pdf_viewer", "media_player",
             "audio_editor", "videos", "favourites", "trash", "deep_scan", "search", "stream",
             "stream_player", "memories", "app_media", "text_viewer", "cloud", "cloud_viewer",
-            "webdav", "webdav_player", "viewer", "video_player", "photo_editor", "video_editor",
+            "webdav", "webdav_player", "viewer", "media_player", "photo_editor", "video_editor",
             "album_detail", "custom_album", "stickers", "capability",
         )
         val unmapped = routes.filter { featureForRoute(it) == null }
