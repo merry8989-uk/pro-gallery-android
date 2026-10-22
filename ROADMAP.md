@@ -174,6 +174,11 @@ action that helps; a missing file is no longer described as a codec problem.
 **✅ Cloud folders browsed in-app**, with no sign-in of the app's own: a folder is granted
 once through the system picker and persisted, and the service keeps its own session.
 
+## 6f. Player engine and the capability screen — v1.29.0
+
+**✅ Parts B and C, step 2**: one engine builds every player, the decoder fallback is everywhere,
+the MIME hint is applied where the app is certain, and the format answer is a screen.
+
 ## 6e. What shipped since v1.16.0 — v1.17.0 to v1.28.0
 
 Written as one entry rather than ten, because the roadmap stopped being updated at v1.16.0 and
