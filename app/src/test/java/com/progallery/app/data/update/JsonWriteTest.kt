@@ -67,10 +67,11 @@ class JsonWriteTest {
 
     @Test
     fun aWholeNumberIsNotWrittenWithADecimalPoint() {
-        // 412 must not go up as 412.0 — the column is a count.
-        assertEquals("412", Json.write(mapOf("media_item_count" to 412)))
-        assertEquals("412", Json.write(mapOf("n" to 412.0)))
-        assertEquals("412.5", Json.write(mapOf("n" to 412.5)))
+        // 412 must not go up as 412.0 — the column is a count. The assertion is on the whole
+        // object, because that is what write() returns.
+        assertEquals("{\"media_item_count\":412}", Json.write(mapOf("media_item_count" to 412)))
+        assertEquals("{\"n\":412}", Json.write(mapOf("n" to 412.0)))
+        assertEquals("{\"n\":412.5}", Json.write(mapOf("n" to 412.5)))
     }
 
     @Test
