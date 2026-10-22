@@ -74,6 +74,38 @@ class DocumentTextTest {
     }
 
     @Test
+    fun thePrettyPrintingBetweenTagsIsNotPartOfTheDocument() {
+        // Real Word files are indented, and the indentation is not text. This was a real bug: the
+        // whitespace between tags came through, so a formatted document read as its own layout.
+        val bytes = docx(
+            """
+            <w:document>
+                <w:body>
+                    <w:p>
+                        <w:r>
+                            <w:t>Indented</w:t>
+                        </w:r>
+                    </w:p>
+                </w:body>
+            </w:document>
+            """.trimIndent(),
+        )
+        assertEquals("Indented", DocumentText.docx(bytes))
+    }
+
+    @Test
+    fun aRunThatIsOnlyASpaceIsStillASpace() {
+        // And the other direction, which is why the fix is not "drop whitespace": Word splits a
+        // sentence across runs, and a run that is a single space is a real space between words.
+        val bytes = docx(
+            "<w:document><w:body><w:p>" +
+                "<w:r><w:t>Second</w:t></w:r><w:r><w:t> </w:t></w:r><w:r><w:t>line</w:t></w:r>" +
+                "</w:p></w:body></w:document>",
+        )
+        assertEquals("Second line", DocumentText.docx(bytes))
+    }
+
+    @Test
     fun entitiesAndBreaksAreHandled() {
         val bytes = docx(
             "<w:document><w:body><w:p><w:r><w:t>a &amp; b</w:t><w:br/><w:t>c</w:t></w:r></w:p></w:body></w:document>",

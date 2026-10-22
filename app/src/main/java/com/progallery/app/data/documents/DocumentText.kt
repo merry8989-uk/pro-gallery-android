@@ -84,6 +84,7 @@ object DocumentText {
             cellTags = setOf("tc"),
             rowTags = setOf("tr"),
             tabTags = setOf("tab"),
+            textTags = setOf("t"),
         )
     }
 
@@ -208,6 +209,7 @@ object DocumentText {
                 cellTags = emptySet(),
                 rowTags = emptySet(),
                 tabTags = setOf("tab"),
+                textTags = emptySet(),
             )
         }
     }
@@ -301,6 +303,7 @@ object DocumentText {
                 cellTags = setOf("td", "th"),
                 rowTags = setOf("tr"),
                 tabTags = emptySet(),
+                textTags = emptySet(),
             )
             if (text.isNotBlank()) {
                 if (out.isNotEmpty()) out.append("\n\n")
@@ -336,6 +339,7 @@ object DocumentText {
         cellTags: Set<String>,
         rowTags: Set<String>,
         tabTags: Set<String>,
+        textTags: Set<String>,
     ): String {
         val out = StringBuilder()
         val line = StringBuilder()
@@ -346,6 +350,13 @@ object DocumentText {
         // whole line instead puts a space after every tab, so "Name\t Age" rather than
         // "Name\tAge".
         var cellStart = 0
+
+        // How deep inside an element that carries text we are. Word keeps its words in `<w:t>`
+        // and puts the pretty-printing between elements — newlines and indentation that are not
+        // part of the document at all. Without this, a formatted document reads as its own
+        // indentation. Inside such an element whitespace is significant (a run that is a single
+        // space is a real space), so it is only the *outside* whitespace that is dropped.
+        var textDepth = 0
 
         fun flushLine() {
             val text = line.toString().trim()
@@ -371,6 +382,7 @@ object DocumentText {
                         }
                         name in rowTags -> if (cellDepth == 0) flushLine()
                         name in tabTags -> line.append('\t')
+                        name in textTags -> textDepth++
                         name in breakTags -> line.append(if (cellDepth > 0) ' ' else '\n')
                         name in paragraphTags ->
                             if (cellDepth == 0) {
@@ -383,15 +395,17 @@ object DocumentText {
                 is XmlLite.Event.End -> {
                     val name = XmlLite.localName(event.name)
                     when {
+                        name in textTags -> if (textDepth > 0) textDepth--
                         name in cellTags -> if (cellDepth > 0) { cellDepth--; cellStart = line.length }
                         name in rowTags -> if (cellDepth == 0) flushLine()
                         name in paragraphTags -> if (cellDepth == 0) flushLine()
                     }
                 }
                 is XmlLite.Event.Text -> {
-                    // Text outside any paragraph still belongs to the document, so it is kept —
-                    // a heading written without a `p` is still a heading.
-                    if (event.value.isNotBlank() || line.isNotEmpty()) line.append(event.value)
+                    // Inside a text element, whitespace is part of the text. Outside one, only
+                    // real content is taken — a heading written without a `p` is still a heading,
+                    // and the indentation around it is not.
+                    if (textDepth > 0 || event.value.isNotBlank()) line.append(event.value)
                 }
             }
         }
