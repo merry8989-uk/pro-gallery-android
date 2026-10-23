@@ -46,7 +46,13 @@ class PlaybackEngine @Inject constructor(
     fun build(dataSourceFactory: DataSource.Factory? = null): ExoPlayer {
         val renderers = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
         val dataSource = dataSourceFactory ?: DefaultDataSource.Factory(context)
-        val source = DefaultMediaSourceFactory(context, dataSource)
+        // No `(Context, DataSource.Factory)` overload exists — the constructor takes either a data
+        // source or an extractors factory, not both with a context.
+        val source = if (dataSourceFactory != null) {
+            DefaultMediaSourceFactory(dataSourceFactory)
+        } else {
+            DefaultMediaSourceFactory(context)
+        }
 
         // MPEG program streams, handed to the device's own parser — which reads them, and which
         // Media3's bundled extractors do not. Android 11 and up only: `MediaParserExtractorAdapter`
