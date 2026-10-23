@@ -27,6 +27,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.47.0]
+Part D answered — and not by bundling a decoder.
+
+### The problem
+Media3 **bundles** its extractors, so what the app can play is the same on every device. That is
+usually the point, and it is exactly the problem for MPEG program streams: Media3 has no extractor
+for `video/mp2p`, so `.mpg` and its relatives were handed to another app.
+
+### The answer: ask the device instead
+Android's own `MediaParser` **does** read `video/mp2p`. So a `.mpg` that Media3 refuses is often a
+file the device plays perfectly well.
+
+`PlatformParserMediaSourceFactory` hands **exactly those extensions** to the platform's parser and
+leaves every other format to the delegate untouched. Four things about it are deliberate:
+
+- **Android 11 and up.** `MediaParserExtractorAdapter` is `@RequiresApi(30)`, so below that there is
+  no platform parser to call and the engine does not install it at all — those files are handed to
+  another app, exactly as before.
+- **Only the MPEG program stream family.** `.ts` and `.flv` are deliberately absent: Media3 reads
+  them already. A file that plays today must not start playing differently because of a change meant
+  for `.mpg`.
+- **The caveat is real.** The parser is the vendor's, so the answer is the device's — which is why
+  the capability screen now calls these *"opens, with a caveat"* rather than *"opens here"*.
+- **Failure stays honest.** If the device's parser cannot read it either, the player reports it the
+  way it reports every other failure, and the hand-off is still offered.
+
+### What moved, and what did not
+**Moved** from *needs another app* to **opens, with a caveat**: `.mpg`, `.mpeg`, `.mpe`, `.mpv`,
+`.m2v`, `.vob`, `.mp2`.
+
+**Did not move**: ASF (`.wmv`, `.asf`, `.wma`), SWF and RealMedia have **no parser on Android at
+all**, and the platform parser does not read them either. The only thing that would play them here
+is bundling a decoder — a licensing decision, and `ffmpeg-kit` was retired in 2025, so there is no
+maintained drop-in to reach for. **The reasons now say that** instead of leaving a dead end.
+
+### Tests that pinned the old truth
+Two tests asserted that `.mpg` needs another app, which was true and is not any more. They were
+updated rather than deleted, and a third was added: a refusal that does not say what would change it
+is a dead end, so the ASF reasons must name the decoder.
+
 ## [1.46.0]
 Privacy and the result cards — and the last of Phase 3's list except for one.
 

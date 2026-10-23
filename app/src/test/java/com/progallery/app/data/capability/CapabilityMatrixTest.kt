@@ -53,9 +53,11 @@ class CapabilityMatrixTest {
     // ---- the containers with no parser ----
 
     @Test
-    fun theContainersAndroidCannotParseNeedAnotherApp() {
-        // The list the player's own failure message names.
-        listOf("mpg", "mpeg", "mpe", "m2v", "mpv", "vob", "wmv", "asf", "wma", "swf", "rm", "rmvb", "ape")
+    fun theContainersNothingOnAndroidCanParseNeedAnotherApp() {
+        // The list the player's own failure message names. The MPEG program streams used to be on
+        // it and are not any more: the platform's own parser reads them from Android 11, so they
+        // are a caveat now rather than a refusal.
+        listOf("wmv", "asf", "wma", "swf", "rm", "rmvb", "ape")
             .forEach { ext ->
                 assertEquals(
                     "$ext must need another app",
@@ -66,11 +68,31 @@ class CapabilityMatrixTest {
     }
 
     @Test
-    fun theProgramStreamReasonSaysWhyItIsDifferentFromTheTransportStream() {
-        // The distinction a person would not guess: .ts plays and .mpg does not.
-        val programStream = CapabilityMatrix.forExtension("mpg")
-        assertTrue(programStream.reason!!.contains("program stream"))
+    fun theProgramStreamsAreACaveatBecauseTheDeviceParsesThem() {
+        // The distinction a person would not guess, and it changed in v1.47.0: .ts plays here,
+        // and .mpg is handed to the **device's** parser — so whether it plays is the device's
+        // answer, which is what a caveat is for.
+        listOf("mpg", "mpeg", "mpe", "m2v", "mpv", "vob", "mp2").forEach { ext ->
+            val entry = CapabilityMatrix.forExtension(ext)
+            assertEquals("$ext should be a caveat now", Capability.OPENS_WITH_CAVEAT, entry.verdict)
+            assertTrue(
+                "$ext must say whose answer it is",
+                entry.reason?.contains("device") == true,
+            )
+        }
         assertEquals(Capability.OPENS_HERE, CapabilityMatrix.forExtension("ts").verdict)
+    }
+
+    @Test
+    fun theFormatsThatWouldNeedABundledDecoderSaySo() {
+        // A refusal that does not say what would change it is a dead end. These name the one thing
+        // that would: a decoder the app does not bundle.
+        listOf("wmv", "asf", "wma").forEach { ext ->
+            assertTrue(
+                "$ext must name what would change the answer",
+                CapabilityMatrix.forExtension(ext).reason?.contains("decoder") == true,
+            )
+        }
     }
 
     // ---- the caveats ----

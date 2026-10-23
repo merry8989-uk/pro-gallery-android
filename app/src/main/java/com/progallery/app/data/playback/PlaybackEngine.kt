@@ -10,6 +10,9 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import android.os.Build
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.exoplayer.source.MediaParserExtractorAdapter
 
 /**
  * The one place a player is built.
@@ -42,15 +45,33 @@ class PlaybackEngine @Inject constructor(
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     fun build(dataSourceFactory: DataSource.Factory? = null): ExoPlayer {
         val renderers = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
+        val dataSource = dataSourceFactory ?: DefaultDataSource.Factory(context)
+        // No `(Context, DataSource.Factory)` overload exists — the constructor takes either a data
+        // source or an extractors factory, not both with a context.
         val source = if (dataSourceFactory != null) {
             DefaultMediaSourceFactory(dataSourceFactory)
         } else {
             DefaultMediaSourceFactory(context)
         }
+
+        // MPEG program streams, handed to the device's own parser — which reads them, and which
+        // Media3's bundled extractors do not. Android 11 and up only: `MediaParserExtractorAdapter`
+        // is `@RequiresApi(30)`, so below that there is nothing to call and those files are handed
+        // to another app exactly as before.
+        val withPlatformParser = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            PlatformParserMediaSourceFactory(
+                delegate = source,
+                dataSourceFactory = dataSource,
+                platformParserFactory = MediaParserExtractorAdapter.Factory(),
+                extensions = PlatformParserMediaSourceFactory.MPEG_PROGRAM_STREAM_EXTENSIONS,
+            )
+        } else {
+            source
+        }
         // The order is (context, renderersFactory, mediaSourceFactory). It reads backwards from
         // the way the components are described, and getting it the other way round is a
         // compile error rather than a wrong player — which is how it was caught.
-        return ExoPlayer.Builder(context, renderers, source).build().apply {
+        return ExoPlayer.Builder(context, renderers, withPlatformParser).build().apply {
             playWhenReady = true
         }
     }

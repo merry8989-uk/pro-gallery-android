@@ -49,27 +49,21 @@ object CapabilityMatrix {
      * setting changes the answer. This is the list the player's failure message names.
      */
     private val NO_PARSER = mapOf(
-        // MPEG program streams. The transport stream (.ts) is supported; the *program* stream
-        // is a different container and has no extractor.
-        "mpg" to "MPEG program stream — Android has no parser for it",
-        "mpeg" to "MPEG program stream — Android has no parser for it",
-        "mpe" to "MPEG program stream — Android has no parser for it",
-        "m2v" to "MPEG program stream — Android has no parser for it",
-        "mpv" to "MPEG program stream — Android has no parser for it",
-        "vob" to "DVD video object, an MPEG program stream — Android has no parser for it",
         "ifo" to "A DVD's index file, not media itself",
-        // ASF and its relatives
-        "wmv" to "Windows Media — the ASF container has no parser on Android",
-        "asf" to "Windows Media — the ASF container has no parser on Android",
-        "wma" to "Windows Media Audio — the ASF container has no parser on Android",
+        // ASF and its relatives. The platform parser does not read these either, so the only thing
+        // that would change the answer is bundling a decoder — which is a licensing decision, and
+        // the reason says so rather than leaving the person to guess.
+        "wmv" to "Windows Media — nothing on Android parses ASF; playing it here would mean bundling a decoder",
+        "asf" to "Windows Media — nothing on Android parses ASF; playing it here would mean bundling a decoder",
+        "wma" to "Windows Media Audio — nothing on Android parses ASF; playing it here would mean bundling a decoder",
         // Flash
-        "swf" to "Flash — Android has no parser or player for it",
+        "swf" to "Flash — no parser on Android, and no decoder to bundle that would make it play",
         // RealMedia
-        "rm" to "RealMedia — Android has no parser for it",
-        "rmvb" to "RealMedia — Android has no parser for it",
+        "rm" to "RealMedia — no parser on Android, and nothing to bundle that would help",
+        "rmvb" to "RealMedia — no parser on Android, and nothing to bundle that would help",
         // Video containers with no extractor
-        "svi" to "A Samsung video container Android has no parser for",
-        "mxf" to "MXF, a broadcast container Android has no parser for",
+        "svi" to "A Samsung video container with no parser on Android",
+        "mxf" to "MXF, a broadcast container with no parser on Android",
         "dv" to "DV video — Android has no parser for it",
         "roq" to "Id RoQ video — Android has no parser for it",
         "y4m" to "YUV4MPEG — Android has no parser for it",
@@ -116,6 +110,16 @@ object CapabilityMatrix {
         "ac3" to "The device must be able to decode AC-3",
         "eac3" to "The device must be able to decode E-AC-3",
         "dts" to "The device must be able to decode DTS",
+        // MPEG program streams. Media3 has no extractor for them, so the app asks the **device's**
+        // own parser instead — which reads them from Android 11. Whether it works is the device's
+        // answer rather than the app's, which is exactly what a caveat is for.
+        "mpg" to "Handed to the device's own parser, which reads MPEG program streams from Android 11 — whether it plays depends on the device",
+        "mpeg" to "Handed to the device's own parser, which reads MPEG program streams from Android 11 — whether it plays depends on the device",
+        "mpe" to "Handed to the device's own parser, which reads MPEG program streams from Android 11 — whether it plays depends on the device",
+        "m2v" to "Handed to the device's own parser, which reads MPEG program streams from Android 11 — whether it plays depends on the device",
+        "mpv" to "Handed to the device's own parser, which reads MPEG program streams from Android 11 — whether it plays depends on the device",
+        "vob" to "A DVD video object, an MPEG program stream — handed to the device's own parser from Android 11, and whether it plays depends on the device",
+        "mp2" to "MPEG audio — handed to the device's own parser from Android 11, and whether it plays depends on the device",
     )
 
     /** Adaptive playlists, which the app plays because the modules are on the classpath. */
@@ -174,8 +178,11 @@ object CapabilityMatrix {
         else -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)
     }
 
-    private fun audio(ext: String, kind: MediaType): FormatCapability =
-        FormatCapability(ext, kind, Capability.OPENS_HERE, null)
+    private fun audio(ext: String, kind: MediaType): FormatCapability = when {
+        CAVEATS.containsKey(ext) ->
+            FormatCapability(ext, kind, Capability.OPENS_WITH_CAVEAT, CAVEATS[ext])
+        else -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)
+    }
 
     private fun document(ext: String, kind: MediaType): FormatCapability = when {
         ext == "pdf" -> FormatCapability(ext, kind, Capability.OPENS_HERE, null)

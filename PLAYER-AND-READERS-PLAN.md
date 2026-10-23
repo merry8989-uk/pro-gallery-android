@@ -194,7 +194,24 @@ cannot drift from what the app actually does.
 - **C3 — the screen.** Searchable, grouped by verdict, with the reason next to each format. The
   app then *tells* you that `.wmv` needs another app, instead of failing when you try.
 
-### Part D — The formats Media3 cannot parse ⬜ **decision needed**
+### Part D — The formats Media3 cannot parse ✅ **answered, v1.47.0**
+
+**Answered by asking the device instead of bundling a decoder.** Media3 bundles its extractors, so
+what the app can play is the same everywhere — which is the problem for MPEG program streams.
+Android's own `MediaParser` reads `video/mp2p`, so a `.mpg` Media3 refuses is often a file the device
+plays perfectly well. `PlatformParserMediaSourceFactory` hands exactly those extensions to the
+platform, **on Android 11 and up** where `MediaParserExtractorAdapter` exists, and leaves every other
+format to the delegate untouched.
+
+**What that changes:** `.mpg`, `.mpeg`, `.mpe`, `.mpv`, `.m2v`, `.vob` and `.mp2` moved from *needs
+another app* to **opens, with a caveat** — the caveat being real, because the parser is the vendor's
+and the answer is the device's.
+
+**What it does not change:** ASF (`.wmv`, `.asf`, `.wma`), SWF and RealMedia have **no parser on
+Android at all**, and the platform parser does not read them either. The only thing that would play
+them here is bundling a decoder, which is a licensing decision — and `ffmpeg-kit` was retired in
+2025, so there is no maintained drop-in to reach for. The matrix now says that in the reason rather
+than leaving a dead end.
 
 **Adaptive streaming is now done (v1.20.0):** HLS, DASH, RTSP and SmoothStreaming are on the
 classpath, so `.m3u8` and `.mpd` — the SD/HD adaptive streams — play. What remains in this part
