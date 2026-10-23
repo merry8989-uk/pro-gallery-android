@@ -120,7 +120,6 @@ fun RecoveryScreen(
     // A scope the composition owns, rather than a lifecycle one reached through an owner: the work
     // here belongs to this screen being on display.
     val scope = rememberCoroutineScope()
-    val haptics = rememberHaptics(state.hapticsEnabled)
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
@@ -399,6 +398,9 @@ private fun CompletedPane(
     onExport: () -> Unit,
     onAddFolder: () -> Unit,
 ) {
+    // Made here rather than passed down: the pane already has the state the flag lives in, and a
+    // parameter threaded through two callers for one boolean would be plumbing for its own sake.
+    val haptics = rememberHaptics(state.hapticsEnabled)
     val summary = (state.scanState as? RecoveryScanState.Completed)?.summary
 
     Column(modifier = Modifier.fillMaxSize()) {
