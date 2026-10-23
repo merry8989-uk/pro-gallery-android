@@ -97,7 +97,17 @@ class GitHubReleaseClient @Inject constructor() {
                 parse(connection.inputStream.use { it.readBytes().decodeToString() })
             }
         } catch (t: IOException) {
-            Result.failure(IllegalArgumentException("The update server did not answer: ${t.message}", t))
+            Result.failure(
+                IllegalArgumentException(
+                    "The update server did not answer: ${t.message}.\n\n" +
+                        "This is a connection to GitHub, so it is usually the network rather " +
+                        "than the app: a firewall, a captive portal, or a DNS server answering " +
+                        "with the wrong address. Try another network — mobile data instead of " +
+                        "Wi-Fi, or the other way round — or open the releases page in a browser, " +
+                        "which may reach it when this cannot.",
+                    t,
+                ),
+            )
         } finally {
             runCatching { connection.disconnect() }
         }

@@ -27,6 +27,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.48.0]
+The name, and an update check that is not a dead end.
+
+### Changed
+- The app is **Advanced File Manager**. **The application id stays `com.progallery.app`** — changing
+  it would install a *second* app, leave the first one's data behind, and never update over it. The
+  name changes; the identity does not.
+
+### Fixed
+- **A failed update check offered only "Try again"**, which is a dead end when the network is the
+  thing that is wrong. It now also offers **Open the page**, which a browser may be able to reach when
+  the app cannot — and failing that, at least lets a person copy a link somewhere that works.
+- The failure message says what is usually wrong: a connection to GitHub is far more often the
+  network than the app — a firewall, a captive portal, or a DNS server answering with the wrong
+  address — and suggests trying another network.
+
+### A note on the reported failure
+A real report showed `Failed to connect to api.github.com/20.207.73.85:443`. GitHub's addresses are
+in `140.82.112.0/20`; `20.207.73.85` is not one of them, which points at DNS on that network
+answering with the wrong address rather than at the app. The app cannot fix an ISP, but it can stop
+being a dead end when one is in the way — which is what this release does.
+
 ## [1.47.0]
 Part D answered — and not by bundling a decoder.
 

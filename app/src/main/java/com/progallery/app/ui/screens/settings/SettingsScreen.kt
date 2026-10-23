@@ -1656,7 +1656,14 @@ private fun UpdateDialog(
 
                 // A check that failed can simply be tried again, without closing the dialog and
                 // finding the row a second time.
-                is UpdateCheck.Failed -> TextButton(onClick = onRetry) { Text("Try again") }
+                // A failed check used to offer only "Try again", which is a dead end when the
+                // network is the thing that is wrong. The page opens in a browser instead, which
+                // may be able to reach it when the app cannot — and failing that, at least lets a
+                // person copy a link somewhere that works.
+                is UpdateCheck.Failed -> {
+                    TextButton(onClick = { onOpen(RELEASES_PAGE_URL) }) { Text("Open the page") }
+                    TextButton(onClick = onRetry) { Text("Try again") }
+                }
 
                 else -> TextButton(onClick = onDismiss) { Text("Close") }
             }
@@ -1668,6 +1675,10 @@ private fun UpdateDialog(
         },
     )
 }
+
+/** The releases page, which a browser may be able to reach when the app cannot. */
+private const val RELEASES_PAGE_URL =
+    "https://github.com/merry8989-uk/pro-gallery-android/releases/latest"
 
 /** Where suggestions and feature requests are sent. */
 private const val INSTAGRAM_URL = "https://instagram.com/osintgram_io"
