@@ -27,6 +27,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.48.3]
+The last two places, and a check that finally asks the right question.
+
+### Fixed
+- **The exported diagnostics log** began `# ProGallery diagnostics log`. It reads the app name now.
+- **Two messages** — the exported usage file's header, and the settings-import refusal — are built
+  from the app name rather than repeating it. They are pure objects with no context to ask, so they
+  read one constant, and the checker asserts that constant equals `@string/app_name`.
+
+### The check, and why it took four releases
+Every attempt searched for a **string** and found it, while missing the places it was not looking:
+
+1. v1.48.0 checked the APK for the new name — found it in the **resource table**, which is where a
+   launcher name lives, and stopped there.
+2. v1.48.1 found five places the app still said its old name on screen.
+3. v1.48.2 found the diagnostics email and the user agents.
+4. v1.48.3 found the exported log header, the usage header and the import message.
+
+The check now asks the question that actually matters: **does any string in the app still carry the
+old name?** It scans every `.kt` for it, allows it **only** where it names a folder that really exists
+on the device, and fails on anything else. It was tested in both directions — it passes this tree, and
+it catches a bare mention added to a new file, which an earlier shape-based version of the rule did
+**not** catch.
+
+### Deliberately kept
+Five places name a real folder — `Pictures/ProGallery`, the trimmer's output, `ProGallery/Restored`,
+and the two sentences telling a person where a file went. **Renaming a folder orphans what is in it**,
+so those stay and the checker lists them by name with the reason.
+
 ## [1.48.2]
 The rename, one more pass — and this time the check looked for the old name.
 
