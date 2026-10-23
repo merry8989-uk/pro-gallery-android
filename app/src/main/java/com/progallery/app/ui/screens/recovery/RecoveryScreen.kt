@@ -228,6 +228,8 @@ fun RecoveryScreen(
         PreviewDialog(
             result = result,
             exportAllowed = state.exportEnabled,
+            showSource = state.showSource,
+            showConfidence = state.showConfidence,
             onDismiss = { viewModel.preview(null) },
             onExport = {
                 viewModel.clearSelection()
@@ -665,6 +667,10 @@ private fun PreviewDialog(
     onExport: () -> Unit,
     onShare: () -> Unit,
     exportAllowed: Boolean,
+    // Passed rather than read from a state this dialog does not have. The preview is the place a
+    // person looks hardest at one file, so it honours the same two toggles the cards do.
+    showSource: Boolean = true,
+    showConfidence: Boolean = true,
 ) {
     val item = result.item
     AlertDialog(
@@ -676,12 +682,16 @@ private fun PreviewDialog(
                     result = result,
                     modifier = Modifier.size(160.dp),
                 )
-                Text("Source: ${result.source.label}", style = MaterialTheme.typography.bodySmall)
+                if (showSource) {
+                    Text("Source: ${result.source.label}", style = MaterialTheme.typography.bodySmall)
+                }
                 Text("Found in: ${result.originLabel}", style = MaterialTheme.typography.bodySmall)
-                Text(
-                    "Confidence: ${result.confidence.label} — ${result.evidence}",
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                if (showConfidence) {
+                    Text(
+                        "Confidence: ${result.confidence.label} — ${result.evidence}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 Text("Status: ${result.status.label}", style = MaterialTheme.typography.bodySmall)
 
                 // What is provably wrong with it, and what proved it. Null means the check was

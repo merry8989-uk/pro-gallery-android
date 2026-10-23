@@ -141,6 +141,8 @@ class SettingsRepository @Inject constructor(
         val compactResultCards = booleanPreferencesKey("compact_cards")
         val pauseOnLowBattery = booleanPreferencesKey("pause_low_battery")
         val pauseOnThermal = booleanPreferencesKey("pause_thermal")
+        val showRecoverySource = booleanPreferencesKey("show_source")
+        val showRecoveryConfidence = booleanPreferencesKey("show_confidence")
         val showResolution = booleanPreferencesKey("show_resolution")
         val recoveryQuickScanEnabled = booleanPreferencesKey("recovery_quick_scan")
         val recoveryThumbnailCacheEnabled = booleanPreferencesKey("recovery_thumbnail_cache")
@@ -215,6 +217,8 @@ class SettingsRepository @Inject constructor(
             compactResultCards = p[Keys.compactResultCards] ?: d.compactResultCards,
             pauseOnLowBattery = p[Keys.pauseOnLowBattery] ?: d.pauseOnLowBattery,
             pauseOnThermalPressure = p[Keys.pauseOnThermal] ?: d.pauseOnThermalPressure,
+            showRecoverySource = p[Keys.showRecoverySource] ?: d.showRecoverySource,
+            showRecoveryConfidence = p[Keys.showRecoveryConfidence] ?: d.showRecoveryConfidence,
             showResolution = p[Keys.showResolution] ?: d.showResolution,
             recoveryQuickScanEnabled = p[Keys.recoveryQuickScanEnabled] ?: d.recoveryQuickScanEnabled,
             recoveryThumbnailCacheEnabled = p[Keys.recoveryThumbnailCacheEnabled] ?: d.recoveryThumbnailCacheEnabled,
@@ -284,6 +288,8 @@ class SettingsRepository @Inject constructor(
         p[Keys.compactResultCards] = s.compactResultCards
         p[Keys.pauseOnLowBattery] = s.pauseOnLowBattery
         p[Keys.pauseOnThermal] = s.pauseOnThermalPressure
+        p[Keys.showRecoverySource] = s.showRecoverySource
+        p[Keys.showRecoveryConfidence] = s.showRecoveryConfidence
         p[Keys.showResolution] = s.showResolution
         p[Keys.recoveryQuickScanEnabled] = s.recoveryQuickScanEnabled
         p[Keys.recoveryThumbnailCacheEnabled] = s.recoveryThumbnailCacheEnabled

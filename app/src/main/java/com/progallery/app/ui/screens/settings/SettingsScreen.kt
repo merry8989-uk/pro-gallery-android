@@ -246,6 +246,8 @@ fun SettingsScreen(
         onDeleteUsage = viewModel::clearUsage,
         onOpenDefaultApps = { DefaultApps.openDefaultAppsSettings(context) },
         onRunScan = onRunScan,
+        // The screen owns the view model, so this one comes from there rather than through the nav.
+        onClearTemporaryScanData = viewModel::clearTemporaryScanData,
     )
 
     val visible = rows.filter { row ->
@@ -402,6 +404,7 @@ private fun buildRows(
     onReviewUsage: () -> Unit,
     onExportUsage: () -> Unit,
     onDeleteUsage: () -> Unit,
+    onClearTemporaryScanData: () -> Unit,
     onRunScan: () -> Unit,
 ): List<SettingsRow> = buildList {
     // ---- Scanning -----------------------------------------------------
@@ -1101,6 +1104,18 @@ private fun buildRows(
             advanced = true,
             checked = settings.exportPreserveNames,
             onCheckedChange = { value -> update { it.copy(exportPreserveNames = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Action(
+            title = "Clear temporary scan data",
+            subtitle = "Removes the app's own index and its decoded previews, and any half-written " +
+                "export left by a failure. It does not touch your files, the trash, favourites, " +
+                "hidden items, albums or any setting.",
+            section = "Recovery & export",
+            advanced = true,
+            label = "Clear",
+            onClick = onClearTemporaryScanData,
         ),
     )
     add(

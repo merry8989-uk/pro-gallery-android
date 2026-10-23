@@ -63,6 +63,9 @@ data class RecoveryUiState(
     val compactCards: Boolean = false,
     /** Whether a tap buzzes. Off unless the person asked for it. */
     val hapticsEnabled: Boolean = false,
+    /** Whether a card says where the file came from, and how sure the app is. */
+    val showSource: Boolean = true,
+    val showConfidence: Boolean = true,
     /** Set the moment a tab is tapped, so the default only ever applies to an untouched screen. */
     val tabChosenByHand: Boolean = false,
 ) {
@@ -141,6 +144,8 @@ class RecoveryViewModel @Inject constructor(
                         tab = if (current.tabChosenByHand) current.tab else settings.defaultRecoveryTab,
                         compactCards = settings.compactResultCards,
                         hapticsEnabled = settings.hapticsEnabled,
+                        showSource = settings.showRecoverySource,
+                        showConfidence = settings.showRecoveryConfidence,
                         // Never leave the screen pointing at a mode that is no longer
                         // offered, or the scan button would do nothing.
                         mode = if (current.mode in allowed) current.mode else allowed.firstOrNull() ?: current.mode,

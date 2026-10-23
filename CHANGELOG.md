@@ -27,6 +27,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.46.0]
+Privacy and the result cards — and the last of Phase 3's list except for one.
+
+### Added
+- **Clear temporary scan data.** Removes the app's own index, its decoded previews, and any
+  half-written export a failure left behind. **The message says what it did and what it did not
+  touch** — a "clear data" button that leaves a person guessing whether their files are still there
+  is a button they are right not to press. It never touches the trash, favourites, hidden items,
+  albums, settings, or a single one of the user's files.
+- **Show-source and show-confidence toggles.** Both were printed unconditionally on every card. On
+  by default: a recovered file that does not say how it was found is asking to be trusted blindly.
+
+### Where Phase 3 stands
+Its list is now **empty except for incremental rescan**, which needs a per-folder record of what was
+seen and when — a piece of work with its own plan rather than an item.
+
 ## [1.45.0]
 Performance: pausing on a low battery and on a warm device — and saying so.
 
