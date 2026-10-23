@@ -27,6 +27,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.42.0]
+The detection block: what is provably wrong with a file, and what it actually is.
+
+### Added
+- **`MediaIntegrity`** — pure, and deliberately conservative. It flags only what the bytes can
+  prove: **empty**; a JPEG that does not end `FFD9`; a PNG with no `IEND` chunk; and a name that
+  disagrees with the contents. **For a format with no end marker nothing is claimed**, because a
+  complete MP4 and a truncated one cannot be told apart — and a "corrupt" label on a good file is
+  worse than no label, since it makes a person distrust something that is fine.
+- **Half the tests are about what it must NOT flag**: an unremarkable `.txt`, a `.zip`, a file with
+  no extension, an extension nobody catalogues.
+- **`MediaInspector`** reads a file's ends and its EXIF, bounded, with every failure a null rather
+  than an exception — a scan must not stop because one file could not be opened.
+- **EXIF is the date and the camera. Never the location.** `ExifInterface` hands over GPS
+  coordinates as readily as a date, and reading them into a result card would put where somebody was
+  onto a screen they might share. A recovery tool has no use for it. **A deliberate omission, not an
+  unimplemented one.**
+- **Signature depth** as Safe / Balanced / Extended / Custom — a preset over the byte count, the
+  same shape as the performance mode, and real because the three scanners and the inspector all read
+  `effectiveSignatureBytes` now.
+- The result card shows the issues **with their evidence** — *"a JPEG must end with FFD9 and this
+  does not"* — and says when a file checks out, rather than only speaking up when something is
+  wrong. A null report means the check was switched off, which is not the same as "nothing wrong",
+  so it says nothing.
+
+### A contradiction found by walking the logic before writing the tests
+My doc said an unrecognised header is reported only for a **known media extension**. The code
+checked "not in a list of forty opaque extensions" — so `xyz` was flagged, which is the opposite.
+The list went: the caller now says whether the extension is one the app catalogues, because that is
+`FileTypeRegistry`'s question and should not have a second answer in another file.
+
+The fifteen test cases were then run against a **faithful mirror of the logic in Python** before CI
+saw them, so the doc, the code and the tests were checked against each other rather than trusted.
+
+### Fixed
+`ByteArray.take()` returns a `List<Byte>`, not bytes — the Kotlin collection extension, not an array
+slice. CI caught it; the range is copied instead.
+
 ## [1.41.0]
 The three open decisions, dealt with — two of them done, one half of a decision taken.
 
