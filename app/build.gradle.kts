@@ -37,8 +37,8 @@ android {
         applicationId = "com.progallery.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 66
-        versionName = "1.48.2"
+        versionCode = 67
+        versionName = "1.48.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

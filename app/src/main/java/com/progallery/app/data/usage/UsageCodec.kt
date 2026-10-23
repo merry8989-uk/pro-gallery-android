@@ -1,6 +1,7 @@
 package com.progallery.app.data.usage
 
 import java.time.LocalDate
+import com.progallery.app.util.AppIdentity
 
 /**
  * Reads and writes the stored usage file.
@@ -13,7 +14,7 @@ import java.time.LocalDate
  */
 object UsageCodec {
 
-    private const val HEADER = "# ProGallery usage — counts only. No filenames, no paths, no content."
+    private val HEADER = "# ${AppIdentity.NAME} usage — counts only. No filenames, no paths, no content."
 
     fun encode(profile: DeviceProfile, days: List<UsageDay>): String = buildString {
         appendLine(HEADER)

@@ -1,5 +1,7 @@
 package com.progallery.app.data.eventlog
 
+import com.progallery.app.util.AppIdentity
+
 /** The shapes a log can be handed over in. */
 enum class LogFormat(val label: String, val extension: String, val mimeType: String) {
     CSV("CSV", "csv", "text/csv"),
@@ -60,7 +62,7 @@ object LogExport {
 
     fun markdown(entries: List<LogEntry>): String {
         val builder = StringBuilder()
-        builder.append("# ProGallery diagnostics log\n\n")
+        builder.append("# ${AppIdentity.NAME} diagnostics log\n\n")
         builder.append("${entries.size} events")
         val counts = entries.groupingBy { it.level }.eachCount()
         if (counts.isNotEmpty()) {

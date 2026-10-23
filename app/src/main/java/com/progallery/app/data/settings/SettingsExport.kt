@@ -2,6 +2,7 @@ package com.progallery.app.data.settings
 
 import com.progallery.app.data.model.SortOrder
 import com.progallery.app.data.recovery.RecoveryTab
+import com.progallery.app.util.AppIdentity
 
 /**
  * Settings export and import.
@@ -190,7 +191,7 @@ object SettingsExport {
         val version = (map[KEY_FORMAT] as? Long)?.toInt()
             ?: return Result.failure(
                 IllegalArgumentException(
-                    "This file has no format version, so it was not written by ProGallery.",
+                    "This file has no format version, so it was not written by ${AppIdentity.NAME}.",
                 ),
             )
 

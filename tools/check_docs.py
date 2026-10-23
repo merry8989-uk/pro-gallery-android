@@ -178,6 +178,60 @@ def log_vocabulary() -> dict[str, int]:
 def main() -> int:
     problems: list[str] = []
     truth = gradle_truth()
+    # ---- The app's name, in one place ----
+    #
+    # The name lives in `@string/app_name`, and a second time in `AppIdentity.NAME` for the two pure
+    # objects that have no context to ask. Two sources drift, so they are asserted equal here.
+    #
+    # And no string literal anywhere may still carry the **old** name — which is the check that took
+    # three releases to get right, because each earlier attempt searched for the new name and found
+    # it, while missing the places it was not looking.
+    app_name_file = ROOT / "app/src/main/res/values/strings.xml"
+    identity_file = ROOT / "app/src/main/java/com/progallery/app/util/AppIdentity.kt"
+    if app_name_file.exists() and identity_file.exists():
+        from_res = re.search(r'<string name="app_name">([^<]+)</string>', app_name_file.read_text())
+        from_const = re.search(r'const val NAME = "([^"]+)"', identity_file.read_text())
+        if from_res and from_const and from_res.group(1) != from_const.group(1):
+            problems.append(
+                f"the app name disagrees: strings.xml says \"{from_res.group(1)}\" and "
+                f"AppIdentity.NAME says \"{from_const.group(1)}\""
+            )
+
+    # The folder names on the device are the deliberate exception: renaming one orphans what is
+    # already inside it, so they keep the old name on purpose and are listed here with that reason.
+    # A **path** may keep the name: the folders are on the device and renaming one orphans what is
+    # already in it. A **sentence** may not — except the one that tells a person where their file
+    # went, which has to name the folder it actually went to in order to be true.
+    # A path is `.../ProGallery`. A sentence says `ProGallery` on its own. The difference is the
+    # slash, and it is the whole test: `/ProGallery` names a folder that is really there, and a
+    # sentence that names it is telling the truth about where a file went.
+    # Allowed: a literal that **is** a path segment — `"ProGallery"`, `"ProGallery/Restored"`,
+    # `"$dir/ProGallery"` — and a sentence where the name follows a slash, because that sentence is
+    # naming a folder that really exists.
+    # Flagged: the name standing on its own inside prose, which is the app talking about itself.
+    # Shape alone cannot tell a folder name from the app talking about itself: `"ProGallery"` is
+    # both. So the exception is **per file**, with the reason, and a bare mention anywhere else is
+    # flagged. A whitelist with reasons is the honest form here — a cleverer regex would have let
+    # the regression through, which it did until this was changed.
+    PATHS_KEEP_THE_NAME = {
+        "MediaTrimmer.kt": "the output folder on the device, which renaming would orphan",
+        "PhotoExporter.kt": "the output folder on the device, which renaming would orphan",
+        "TrashRepository.kt": "a folder inside the app's own trash, already holding files",
+        "AudioEditorScreen.kt": "a sentence naming that folder, which has to be true",
+        "VideoEditorScreen.kt": "a sentence naming that folder, which has to be true",
+    }
+    IN_A_PATH = re.compile(r"/ProGallery")
+    for path in (ROOT / "app/src/main/java").rglob("*.kt"):
+        if path.name in PATHS_KEEP_THE_NAME:
+            continue
+        for match in re.finditer(r'"([^"\n]*ProGallery[^"\n]*)"', path.read_text()):
+            literal = match.group(1)
+            if IN_A_PATH.search(literal):
+                continue
+            problems.append(
+                f"{path.name}: a string still says \"{literal[:60]}\" — the app is renamed"
+            )
+
 
     # ---- 0. every document is the document it claims to be ----
     for doc, expected in EXPECTED_TITLES.items():
