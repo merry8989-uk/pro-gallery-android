@@ -5,7 +5,7 @@ Recovery master prompt, the Advanced Settings master prompt, your audit, and the
 UltData feature list used as a reference. Nothing here is invented — each item was
 checked against the current code, not remembered.
 
-**Current release:** v1.46.0 · `versionCode 62` · CI green (unit tests, lint and an emulator
+**Current release:** v1.47.0 · `versionCode 63` · CI green (unit tests, lint and an emulator
 job) · signed with the project key.
 
 **Phases 1, 2A, 2B, 4 and 5 complete. Phase 3 is not** — the honest state is in §5, which is the
@@ -394,11 +394,11 @@ suggestion ("load from the cursor in batches") is what was implemented instead.
 
 **Still open, and this one is genuinely yours:**
 
-1. **Part D, the FFmpeg half.** `.mpg`, `.mpeg`, `.mpe`, `.mpv`, `.mp2`, `.wmv`, `.swf` are handed
-   to another app. Bundling FFmpeg would play them here, and it means accepting **LGPL/GPL
-   obligations** and a build cost — a decision with a licence attached to it, not a default I should
-   take on your behalf. The hand-off is implemented and documented; say the word and I will do the
-   other half.
+1. ~~Part D~~ — **answered in v1.47.0**, and not by bundling anything. MPEG program streams
+   (`.mpg`, `.mpeg`, `.mpe`, `.mpv`, `.m2v`, `.vob`, `.mp2`) are handed to the **device's own
+   parser** on Android 11 and up, so they play here where the device can. ASF, SWF and RealMedia have
+   no parser on Android at all and the platform parser does not read them either; the matrix now says
+   that plainly instead of leaving a dead end.
 
 ---
 
