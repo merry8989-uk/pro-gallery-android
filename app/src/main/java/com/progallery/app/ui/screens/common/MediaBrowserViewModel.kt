@@ -39,6 +39,8 @@ import com.progallery.app.data.usage.UsageStore
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
+import com.progallery.app.data.capability.Capability
+import com.progallery.app.data.capability.CapabilityMatrix
 
 data class BrowserUiState(
     val type: MediaType = MediaType.ALL,
@@ -299,11 +301,23 @@ class MediaBrowserViewModel @Inject constructor(
      * (the phone's own PDF reader, office suite, and so on).
      */
     fun openWith(item: MediaItem) {
+        // When the app knows it cannot open this itself, it says why before handing it over. The
+        // capability screen was built on the idea that being told in advance is a different
+        // experience from a file that fails when tapped — and tapping it was the one path that
+        // still handed over silently.
+        val reason = CapabilityMatrix.forExtension(item.extension)
+            .takeIf { it.verdict == Capability.NEEDS_ANOTHER_APP }
+            ?.reason
+
         val opened = mediaActions.launchOpen(item)
-        if (!opened) {
-            _state.update {
-                it.copy(message = "No installed app can open ${item.displayName}")
-            }
+        _state.update {
+            it.copy(
+                message = when {
+                    !opened -> "No installed app can open ${item.displayName}"
+                    reason != null -> "$reason — opening it with another app."
+                    else -> it.message
+                },
+            )
         }
     }
 

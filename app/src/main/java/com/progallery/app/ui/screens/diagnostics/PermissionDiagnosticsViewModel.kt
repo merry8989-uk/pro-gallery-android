@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.progallery.app.data.settings.SettingsRepository
 
 data class PermissionDiagnosticsUiState(
     val loading: Boolean = true,
@@ -52,6 +53,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
     private val reader: AccessSnapshotReader,
     private val eventLog: EventLogStore,
     private val pendingFix: PendingFixStore,
+    private val settingsRepository: SettingsRepository,
     @ApplicationContext private val context: android.content.Context,
 ) : ViewModel() {
 
@@ -164,6 +166,36 @@ class PermissionDiagnosticsViewModel @Inject constructor(
     }
 
     fun setFilter(filter: LogFilter) = _state.update { it.copy(filter = filter) }
+
+    /**
+     * Grants or withdraws the consent to record anything, from the screen that shows the recording.
+     *
+     * The screen used to tell the person to go to Settings to turn this on, which is a strange thing
+     * for the one screen that displays the data to say. This is the same setting either way — there
+     * is one consent, not two — it is simply offered where the question is actually being asked.
+     *
+     * The change is recorded **before** it is applied when consent is being withdrawn, because after
+     * it is applied nothing more can be written. Turning it on is recorded after, for the same
+     * reason in reverse.
+     */
+    fun setUsageConsent(granted: Boolean) {
+        viewModelScope.launch {
+            if (!granted) {
+                record(
+                    EventName.CONSENT_CHANGED,
+                    details = mapOf("consent" to "usage_data", "granted" to "false"),
+                )
+                settingsRepository.update { it.copy(usageDataEnabled = false) }
+            } else {
+                settingsRepository.update { it.copy(usageDataEnabled = true) }
+                record(
+                    EventName.CONSENT_CHANGED,
+                    details = mapOf("consent" to "usage_data", "granted" to "true"),
+                )
+            }
+            _state.update { it.copy(loggingEnabled = granted) }
+        }
+    }
 
     fun clearLog() {
         viewModelScope.launch {
