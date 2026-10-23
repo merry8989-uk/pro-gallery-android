@@ -64,6 +64,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.progallery.app.data.usage.UsageDigest
+import com.progallery.app.data.settings.SignatureDepth
 
 /** One renderable settings row. */
 private sealed interface SettingsRow {
@@ -693,6 +694,62 @@ private fun buildRows(
         ),
     )
     add(
+        SettingsRow.Choice(
+            title = "How deep identification looks",
+            subtitle = settings.signatureDepth.bytes?.let {
+                "Reads the first $it bytes of each file. Touching the number below moves this to Custom."
+            } ?: "The byte count below is used as it is.",
+            section = "Detection",
+            advanced = true,
+            options = SignatureDepth.entries.map { it.label },
+            selected = settings.signatureDepth.label,
+            onSelect = { label ->
+                val depth = SignatureDepth.entries.first { it.label == label }
+                update { current ->
+                    // A preset writes the number it stands for, so the choice is visible in the
+                    // slider underneath rather than being a label nothing acts on.
+                    depth.bytes?.let { current.copy(signatureDepth = depth, signatureReadBytes = it) }
+                        ?: current.copy(signatureDepth = depth)
+                }
+            },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Look for truncated and empty files",
+            subtitle = "Reads the end of each file as well as its start, and says so when a JPEG " +
+                "does not end with its own marker or a PNG has no IEND chunk. Formats with no " +
+                "end marker are never called truncated, because that cannot be told apart.",
+            section = "Detection",
+            advanced = true,
+            checked = settings.detectCorruptMedia,
+            onCheckedChange = { value -> update { it.copy(detectCorruptMedia = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Report names that disagree with the contents",
+            subtitle = "Says when the bytes are one format and the file name says another. A name " +
+                "nobody catalogues is not an error and is never reported.",
+            section = "Detection",
+            advanced = true,
+            checked = settings.detectWrongExtensions,
+            onCheckedChange = { value -> update { it.copy(detectWrongExtensions = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Read the capture date and camera",
+            subtitle = "From a picture's EXIF. The date and the camera only — never its location, " +
+                "which a recovery tool has no use for and which would put where you were onto a " +
+                "screen you might share.",
+            section = "Detection",
+            advanced = true,
+            checked = settings.extractExif,
+            onCheckedChange = { value -> update { it.copy(extractExif = value) } },
+        ),
+    )
+    add(
         SettingsRow.Switch(
             title = "Include hidden files",
             subtitle = "Include names that start with a dot. Off by default.",
@@ -729,7 +786,9 @@ private fun buildRows(
             advanced = true,
             value = settings.signatureReadBytes,
             range = 64..65_536,
-            onChange = { value -> update { it.copy(signatureReadBytes = value) } },
+            onChange = { value ->
+                update { it.copy(signatureReadBytes = value, signatureDepth = SignatureDepth.CUSTOM) }
+            },
         ),
     )
     add(

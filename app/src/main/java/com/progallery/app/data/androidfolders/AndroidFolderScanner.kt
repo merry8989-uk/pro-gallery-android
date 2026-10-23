@@ -180,7 +180,7 @@ class AndroidFolderScanner @Inject constructor(
                         name = name,
                         declaredMime = null,
                         readSignature = settings.signatureDetectionEnabled,
-                        maxSignatureBytes = settings.signatureReadBytes,
+                        maxSignatureBytes = settings.effectiveSignatureBytes,
                         openStream = { runCatching { FileInputStream(child) }.getOrNull() },
                     )
                     if (classified.identifiedBySignature) signatureIdentified++

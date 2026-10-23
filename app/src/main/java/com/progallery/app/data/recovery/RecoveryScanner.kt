@@ -25,6 +25,7 @@ import java.io.FileInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.progallery.app.data.scan.ScanPauseGate
+import com.progallery.app.data.detection.MediaInspector
 
 /**
  * Quick Scan: finds media this app can actually reach and says where each piece
@@ -50,6 +51,7 @@ class RecoveryScanner @Inject constructor(
     private val scanDirectoryDao: ScanDirectoryDao,
     private val boundsReader: ImageBoundsReader,
     private val pauseGate: ScanPauseGate,
+    private val inspector: MediaInspector,
 ) {
 
     fun quickScan(): Flow<RecoveryScanState> = scan(RecoveryScanMode.QUICK)
@@ -244,7 +246,7 @@ class RecoveryScanner @Inject constructor(
                             name = name,
                             declaredMime = child.type,
                             readSignature = settings.signatureDetectionEnabled,
-                            maxSignatureBytes = settings.signatureReadBytes,
+                            maxSignatureBytes = settings.effectiveSignatureBytes,
                             openStream = {
                                 runCatching { context.contentResolver.openInputStream(child.uri) }.getOrNull()
                             },
@@ -324,9 +326,22 @@ class RecoveryScanner @Inject constructor(
             }
         }
 
+        // One pass over what was found, rather than a check inside each of the three places a
+        // result is built: three call sites would be three chances to forget one, and this reads
+        // each file's ends exactly once either way.
+        val inspected = if (settings.detectCorruptMedia || settings.detectWrongExtensions || settings.extractExif) {
+            results.map { result ->
+                pauseGate.awaitIfPaused()
+                val (integrity, exif) = inspector.inspect(result.item, settings)
+                result.copy(integrity = integrity, exif = exif)
+            }
+        } else {
+            results
+        }
+
         emit(
             RecoveryScanState.Completed(
-                results = results,
+                results = inspected,
                 summary = RecoveryScanSummary(
                     indexedFound = indexed.size,
                     trashFound = trashed.size,

@@ -66,6 +66,18 @@ enum class ExportDuplicatePolicy(val label: String) {
     val decidesItself: Boolean get() = this != ASK
 }
 
+/**
+ * How much of a file is read to work out what it is.
+ *
+ * A preset over a byte count, not a second setting: the scanner reads [AppSettings.effectiveSignatureBytes].
+ */
+enum class SignatureDepth(val label: String, val bytes: Int?) {
+    SAFE("Safe", 512),
+    BALANCED("Balanced", 4_096),
+    EXTENDED("Extended", 32_768),
+    CUSTOM("Custom", null),
+}
+
 enum class ThemeMode(val label: String) {
     SYSTEM("System"),
     LIGHT("Light"),
@@ -148,6 +160,15 @@ data class AppSettings(
     val signatureReadBytes: Int = 4096,
 
     /**
+     * How deep identification looks, as a preset over [signatureReadBytes].
+     *
+     * The number is the thing the scanner actually uses; this is the thing a person chooses. Same
+     * shape as the performance mode, and for the same reason: "Balanced" is a decision somebody can
+     * make, and "4096" is not. Touching the number moves this to Custom.
+     */
+    val signatureDepth: SignatureDepth = SignatureDepth.BALANCED,
+
+    /**
      * Smallest file to show. Defaults to 1 byte, so nothing real is dropped for
      * being tiny — APKs, images, documents, all of it.
      */
@@ -201,6 +222,20 @@ data class AppSettings(
 
     /** Allow recovered items to be written to a folder you choose. */
     val exportEnabled: Boolean = true,
+
+    /**
+     * Look for files that are truncated, empty, or whose name disagrees with their bytes.
+     *
+     * Off means a scan reports what it found and says nothing about whether it is intact — which
+     * is a legitimate choice, because reading the ends of every file costs time.
+     */
+    val detectCorruptMedia: Boolean = true,
+
+    /** Report a file whose extension does not match what its bytes say it is. */
+    val detectWrongExtensions: Boolean = true,
+
+    /** Read the capture date and camera from a picture's EXIF. Never its location. */
+    val extractExif: Boolean = true,
 
     /** Check the copy against the source size before reporting success. */
     val exportVerifyAfterCopy: Boolean = true,
@@ -314,6 +349,10 @@ data class AppSettings(
      * the raw fields anywhere would quietly go back to the old bug — a control that is stored,
      * shown, and ignored — so every consumer reads these instead.
      */
+
+    /** How many bytes identification actually reads, after the depth has had its say. */
+    val effectiveSignatureBytes: Int
+        get() = signatureDepth.bytes ?: signatureReadBytes
 
     /** How many files may be worked on at once. */
     val effectiveConcurrency: Int

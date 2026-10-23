@@ -1,6 +1,8 @@
 package com.progallery.app.data.recovery
 
 import com.progallery.app.data.model.MediaItem
+import com.progallery.app.data.detection.IntegrityReport
+import com.progallery.app.data.detection.MediaExif
 
 /** Where a discovered file came from. Shown on every result card. */
 enum class RecoverySource(val label: String) {
@@ -62,6 +64,15 @@ data class RecoveryResult(
     val isThumbnail: Boolean = false,
     /** Where it was found, for the card subtitle. */
     val originLabel: String = "",
+    /**
+     * What is provably wrong with the file, when the checks were asked for.
+     *
+     * Null means **not checked**, which is a different thing from "nothing wrong" — the settings
+     * can turn both checks off, and a card that said "intact" without looking would be a lie.
+     */
+    val integrity: IntegrityReport? = null,
+    /** The capture date and camera, when EXIF was read. Never the location. */
+    val exif: MediaExif? = null,
 ) {
     /**
      * Whether the bytes can be copied out.

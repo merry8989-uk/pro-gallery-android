@@ -83,6 +83,7 @@ import com.progallery.app.util.MediaFormatUtils
 import com.progallery.app.data.settings.ExportDuplicatePolicy
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import com.progallery.app.data.eventlog.LogLine
 
 /**
  * Quick Scan, Dumpster-style in layout but honest in content.
@@ -654,6 +655,42 @@ private fun PreviewDialog(
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Text("Status: ${result.status.label}", style = MaterialTheme.typography.bodySmall)
+
+                // What is provably wrong with it, and what proved it. Null means the check was
+                // switched off, which is not the same as "nothing wrong" — so it says nothing
+                // rather than claiming the file is intact.
+                result.integrity?.takeIf { it.suspicious }?.let { report ->
+                    Text(
+                        text = report.issues.joinToString(" · ") { it.label },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Text(
+                        text = "Evidence: ${report.evidence}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                result.integrity?.takeIf { !it.suspicious && it.actualFormat != null }?.let { report ->
+                    Text(
+                        text = "Contents check out: ${report.actualFormat}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                result.exif?.let { exif ->
+                    val line = buildList {
+                        exif.takenAt?.let { millis ->
+                            add("Taken ${LogLine.isoTimestamp(millis).substringBefore('T')}")
+                        }
+                        val camera = listOfNotNull(exif.cameraMake, exif.cameraModel).joinToString(" ")
+                        if (camera.isNotBlank()) add(camera)
+                    }.joinToString(" · ")
+                    if (line.isNotBlank()) {
+                        Text(line, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 if (result.isThumbnail) {
                     Text(
                         text = "This is a thumbnail, not the original image. Exporting saves the " +
