@@ -133,6 +133,10 @@ class SettingsRepository @Inject constructor(
         val exportVerifyAfterCopy = booleanPreferencesKey("export_verify_after_copy")
         val exportDuplicatePolicy = stringPreferencesKey("export_duplicate_policy")
         val exportMaxConcurrentJobs = intPreferencesKey("export_max_jobs")
+        val exportConfirmBeforeExport = booleanPreferencesKey("export_confirm")
+        val exportAskForDestination = booleanPreferencesKey("export_ask_destination")
+        val exportPreserveNames = booleanPreferencesKey("export_preserve_names")
+        val exportHistoryRetentionDays = intPreferencesKey("export_history_days")
         val keepActivityHistory = booleanPreferencesKey("keep_activity_history")
         val saveDiagnosticLogs = booleanPreferencesKey("save_diagnostic_logs")
         val includePathsInLogs = booleanPreferencesKey("include_paths_in_logs")
@@ -189,6 +193,10 @@ class SettingsRepository @Inject constructor(
             exportVerifyAfterCopy = p[Keys.exportVerifyAfterCopy] ?: d.exportVerifyAfterCopy,
             exportDuplicatePolicy = enumOrDefault(p[Keys.exportDuplicatePolicy], ExportDuplicatePolicy.entries, d.exportDuplicatePolicy),
             exportMaxConcurrentJobs = p[Keys.exportMaxConcurrentJobs] ?: d.exportMaxConcurrentJobs,
+            exportConfirmBeforeExport = p[Keys.exportConfirmBeforeExport] ?: d.exportConfirmBeforeExport,
+            exportAskForDestination = p[Keys.exportAskForDestination] ?: d.exportAskForDestination,
+            exportPreserveNames = p[Keys.exportPreserveNames] ?: d.exportPreserveNames,
+            exportHistoryRetentionDays = p[Keys.exportHistoryRetentionDays] ?: d.exportHistoryRetentionDays,
             keepActivityHistory = p[Keys.keepActivityHistory] ?: d.keepActivityHistory,
             saveDiagnosticLogs = p[Keys.saveDiagnosticLogs] ?: d.saveDiagnosticLogs,
             includePathsInLogs = p[Keys.includePathsInLogs] ?: d.includePathsInLogs,
@@ -240,6 +248,10 @@ class SettingsRepository @Inject constructor(
         p[Keys.exportVerifyAfterCopy] = s.exportVerifyAfterCopy
         p[Keys.exportDuplicatePolicy] = s.exportDuplicatePolicy.name
         p[Keys.exportMaxConcurrentJobs] = s.exportMaxConcurrentJobs
+        p[Keys.exportConfirmBeforeExport] = s.exportConfirmBeforeExport
+        p[Keys.exportAskForDestination] = s.exportAskForDestination
+        p[Keys.exportPreserveNames] = s.exportPreserveNames
+        p[Keys.exportHistoryRetentionDays] = s.exportHistoryRetentionDays
         p[Keys.keepActivityHistory] = s.keepActivityHistory
         p[Keys.saveDiagnosticLogs] = s.saveDiagnosticLogs
         p[Keys.includePathsInLogs] = s.includePathsInLogs

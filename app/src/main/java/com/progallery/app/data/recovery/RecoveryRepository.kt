@@ -61,6 +61,7 @@ class RecoveryRepository @Inject constructor(
                 is RecoveryExportOutcome.Success -> "Export succeeded"
                 is RecoveryExportOutcome.Skipped -> "Export skipped"
                 is RecoveryExportOutcome.Failed -> "Export failed"
+                is RecoveryExportOutcome.NeedsDecision -> "Waiting for an answer"
             },
             path = result.item.displayName,
         )
@@ -78,9 +79,11 @@ class RecoveryRepository @Inject constructor(
                     is RecoveryExportOutcome.Success -> "Exported"
                     is RecoveryExportOutcome.Skipped -> "Skipped"
                     is RecoveryExportOutcome.Failed -> "Failed"
+                    is RecoveryExportOutcome.NeedsDecision -> "Asked"
                 },
                 detail = (outcome as? RecoveryExportOutcome.Failed)?.message
-                    ?: (outcome as? RecoveryExportOutcome.Skipped)?.reason,
+                    ?: (outcome as? RecoveryExportOutcome.Skipped)?.reason
+                    ?: (outcome as? RecoveryExportOutcome.NeedsDecision)?.reason,
                 sizeBytes = (outcome as? RecoveryExportOutcome.Success)?.sizeBytes ?: 0L,
             ),
         )

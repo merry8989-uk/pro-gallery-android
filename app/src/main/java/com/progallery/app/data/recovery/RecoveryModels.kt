@@ -129,4 +129,14 @@ sealed interface RecoveryExportOutcome {
     data class Skipped(val displayName: String, val reason: String) : RecoveryExportOutcome
 
     data class Failed(val message: String) : RecoveryExportOutcome
+
+    /**
+     * Nothing was copied because the exporter is not allowed to choose.
+     *
+     * With the duplicate policy set to **Ask**, the destination already holds a file of that name
+     * and the answer is the person's, not the exporter's. This outcome is how the exporter says so
+     * instead of guessing — the same shape as [Skipped], but for a decision that has not been made
+     * yet rather than one that has.
+     */
+    data class NeedsDecision(val displayName: String, val reason: String) : RecoveryExportOutcome
 }
