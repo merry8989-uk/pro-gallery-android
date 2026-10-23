@@ -138,6 +138,8 @@ class MediaStoreDataSource @Inject constructor(
     ): Flow<List<MediaItem>> = flow {
         val effectiveBatch = batchSize.coerceAtLeast(1)
         val batch = ArrayList<MediaItem>(effectiveBatch)
+        // Counted across the whole query, so the single marker below can say how much work it took.
+        var batches = 0
         runCatchingCancellable {
             openCursor(selection = null, args = null, orderBy = MediaQuery.orderBy(SortOrder.DATE_NEWEST))
                 ?.use { cursor ->
@@ -147,22 +149,25 @@ class MediaStoreDataSource @Inject constructor(
                         if (item.mediaType !in kinds) continue
                         batch += item
                         if (batch.size >= effectiveBatch) {
-                            // One line per step, at the trace level. This is what "detailed
-                            // execution" means and why the level exists apart from debug: a
-                            // debug line says something was slow, a trace says which part.
-                            runCatching {
-                                eventLog.log(
-                                    EventName.TRACE_MARKER,
-                                    details = mapOf("step" to "library_batch", "size" to batch.size.toString()),
-                                )
-                            }
                             emit(batch.toList())
                             batch.clear()
+                            batches++
                         }
                     }
                 }
         }
         if (batch.isNotEmpty()) emit(batch.toList())
+
+        // One line per **query**, not per batch. The device's own diagnostics showed 316 trace
+        // markers out of 500 events — 63% of the log was one event, because a marker was written
+        // every time a batch filled. A batch is an implementation detail; the query is the step,
+        // and this is the line that says which part of the work happened.
+        runCatching {
+            eventLog.log(
+                EventName.TRACE_MARKER,
+                details = mapOf("step" to "library_query", "batches" to batches.toString()),
+            )
+        }
     }.flowOn(Dispatchers.IO)
 
     /**

@@ -27,6 +27,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.49.0]
+What a real device's diagnostics said — the first time this project has read its own log.
+
+500 events from the phone, across five sessions. **No crashes, no errors.** Everything below is
+quality rather than breakage, and none of it fails a build — which is why it took a real log to see.
+
+### Fixed
+- **Every screen was logged under two names.** `photos` *and* `Photos`, `audio` *and* `Audio`,
+  `documents` *and* `Documents`, `settings` *and* `Settings`. The navigation host logged the **route**
+  while two screens logged a **display name** of their own. Every count the weekly review is built
+  from was **halved** — the data meant to decide what to improve was itself the thing most in need of
+  it. `ScreenName.of(route)` is now the one place a route becomes a name, with a test that every
+  route has exactly one and that an unknown route records nothing.
+- **`trace_marker` was 316 of 500 events — 63% of the log was one event**, written once per *batch*
+  of rows read. One per **query** now, carrying how many batches it took. A batch is an
+  implementation detail; the query is the step.
+- **The log and the screen disagreed about what was tried.** The update check falls back from
+  `releases.atom` to `api.github.com`, and only the feed's failure was recorded — so the log named
+  one endpoint while the dialog named the other. The failure now names both.
+- **`fixAttempts == LOOP_THRESHOLD` is `>=`.** The device showed five fix requests in one second and
+  no loop event at all. `==` means the event is missed for good the moment the count steps over the
+  threshold, and that has no upside.
+
+### Not explained, and left open
+**Why the loop detector did not fire.** Five attempts in one second, a threshold of three, a counter
+that is incremented on every attempt and never reset — by reading, it should have fired. It did not,
+and I am not going to guess at the cause. The fragility beside it is fixed; the question is written
+down rather than closed.
+
+### Noted, not changed
+`time_to_first_value` for Audio was **3576 ms** on one visit and 423 ms on another. One slow visit is
+not a pattern, and the honest next step is more data rather than a guess. `drop_off` still carries a
+route with its arguments in it, which the screen-name fix does not touch and should.
+
 ## [1.48.3]
 The last two places, and a check that finally asks the right question.
 

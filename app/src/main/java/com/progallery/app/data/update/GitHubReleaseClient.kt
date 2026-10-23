@@ -56,14 +56,19 @@ class GitHubReleaseClient @Inject constructor() {
             }.let { fromApi ->
                 if (fromApi.isSuccess) return@withContext fromApi
 
+
                 // Neither worked. The API's reason is usually the more specific of the two, so
                 // it is the one shown — unless it never got as far as answering.
                 val apiReason = fromApi.exceptionOrNull()?.message
+                val feedReason = fromFeed.exceptionOrNull()?.message
+                // Both endpoints are named. The device's log recorded only `releases.atom` failing
+                // while the dialog on the screen named `api.github.com` — so the log and the screen
+                // disagreed about what the app had even tried, and neither said both were attempted.
+                val tried = "Both endpoints were tried: releases.atom and api.github.com."
                 Result.failure(
                     IllegalArgumentException(
-                        apiReason?.takeIf { it.isNotBlank() }
-                            ?: fromFeed.exceptionOrNull()?.message
-                            ?: "The update check could not be completed.",
+                        (apiReason?.takeIf { it.isNotBlank() } ?: feedReason
+                            ?: "The update check could not be completed.") + "\n\n" + tried,
                     ),
                 )
             }
