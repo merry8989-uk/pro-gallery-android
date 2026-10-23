@@ -5,7 +5,7 @@ Recovery master prompt, the Advanced Settings master prompt, your audit, and the
 UltData feature list used as a reference. Nothing here is invented — each item was
 checked against the current code, not remembered.
 
-**Current release:** v1.47.0 · `versionCode 63` · CI green (unit tests, lint and an emulator
+**Current release:** v1.48.0 · `versionCode 64` · CI green (unit tests, lint and an emulator
 job) · signed with the project key.
 
 **Phases 1, 2A, 2B, 4 and 5 complete. Phase 3 is not** — the honest state is in §5, which is the
@@ -13,6 +13,10 @@ one section of this document that was corrected against the code on 23 October 2
 found it claiming more than the code did.
 
 ---
+
+**New, and the current work: the file manager.** `FILE-MANAGER-PLAN.md` has the parts. The app is
+named **Advanced File Manager** from v1.48.0 and the update path no longer dead-ends; the tree, the
+file operations and the one dispatch point that opens every format are still to build.
 
 ## 1. Where the project actually stands
 
