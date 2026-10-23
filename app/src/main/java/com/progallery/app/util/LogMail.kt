@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
 import java.io.File
+import com.progallery.app.R
 
 /**
  * Hands the log to a mail app, already attached and written up.
@@ -39,11 +40,11 @@ object LogMail {
             // narrow type makes some mail apps drop the attachment silently.
             type = "*/*"
             putExtra(Intent.EXTRA_SUBJECT, buildString {
-                append("ProGallery diagnostics")
+                append(context.getString(R.string.app_name) + " diagnostics")
                 if (!subjectSuffix.isNullOrBlank()) append(" — ").append(subjectSuffix)
                 append(" — ").append(userCode)
             })
-            putExtra(Intent.EXTRA_TEXT, body(userCode, eventCount))
+            putExtra(Intent.EXTRA_TEXT, body(context.getString(R.string.app_name), userCode, eventCount))
             putExtra(Intent.EXTRA_STREAM, attachment)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
@@ -72,8 +73,8 @@ object LogMail {
     }
 
     /** The body: what this is, and what is not in it. */
-    fun body(userCode: String, eventCount: Int): String = buildString {
-        appendLine("ProGallery diagnostics log")
+    fun body(appName: String, userCode: String, eventCount: Int): String = buildString {
+        appendLine("$appName diagnostics log")
         appendLine()
         appendLine("Device code: $userCode")
         appendLine("Events attached: $eventCount")

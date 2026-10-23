@@ -27,6 +27,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.48.2]
+The rename, one more pass — and this time the check looked for the old name.
+
+### Fixed
+- **The diagnostics email** said "ProGallery diagnostics" in its subject and its header. It reads the
+  app name now.
+- **The two update user agents** are renamed. They are identifiers rather than names, so nothing
+  depended on them.
+
+### Deliberately not renamed
+Three **folder names on the device** still say ProGallery:
+
+- `Pictures/ProGallery` — where the photo editor saves
+- the video trimmer's output folder
+- `ProGallery/Restored` — a folder inside the app's own trash
+
+Renaming a folder **orphans what is already in it**. Somebody's edited photos would stay in the old
+folder while new ones went to a new one, and the app would show one and not the other. That is a real
+cost for a cosmetic gain, so it is a decision rather than an oversight — and it is written down here
+so it is not mistaken for one later.
+
+### Why this took three releases
+v1.48.0 changed the launcher name. v1.48.1 found five places the app still said its old name on
+screen. v1.48.2 found the diagnostics text. **Each time the check was a search for a string, and each
+time it found what it was looking for and missed what it was not** — a name in the resource table, a
+name in a sentence, a name in an email subject. The check now searches the compiled app for the **old
+name**, which is the question that actually matters: *is there anywhere left that says the wrong
+thing?*
+
 ## [1.48.1]
 The rename was half done, and the APK check is what caught it.
 

@@ -33,7 +33,7 @@ class UpdateDownloader @Inject constructor(
     private companion object {
         const val CONNECT_TIMEOUT_MS = 15_000
         const val READ_TIMEOUT_MS = 60_000
-        const val USER_AGENT = "ProGallery-UpdateDownload"
+        const val USER_AGENT = "AdvancedFileManager-UpdateDownload"
         const val DIRECTORY = "shared/updates"
     }
 
