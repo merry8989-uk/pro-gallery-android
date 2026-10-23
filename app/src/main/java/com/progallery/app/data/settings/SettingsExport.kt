@@ -1,6 +1,7 @@
 package com.progallery.app.data.settings
 
 import com.progallery.app.data.model.SortOrder
+import com.progallery.app.data.recovery.RecoveryTab
 
 /**
  * Settings export and import.
@@ -69,6 +70,9 @@ object SettingsExport {
         "signatureThumbnails",
         "cacheThumbnails",
         "generateDuringScan",
+        "defaultRecoveryTab",
+        "hapticsEnabled",
+        "compactResultCards",
         "showResolution",
         "recoveryQuickScanEnabled",
         "recoveryThumbnailCacheEnabled",
@@ -137,6 +141,9 @@ object SettingsExport {
         "signatureThumbnails" to settings.signatureThumbnails,
         "cacheThumbnails" to settings.cacheThumbnails,
         "generateDuringScan" to settings.generateDuringScan,
+        "defaultRecoveryTab" to settings.defaultRecoveryTab.name,
+        "hapticsEnabled" to settings.hapticsEnabled,
+        "compactResultCards" to settings.compactResultCards,
         "showResolution" to settings.showResolution,
         "recoveryQuickScanEnabled" to settings.recoveryQuickScanEnabled,
         "recoveryThumbnailCacheEnabled" to settings.recoveryThumbnailCacheEnabled,
@@ -234,6 +241,9 @@ object SettingsExport {
             signatureThumbnails = bool(map, "signatureThumbnails", defaults.signatureThumbnails),
             cacheThumbnails = bool(map, "cacheThumbnails", defaults.cacheThumbnails),
             generateDuringScan = bool(map, "generateDuringScan", defaults.generateDuringScan),
+            defaultRecoveryTab = enum(map, "defaultRecoveryTab", RecoveryTab.entries, defaults.defaultRecoveryTab),
+            hapticsEnabled = bool(map, "hapticsEnabled", defaults.hapticsEnabled),
+            compactResultCards = bool(map, "compactResultCards", defaults.compactResultCards),
             showResolution = bool(map, "showResolution", defaults.showResolution),
             recoveryQuickScanEnabled = bool(map, "recoveryQuickScanEnabled", defaults.recoveryQuickScanEnabled),
             recoveryThumbnailCacheEnabled = bool(map, "recoveryThumbnailCacheEnabled", defaults.recoveryThumbnailCacheEnabled),

@@ -134,8 +134,11 @@ def settings_without_a_reader() -> list[str]:
                 # which is what it did the first time it was tested.
                 if re.match(r"\s*(?:private |internal )?val " + re.escape(name) + r"\s*:", line):
                     continue
-                # in a screen, only a read that drives a decision is behaviour
-                if rel.startswith("ui/") and not DECISION.search(line):
+                # A view model is **logic**: it reads a setting and decides what the screen should
+                # be, so every read there counts. A screen is **rendering**, and only a read that
+                # drives a decision counts — `checked = settings.x` is exactly how a decorative
+                # switch looks, and that is the defect this rule exists for.
+                if rel.startswith("ui/") and not rel.endswith("ViewModel.kt") and not DECISION.search(line):
                     continue
                 found = True
                 break

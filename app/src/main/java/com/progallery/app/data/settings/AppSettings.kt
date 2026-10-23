@@ -2,6 +2,7 @@ package com.progallery.app.data.settings
 
 import com.progallery.app.data.model.MediaType
 import com.progallery.app.data.model.SortOrder
+import com.progallery.app.data.recovery.RecoveryTab
 
 /**
  * How aggressively scanning uses the device.
@@ -284,6 +285,30 @@ data class AppSettings(
      * displayed. Bounded, and it obeys the same per-kind policy and the same pause gate.
      */
     val generateDuringScan: Boolean = false,
+
+    /**
+     * Which result tab the Recovery screen opens on.
+     *
+     * A person who always looks at photos first should not have to say so every time.
+     */
+    val defaultRecoveryTab: RecoveryTab = RecoveryTab.ALL,
+
+    /**
+     * Whether the app taps back.
+     *
+     * **Off by default**, because haptics are the kind of thing that should be asked for rather
+     * than discovered — a phone that buzzes without being asked is a phone people turn things off
+     * on. Nothing here vibrates until this is on.
+     */
+    val hapticsEnabled: Boolean = false,
+
+    /**
+     * A denser result grid: more columns, and no size line under each tile.
+     *
+     * The name stays either way — it is how a file is recognised — but the size and the type are
+     * the first things worth giving up when the point is to see more at once.
+     */
+    val compactResultCards: Boolean = false,
 
     /** Check the copy against the source size before reporting success. */
     val exportVerifyAfterCopy: Boolean = true,
