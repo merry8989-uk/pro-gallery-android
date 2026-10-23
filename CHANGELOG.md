@@ -27,6 +27,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.41.0]
+The three open decisions, dealt with — two of them done, one half of a decision taken.
+
+### 1. The trash purge — done
+`purgeExpired` has existed since the trash did, and it ran from **one** place: the Trash screen's
+`init`. So a library nobody opened never expired, and the promise that a deleted file goes after
+thirty days was kept only for people who went looking for it.
+
+A daily WorkManager job now does it. `KEEP` rather than `UPDATE`, so a purge is not pushed back by
+every app start — one that keeps being rescheduled by a person who opens the app often would never
+run. A day's grace before the first run, so an app opened immediately after install does not spend
+that moment deleting files. And the screen still purges on open, so the list is clean the instant it
+is looked at.
+
+### 2. Part D — the hand-off half, completed
+The capability matrix has named the reason for `.mpg`, `.wmv`, `.swf` and the rest since v1.29.0,
+and the capability screen shows it. But **tapping one of those files was the one path that still
+handed over silently**. It now says why first — *"Windows Media — the ASF container has no parser on
+Android — opening it with another app."* — because being told in advance rather than after the
+attempt is the whole point of that screen.
+
+**The FFmpeg half is not mine to take.** Bundling it means accepting LGPL/GPL obligations and a
+build cost. Handing off is implemented and documented; the other half needs a decision, not a
+default.
+
+### 3. "Usage permission" — implemented, as the reading I believe was meant
+The Access screen used to say *"Logging is off. Turn on 'Anonymised usage data' in Settings →
+Diagnostics"* — a strange thing for the one screen that displays the data to say. It now offers the
+consent **itself**, as a switch with the explanation beside it: counts, timings, device model and
+Android version; never a file name, a path, a search term, or anything from the photos; nothing
+uploaded.
+
+It is the **same** setting, not a second one. The change is recorded **before** it is applied when
+consent is being withdrawn, because after it is applied nothing more can be written — and after,
+when it is being granted, for the same reason in reverse.
+
+**If Android's `PACKAGE_USAGE_STATS` was meant instead, that is a different thing and it has not
+been touched.**
+
+### Fixed on the way
+A regex-shaped patch put the new callback in the middle of a lambda instead of at the end of the
+argument list. The Kotlin checker passed it — it is balanced — and it was caught by reading the
+call site. Repaired by hand.
+
 ## [1.40.0]
 The export workflow: confirm, choose, name, and ask when a name clashes.
 
