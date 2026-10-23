@@ -58,6 +58,12 @@ data class RecoveryUiState(
     val message: String? = null,
     /** Results waiting on an answer, because the duplicate policy is "Ask" and a name clashed. */
     val pendingDecision: List<RecoveryResult> = emptyList(),
+    /** A denser grid, from Settings. */
+    val compactCards: Boolean = false,
+    /** Whether a tap buzzes. Off unless the person asked for it. */
+    val hapticsEnabled: Boolean = false,
+    /** Set the moment a tab is tapped, so the default only ever applies to an untouched screen. */
+    val tabChosenByHand: Boolean = false,
 ) {
     val scanning: Boolean get() = scanState is RecoveryScanState.Scanning
 
@@ -125,6 +131,11 @@ class RecoveryViewModel @Inject constructor(
                         exportEnabled = settings.exportEnabled,
                         exportConfirmBeforeExport = settings.exportConfirmBeforeExport,
                         exportAskForDestination = settings.exportAskForDestination,
+                        // Only while the screen has not been touched: a tab somebody chose on this
+                        // visit must not be replaced by the setting on the next emission.
+                        tab = if (current.tabChosenByHand) current.tab else settings.defaultRecoveryTab,
+                        compactCards = settings.compactResultCards,
+                        hapticsEnabled = settings.hapticsEnabled,
                         // Never leave the screen pointing at a mode that is no longer
                         // offered, or the scan button would do nothing.
                         mode = if (current.mode in allowed) current.mode else allowed.firstOrNull() ?: current.mode,
@@ -204,7 +215,9 @@ class RecoveryViewModel @Inject constructor(
         _uiState.update { it.copy(scanState = RecoveryScanState.Idle, message = "Scan cancelled") }
     }
 
-    fun setTab(tab: RecoveryTab) = _uiState.update { it.copy(tab = tab) }
+    fun setTab(tab: RecoveryTab) = _uiState.update {
+        it.copy(tab = tab, tabChosenByHand = true)
+    }
     fun setSort(sort: RecoverySort) = _uiState.update { it.copy(sort = sort) }
     fun setQuery(query: String) = _uiState.update { it.copy(query = query) }
     fun setViewMode(mode: ViewMode) = _uiState.update { it.copy(viewMode = mode) }

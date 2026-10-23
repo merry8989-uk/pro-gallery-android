@@ -66,6 +66,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.progallery.app.data.usage.UsageDigest
 import com.progallery.app.data.settings.SignatureDepth
 import com.progallery.app.data.settings.ThumbnailQuality
+import com.progallery.app.data.recovery.RecoveryTab
 
 /** One renderable settings row. */
 private sealed interface SettingsRow {
@@ -526,6 +527,44 @@ private fun buildRows(
             section = "File types",
             checked = settings.scanOtherFiles,
             onCheckedChange = { value -> update { it.copy(scanOtherFiles = value) } },
+        ),
+    )
+
+    // ---- Result cards and behaviour -----------------------------------
+    add(
+        SettingsRow.Choice(
+            title = "Open the Recovery results on",
+            subtitle = "Which tab is showing when the screen opens. Tapping a tab during a visit " +
+                "sticks for that visit — this is only the starting point.",
+            section = "Thumbnails & result cards",
+            advanced = true,
+            options = RecoveryTab.entries.map { it.label },
+            selected = settings.defaultRecoveryTab.label,
+            onSelect = { label ->
+                update { it.copy(defaultRecoveryTab = RecoveryTab.entries.first { tab -> tab.label == label }) }
+            },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Compact result cards",
+            subtitle = "More columns in the grid, and the size line goes. The file name stays, " +
+                "because that is how you recognise it.",
+            section = "Thumbnails & result cards",
+            advanced = true,
+            checked = settings.compactResultCards,
+            onCheckedChange = { value -> update { it.copy(compactResultCards = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Vibrate on taps",
+            subtitle = "A short buzz when a result is opened or long-pressed. Off by default: a " +
+                "phone that buzzes without being asked is a phone people turn things off on.",
+            section = "Thumbnails & result cards",
+            advanced = true,
+            checked = settings.hapticsEnabled,
+            onCheckedChange = { value -> update { it.copy(hapticsEnabled = value) } },
         ),
     )
 

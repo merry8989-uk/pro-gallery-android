@@ -84,6 +84,7 @@ import com.progallery.app.data.settings.ExportDuplicatePolicy
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import com.progallery.app.data.eventlog.LogLine
+import com.progallery.app.ui.components.rememberHaptics
 
 /**
  * Quick Scan, Dumpster-style in layout but honest in content.
@@ -119,6 +120,7 @@ fun RecoveryScreen(
     // A scope the composition owns, rather than a lifecycle one reached through an owner: the work
     // here belongs to this screen being on display.
     val scope = rememberCoroutineScope()
+    val haptics = rememberHaptics(state.hapticsEnabled)
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
@@ -509,7 +511,9 @@ private fun CompletedPane(
             )
 
             state.viewMode == ViewMode.GRID -> LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                // More columns when the cards are compact, and the size line goes — the name stays,
+                // because it is how a file is recognised at all.
+                columns = GridCells.Fixed(if (state.compactCards) 5 else 3),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -520,10 +524,16 @@ private fun CompletedPane(
                         result = result,
                         policy = state.thumbnailPolicy,
                         showName = true,
-                        showSize = true,
+                        showSize = !state.compactCards,
                         modifier = Modifier.combinedClickable(
-                            onClick = { viewModel.preview(result) },
-                            onLongClick = { viewModel.toggleSelection(result) },
+                            onClick = {
+                                haptics.tap()
+                                viewModel.preview(result)
+                            },
+                            onLongClick = {
+                                haptics.longPress()
+                                viewModel.toggleSelection(result)
+                            },
                         ),
                     )
                 }

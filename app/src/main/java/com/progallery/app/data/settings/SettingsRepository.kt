@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.map
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.progallery.app.data.recovery.RecoveryTab
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "progallery_settings")
 
@@ -135,6 +136,9 @@ class SettingsRepository @Inject constructor(
         val signatureThumbnails = booleanPreferencesKey("signature_thumbnails")
         val cacheThumbnails = booleanPreferencesKey("cache_thumbnails")
         val generateDuringScan = booleanPreferencesKey("generate_during_scan")
+        val defaultRecoveryTab = stringPreferencesKey("default_recovery_tab")
+        val hapticsEnabled = booleanPreferencesKey("haptics")
+        val compactResultCards = booleanPreferencesKey("compact_cards")
         val showResolution = booleanPreferencesKey("show_resolution")
         val recoveryQuickScanEnabled = booleanPreferencesKey("recovery_quick_scan")
         val recoveryThumbnailCacheEnabled = booleanPreferencesKey("recovery_thumbnail_cache")
@@ -204,6 +208,9 @@ class SettingsRepository @Inject constructor(
             signatureThumbnails = p[Keys.signatureThumbnails] ?: d.signatureThumbnails,
             cacheThumbnails = p[Keys.cacheThumbnails] ?: d.cacheThumbnails,
             generateDuringScan = p[Keys.generateDuringScan] ?: d.generateDuringScan,
+            defaultRecoveryTab = enumOrDefault(p[Keys.defaultRecoveryTab], RecoveryTab.entries, d.defaultRecoveryTab),
+            hapticsEnabled = p[Keys.hapticsEnabled] ?: d.hapticsEnabled,
+            compactResultCards = p[Keys.compactResultCards] ?: d.compactResultCards,
             showResolution = p[Keys.showResolution] ?: d.showResolution,
             recoveryQuickScanEnabled = p[Keys.recoveryQuickScanEnabled] ?: d.recoveryQuickScanEnabled,
             recoveryThumbnailCacheEnabled = p[Keys.recoveryThumbnailCacheEnabled] ?: d.recoveryThumbnailCacheEnabled,
@@ -268,6 +275,9 @@ class SettingsRepository @Inject constructor(
         p[Keys.signatureThumbnails] = s.signatureThumbnails
         p[Keys.cacheThumbnails] = s.cacheThumbnails
         p[Keys.generateDuringScan] = s.generateDuringScan
+        p[Keys.defaultRecoveryTab] = s.defaultRecoveryTab.name
+        p[Keys.hapticsEnabled] = s.hapticsEnabled
+        p[Keys.compactResultCards] = s.compactResultCards
         p[Keys.showResolution] = s.showResolution
         p[Keys.recoveryQuickScanEnabled] = s.recoveryQuickScanEnabled
         p[Keys.recoveryThumbnailCacheEnabled] = s.recoveryThumbnailCacheEnabled
