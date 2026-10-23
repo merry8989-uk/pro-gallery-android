@@ -36,6 +36,7 @@ import com.progallery.app.data.diagnostics.DiagnosticLog
 import com.progallery.app.data.settings.ExportDuplicatePolicy
 import com.progallery.app.data.recovery.ExportDestination
 import com.progallery.app.data.recovery.ExportDestinationStore
+import com.progallery.app.data.scan.ScanPauseGate
 
 data class RecoveryUiState(
     val scanState: RecoveryScanState = RecoveryScanState.Idle,
@@ -93,6 +94,7 @@ class RecoveryViewModel @Inject constructor(
     settingsRepository: SettingsRepository,
     private val diagnosticLog: DiagnosticLog,
     private val destinations: ExportDestinationStore,
+    private val pauseGate: ScanPauseGate,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RecoveryUiState())
@@ -103,6 +105,9 @@ class RecoveryViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private var scanJob: Job? = null
+
+    /** Why the scan is waiting, so the screen can say so instead of looking stuck. */
+    val pauseReason: StateFlow<String?> = pauseGate.reason
 
     /** The folder the last export went to, when there is one. */
     val rememberedDestination: StateFlow<ExportDestination?> = destinations.remembered

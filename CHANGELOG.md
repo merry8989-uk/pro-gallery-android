@@ -27,6 +27,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.45.0]
+Performance: pausing on a low battery and on a warm device — and saying so.
+
+### Added
+- **Pause when the battery is low**, from the platform's own `ACTION_BATTERY_LOW` broadcast.
+- **Pause when the device is warm**, from the thermal status Android 10 publishes. The honest reason
+  is not politeness to the phone: a hot device throttles, so a scan that keeps going runs slower
+  **and** makes it hotter. Below Android 10 there is no signal to read, so nothing is claimed.
+- Both are off by default, and both **wait rather than cancel** — a paused scan resumes where it
+  stopped.
+
+### The reason now reaches the screen, which it never did
+`pauseReason()` has existed since v1.37.0 and **nothing called it**. A scan that waits and does not
+say why is indistinguishable from a scan that has hung, so the promise that the reason would be
+shown was never kept.
+
+It is a `StateFlow` now rather than only a function, and that is not a detail: a scan that is waiting
+**cannot emit anything** — it is suspended inside the gate — so without a flow of its own the screen
+would have no way to say why nothing is happening. The Recovery screen shows it as a banner.
+
+**A note on how this was missed.** The v1.41.0 release verification checked the APK for the string
+and reported it "FOUND". It was — the string was there. **Finding a string is not finding a path**,
+and that is a weaker check than it looked.
+
 ## [1.44.0]
 UI customisation: the default tab, compact cards, and haptics that are off until asked for.
 

@@ -310,6 +310,22 @@ data class AppSettings(
      */
     val compactResultCards: Boolean = false,
 
+    /**
+     * Stop a scan while the battery is low.
+     *
+     * Off by default: the background pause is opt-in too, and a scan somebody started is usually a
+     * scan they want finished. On, it waits rather than cancels — and it says so.
+     */
+    val pauseOnLowBattery: Boolean = false,
+
+    /**
+     * Stop a scan while the device is thermally throttled.
+     *
+     * The honest reason is not politeness to the phone: a hot device throttles, so a scan that keeps
+     * going runs slower *and* makes it hotter, which is the worst of both.
+     */
+    val pauseOnThermalPressure: Boolean = false,
+
     /** Check the copy against the source size before reporting success. */
     val exportVerifyAfterCopy: Boolean = true,
 

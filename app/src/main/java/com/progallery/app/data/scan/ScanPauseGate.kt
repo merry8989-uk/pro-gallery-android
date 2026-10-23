@@ -18,6 +18,14 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import javax.inject.Inject
 import javax.inject.Singleton
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.os.PowerManager
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.combine
 
 /**
  * Whether the app is in front of the person right now.
@@ -58,6 +66,59 @@ class AppForegroundState @Inject constructor() {
 }
 
 /**
+ * Whether the device is under the kind of pressure a scan should back off from.
+ *
+ * Two signals, both from the system rather than inferred: the battery broadcast the platform sends,
+ * and the thermal status it publishes from Android 10. Kept apart from the foreground question
+ * because they answer different things — one is about the person, one about the phone.
+ */
+@Singleton
+class DevicePressureState @Inject constructor(
+    @ApplicationContext private val context: Context,
+) {
+
+    private val _lowBattery = MutableStateFlow(false)
+    val lowBattery: StateFlow<Boolean> = _lowBattery.asStateFlow()
+
+    private val _throttled = MutableStateFlow(false)
+    val throttled: StateFlow<Boolean> = _throttled.asStateFlow()
+
+    fun attach() {
+        runCatching {
+            context.registerReceiver(
+                object : BroadcastReceiver() {
+                    override fun onReceive(receiverContext: Context?, intent: Intent?) {
+                        when (intent?.action) {
+                            Intent.ACTION_BATTERY_LOW -> _lowBattery.value = true
+                            Intent.ACTION_BATTERY_OKAY -> _lowBattery.value = false
+                        }
+                    }
+                },
+                IntentFilter().apply {
+                    addAction(Intent.ACTION_BATTERY_LOW)
+                    addAction(Intent.ACTION_BATTERY_OKAY)
+                },
+            )
+        }
+
+        // Thermal status is Android 10 and up. Below that there is no signal to read, so nothing is
+        // claimed rather than guessed at.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            runCatching {
+                val power = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                power?.addThermalStatusListener(context.mainExecutor) { status ->
+                    // Moderate and above is where the platform starts holding performance back.
+                    _throttled.value = status >= PowerManager.THERMAL_STATUS_MODERATE
+                }
+            }
+        }
+    }
+}
+
+/** Why a scan is waiting, if it is. */
+enum class PauseReason { BACKGROUND, LOW_BATTERY, THERMAL }
+
+/**
  * The point a scan waits at when the person has asked it to.
  *
  * `pauseWhenBackgrounded` and the battery-saver mode both promised to stop work when the app left
@@ -73,6 +134,7 @@ class AppForegroundState @Inject constructor() {
 class ScanPauseGate @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val foreground: AppForegroundState,
+    private val pressure: DevicePressureState,
 ) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -80,6 +142,15 @@ class ScanPauseGate @Inject constructor(
     /** The setting, followed rather than re-read, so a change mid-scan is seen. */
     private val pausesWhenBackgrounded = settingsRepository.settings
         .map { it.effectivePauseWhenBackgrounded }
+        .stateIn(scope, SharingStarted.Eagerly, false)
+
+    /** The two device settings, followed for the same reason. */
+    private val pausesOnLowBattery = settingsRepository.settings
+        .map { it.pauseOnLowBattery }
+        .stateIn(scope, SharingStarted.Eagerly, false)
+
+    private val pausesOnThermal = settingsRepository.settings
+        .map { it.pauseOnThermalPressure }
         .stateIn(scope, SharingStarted.Eagerly, false)
 
     /** The same, for the concurrency the performance mode or the slider asks for. */
@@ -107,16 +178,57 @@ class ScanPauseGate @Inject constructor(
      * flow instead of sleeping.
      */
     suspend fun awaitIfPaused() {
-        if (!pausesWhenBackgrounded.value) return
-        if (foreground.isForeground.value) return
-        foreground.isForeground.filter { it }.first()
+        when (waitingFor()) {
+            null -> return
+            PauseReason.BACKGROUND -> foreground.isForeground.filter { it }.first()
+            PauseReason.LOW_BATTERY -> pressure.lowBattery.filter { !it }.first()
+            PauseReason.THERMAL -> pressure.throttled.filter { !it }.first()
+        }
     }
 
-    /** The reason a scan is waiting, or null when it is not. */
-    fun pauseReason(): String? =
-        if (pausesWhenBackgrounded.value && !foreground.isForeground.value) {
-            "Paused while the app is in the background."
-        } else {
-            null
+    /**
+     * Why a scan is waiting, or null when it is not.
+     *
+     * Ordered rather than arbitrary: the background case is the one the person caused, so it is the
+     * one worth naming first when more than one is true.
+     */
+    fun waitingFor(): PauseReason? = when {
+        pausesWhenBackgrounded.value && !foreground.isForeground.value -> PauseReason.BACKGROUND
+        pausesOnLowBattery.value && pressure.lowBattery.value -> PauseReason.LOW_BATTERY
+        pausesOnThermal.value && pressure.throttled.value -> PauseReason.THERMAL
+        else -> null
+    }
+
+    /**
+     * The reason a scan is waiting, as a flow.
+     *
+     * A **flow** rather than only a function, because a scan that is waiting cannot emit anything —
+     * it is suspended inside this gate. Without a flow of its own the screen would have no way to
+     * say why nothing is happening, and `pauseReason()` would be a function nobody calls, which is
+     * what it had been.
+     */
+    // Three pairs and then a combine of three, because Kotlin's `combine` stops at five flows and
+    // six silently resolves to the vararg overload — which hands the lambda an Array and fails to
+    // infer anything.
+    val reason: StateFlow<String?> = combine(
+        combine(pausesWhenBackgrounded, foreground.isForeground) { on, fg -> on to fg },
+        combine(pausesOnLowBattery, pressure.lowBattery) { on, low -> on to low },
+        combine(pausesOnThermal, pressure.throttled) { on, hot -> on to hot },
+    ) { (backgroundOn, isForeground), (batteryOn, isLow), (thermalOn, isThrottled) ->
+        when {
+            backgroundOn && !isForeground -> "Paused while the app is in the background."
+            batteryOn && isLow -> "Paused while the battery is low."
+            thermalOn && isThrottled ->
+                "Paused while the device is warm — a scan that keeps going runs slower and makes it warmer."
+            else -> null
         }
+    }.stateIn(scope, SharingStarted.Eagerly, null)
+
+    /** The reason a scan is waiting, in words, or null when it is not. */
+    fun pauseReason(): String? = when (waitingFor()) {
+        null -> null
+        PauseReason.BACKGROUND -> "Paused while the app is in the background."
+        PauseReason.LOW_BATTERY -> "Paused while the battery is low."
+        PauseReason.THERMAL -> "Paused while the device is warm, because a scan that keeps going runs slower and makes it warmer."
+    }
 }

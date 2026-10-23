@@ -5,7 +5,7 @@ Recovery master prompt, the Advanced Settings master prompt, your audit, and the
 UltData feature list used as a reference. Nothing here is invented — each item was
 checked against the current code, not remembered.
 
-**Current release:** v1.44.0 · `versionCode 60` · CI green (unit tests, lint and an emulator
+**Current release:** v1.45.0 · `versionCode 61` · CI green (unit tests, lint and an emulator
 job) · signed with the project key.
 
 **Phases 1, 2A, 2B, 4 and 5 complete. Phase 3 is not** — the honest state is in §5, which is the
@@ -120,7 +120,11 @@ Of the 59 items in the Advanced Settings master prompt's settings list: **~25 do
 3 present under another name, 4 partial.** Every verdict below was checked at file and symbol, not
 remembered.
 
-**Done since the audit**: **UI customisation** (v1.44.0) — a default results tab that only applies
+**Done since the audit**: **performance** (v1.45.0) — pausing on low battery and on thermal
+pressure, and **the reason now reaches the screen**, which it never did: `pauseReason()` existed
+since v1.37.0 and nothing called it.
+
+**Also done since the audit**: **UI customisation** (v1.44.0) — a default results tab that only applies
 to an untouched screen, compact result cards, and haptics that are **off until asked for**. There was
 no haptic feedback anywhere in the app before this.
 
@@ -158,8 +162,7 @@ the background pause** (all four were stored, shown and ignored).
 
 **Missing**:
 
-- **Performance** — pause on low battery or thermal pressure (only the background pause exists, and
-  only since v1.37.0) · incremental rescan.
+- **Performance** — incremental rescan. *(Battery and thermal pauses shipped in v1.45.0.)*
 - **Privacy** — "clear temporary scan data"; only the log and the thumbnail cache can be cleared.
 - **Recovery cards** — show-source and show-confidence toggles; both are printed unconditionally.
 

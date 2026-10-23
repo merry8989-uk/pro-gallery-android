@@ -1010,6 +1010,29 @@ private fun buildRows(
     )
     add(
         SettingsRow.Switch(
+            title = "Pause when the battery is low",
+            subtitle = "Waits rather than cancels, and says why on the screen. Off by default: a " +
+                "scan somebody started is usually a scan they want finished.",
+            section = "Performance",
+            advanced = true,
+            checked = settings.pauseOnLowBattery,
+            onCheckedChange = { value -> update { it.copy(pauseOnLowBattery = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Pause when the device is warm",
+            subtitle = "From Android 10, where the system publishes a thermal status. A hot device " +
+                "throttles, so a scan that keeps going runs slower and makes it hotter — the worst " +
+                "of both. Below Android 10 there is no signal to read, so nothing is claimed.",
+            section = "Performance",
+            advanced = true,
+            checked = settings.pauseOnThermalPressure,
+            onCheckedChange = { value -> update { it.copy(pauseOnThermalPressure = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
             title = "Pause scanning in the background",
             section = "Performance",
             advanced = true,
