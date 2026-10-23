@@ -34,6 +34,15 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      # Both checkers existed and neither ran here, so they only ran when someone remembered.
+      # They are pure Python and take seconds; the Kotlin one has caught real bugs (a missing
+      # import, two companion objects, an event declared with no call site) and the docs one
+      # catches a claim that has stopped being true.
+      - name: Check the code and the docs
+        run: |
+          python3 tools/check_kotlin.py
+          python3 tools/check_docs.py
+
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 

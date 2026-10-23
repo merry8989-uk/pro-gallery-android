@@ -109,7 +109,7 @@ instead of staying silent — that will tell us which it is.
 | HEIC, HEIF | **Renders on Android 9+** |
 | AVIF | **Renders on Android 12+** |
 | Animated GIF, animated WebP | **Renders and animates on Android 9+**; below that, GIF only |
-| SVG, SVGZ | **No decoder.** Needs a library (planned, Part 5) |
+| SVG, SVGZ | **Readable** — a decoder is bundled (Part F, v1.33.0) |
 | TIFF, PSD, XCF, JXL, JPEG-2000, ICO, TGA, PCX, PPM family | **No decoder on Android** |
 | EPS, AI, INDD, CDR, Sketch | **No decoder**, and no practical one |
 
@@ -118,7 +118,7 @@ instead of staying silent — that will tell us which it is.
 | Format | Verdict |
 |---|---|
 | PDF | **Built-in reader** (the platform's own renderer) |
-| Plain text, JSON, XML, CSV, logs | **Readable** — a reader for these is planned (Part 7) and is easy |
+| Plain text, JSON, XML, CSV, logs | **Readable** — a reader for these is built in (Part G, v1.19.0) |
 | DOCX, XLSX, ODT, ODS, EPUB | **Readable** — a reader for these is built in (Part G, v1.32.0) |
 | PPTX | **Readable** — the same container as Word, read in the deck's own order (v1.33.0) |
 | PPT (the old binary format) | **No reader.** A different container entirely; hand off |
@@ -132,7 +132,7 @@ instead of staying silent — that will tell us which it is.
 The four bugs above. Nothing here is a new feature; it is the app no longer lying about
 what it can do.
 
-### Part B — One dynamic player for audio and video ⬜ **in progress, v1.28.0**
+### Part B — One dynamic player for audio and video ✅ **done, v1.34.0**
 
 **What the survey found** (four players, 2014 lines, each building its own `ExoPlayer`):
 
@@ -178,7 +178,7 @@ Three real gaps, and none of them is cosmetic:
 no-op, and a setting that does nothing is the kind of thing this app does not ship. It belongs
 with Part D, if Part D is ever chosen.
 
-### Part C — A capability screen ⬜ **in progress, v1.28.0**
+### Part C — A capability screen ✅ **done, v1.29.0**
 
 The matrix above, in the app, **generated from the same pure tables the player uses** — so it
 cannot drift from what the app actually does.
@@ -212,7 +212,7 @@ is the containers Android has no parser for at all.
 I will not pretend option 2 is free. Part B makes option 1 work well; option 2 is a
 separate decision.
 
-### Part E — WhatsApp and `Android/media` visibility ⬜ **likely the real cause**
+### Part E — WhatsApp and `Android/media` visibility ✅ **done, v1.26.0** (and v1.23.0 for the report)
 
 WhatsApp media lives under `Android/media/com.whatsapp/WhatsApp/Media/…`. Since Android
 11, **MediaStore does not expose those files to other apps**. No decoder work will make
@@ -225,7 +225,7 @@ all-files access — and an Android-folders screen. What is missing is folding t
 **into the main gallery** with thumbnails, so a WhatsApp photo appears next to a camera
 photo instead of in a separate list. That is this part.
 
-### Part F — Dynamic image reader ⬜
+### Part F — Dynamic image reader ✅ **done, v1.33.0** (SVG decoder and the sticker viewer)
 
 - an **SVG** decoder (a small library), so `.svg` renders instead of "no decoder";
 - a **sticker viewer**: transparent background, looping, for animated WebP and GIF;
@@ -238,15 +238,14 @@ photo instead of in a separate list. That is this part.
 Remaining in this part: **nothing** — Word, Excel, OpenDocument, ePub and PowerPoint are all read,
 and the old binary `.ppt` is the only one handed off, on purpose. Word, Excel, OpenDocument and ePub are read now — without a
 library, because they are zip containers with XML inside and the reader is a bounded unzip plus a
-walk over a tokeniser the app owns. A presentation is a different shape of document and is still
-handed off rather than half-supported.
+walk over a tokeniser the app owns. **A presentation is read too, since v1.33.0** — this was written when it was not, and the reader turned out to be the same container with the slides ordered by `presentation.xml` rather than by file name. The old binary `.ppt` is still handed off: it is a different format, not a different container.
 
-### Part G (original) — Document readers ⬜
+### Part G (original) — Document readers — the first list, superseded by the Part G above
 
 - **text, JSON, XML, CSV, logs** — a real reader with wrapping, search and monospace
   rendering. Cheap and genuinely useful; the Documents screen is full of `.json` today.
 - **PDF** — already done.
-- **DOCX/XLSX/PPTX/EPUB** — hand off, unless a library is added.
+- **DOCX/XLSX/EPUB** — hand off, unless a library is added. ~~PPTX~~ **is read** since v1.33.0: it is the same container as Word, so the reader already had the hard part.
 
 ---
 
