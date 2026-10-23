@@ -18,6 +18,18 @@ data class ThumbnailPolicy(
     val videoThumbnails: Boolean = true,
     val audioArtwork: Boolean = true,
     val documentPreviews: Boolean = true,
+    /** Whether a file identified only from its bytes may show a real preview. */
+    val signatureThumbnails: Boolean = true,
+    /** The longest edge a decoded preview may have. */
+    val maxDimension: Int = 512,
+    /**
+     * Whether a decoded preview is kept in the caches.
+     *
+     * Off is applied **per request** rather than by rebuilding the loader: Coil's loader is a
+     * singleton built at startup, so a setting that only took effect after a restart would be a
+     * switch that appears not to work. `CachePolicy.DISABLED` is immediate.
+     */
+    val cache: Boolean = true,
 ) {
 
     /**
@@ -27,8 +39,11 @@ data class ThumbnailPolicy(
      * otherwise the tile would be promised a picture and left blank. See
      * [ImageDecodability] for which formats those are.
      */
-    fun allows(item: MediaItem): Boolean = when {
+    fun allows(item: MediaItem, identifiedBySignature: Boolean = false): Boolean = when {
         !generateThumbnails -> false
+        // First, because a file identified from its bytes has a kind the bytes decided — so the
+        // branches below would answer for it using an extension nobody should trust.
+        identifiedBySignature -> signatureThumbnails
         item.isImage -> ImageDecodability.canRender(item.extension)
         item.isVideo -> videoThumbnails
         item.isAudio -> audioArtwork
@@ -46,6 +61,9 @@ data class ThumbnailPolicy(
             videoThumbnails = settings.videoThumbnails,
             audioArtwork = settings.audioArtwork,
             documentPreviews = settings.documentPreviews,
+            signatureThumbnails = settings.signatureThumbnails,
+            maxDimension = settings.effectiveThumbnailDimension,
+            cache = settings.cacheThumbnails,
         )
     }
 }

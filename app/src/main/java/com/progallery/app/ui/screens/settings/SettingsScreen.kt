@@ -65,6 +65,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.progallery.app.data.usage.UsageDigest
 import com.progallery.app.data.settings.SignatureDepth
+import com.progallery.app.data.settings.ThumbnailQuality
 
 /** One renderable settings row. */
 private sealed interface SettingsRow {
@@ -529,6 +530,61 @@ private fun buildRows(
     )
 
     // ---- Thumbnails ---------------------------------------------------
+    add(
+        SettingsRow.Choice(
+            title = "Preview quality",
+            subtitle = settings.thumbnailQuality.dimension?.let {
+                "Decodes previews at most $it px on the long edge. Touching the size below moves " +
+                    "this to Custom."
+            } ?: "The size below is used as it is.",
+            section = "Thumbnails & result cards",
+            advanced = true,
+            options = ThumbnailQuality.entries.map { it.label },
+            selected = settings.thumbnailQuality.label,
+            onSelect = { label ->
+                val quality = ThumbnailQuality.entries.first { it.label == label }
+                update { current ->
+                    quality.dimension?.let {
+                        current.copy(thumbnailQuality = quality, thumbnailMaxDimension = it)
+                    } ?: current.copy(thumbnailQuality = quality)
+                }
+            },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Preview files identified only by their bytes",
+            subtitle = "Files with no usable name or index entry, whose kind the app worked out " +
+                "from their contents. Decoding one is exactly as safe as any other picture; they " +
+                "used to fall back to an icon because the rule had no branch for them.",
+            section = "Thumbnails & result cards",
+            advanced = true,
+            checked = settings.signatureThumbnails,
+            onCheckedChange = { value -> update { it.copy(signatureThumbnails = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Keep decoded previews cached",
+            subtitle = "Off decodes again every time a tile scrolls back into view — a trade of " +
+                "speed for storage. \"Clear thumbnail cache\" below removes what is already there.",
+            section = "Thumbnails & result cards",
+            advanced = true,
+            checked = settings.cacheThumbnails,
+            onCheckedChange = { value -> update { it.copy(cacheThumbnails = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Build previews during a scan",
+            subtitle = "Decodes previews for what a scan finds instead of waiting until a tile is " +
+                "shown. Off by default, because it makes a scan longer to save time later.",
+            section = "Thumbnails & result cards",
+            advanced = true,
+            checked = settings.generateDuringScan,
+            onCheckedChange = { value -> update { it.copy(generateDuringScan = value) } },
+        ),
+    )
     add(
         SettingsRow.Switch(
             title = "Generate thumbnails",

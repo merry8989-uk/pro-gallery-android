@@ -26,6 +26,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import com.progallery.app.data.scan.ScanPauseGate
 import com.progallery.app.data.detection.MediaInspector
+import coil.imageLoader
+import com.progallery.app.data.settings.ThumbnailPolicy
 
 /**
  * Quick Scan: finds media this app can actually reach and says where each piece
@@ -337,6 +339,32 @@ class RecoveryScanner @Inject constructor(
             }
         } else {
             results
+        }
+
+        // Warm the previews, when asked. Bounded by the same policy that governs display, so a
+        // format the person switched off is not decoded here either — and it waits at the same
+        // pause gate, because a scan that ignores the battery setting while pre-warming would be
+        // worse than one that never warmed anything.
+        if (settings.generateDuringScan) {
+            val policy = ThumbnailPolicy.from(settings)
+            inspected.forEach { result ->
+                pauseGate.awaitIfPaused()
+                val bySignature = result.source == RecoverySource.SIGNATURE
+                if (policy.allows(result.item, bySignature)) {
+                    runCatching {
+                        context.imageLoader.enqueue(
+                            coil.request.ImageRequest.Builder(context)
+                                .data(result.item.uri)
+                                .size(policy.maxDimension)
+                                .memoryCachePolicy(
+                                    if (policy.cache) coil.request.CachePolicy.ENABLED
+                                    else coil.request.CachePolicy.DISABLED,
+                                )
+                                .build(),
+                        )
+                    }
+                }
+            }
         }
 
         emit(

@@ -73,6 +73,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.ImageBitmap
 import com.progallery.app.data.settings.ThumbnailPolicy
 import com.progallery.app.data.model.ImageDecodability
+import coil.request.CachePolicy
 
 /**
  * A single grid thumbnail.
@@ -158,6 +159,11 @@ fun MediaThumbnail(
                 val request = ImageRequest.Builder(context)
                     .data(item.uri)
                     .apply { if (item.isVideo) videoFrameMillis(1000) }
+                    // The same quality and caching the recovery grid uses: one setting, honoured
+                    // wherever a preview is drawn rather than only where it was first wired.
+                    .size(policy.maxDimension)
+                    .memoryCachePolicy(if (policy.cache) CachePolicy.ENABLED else CachePolicy.DISABLED)
+                    .diskCachePolicy(if (policy.cache) CachePolicy.ENABLED else CachePolicy.DISABLED)
                     .crossfade(true)
                     .build()
                 AsyncImage(

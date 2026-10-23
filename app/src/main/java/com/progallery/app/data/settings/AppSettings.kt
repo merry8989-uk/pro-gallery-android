@@ -71,6 +71,19 @@ enum class ExportDuplicatePolicy(val label: String) {
  *
  * A preset over a byte count, not a second setting: the scanner reads [AppSettings.effectiveSignatureBytes].
  */
+/**
+ * How large a decoded preview may be.
+ *
+ * A preset over a pixel count, not a second setting: the decoder reads
+ * [AppSettings.effectiveThumbnailDimension].
+ */
+enum class ThumbnailQuality(val label: String, val dimension: Int?) {
+    LOW("Low", 256),
+    BALANCED("Balanced", 512),
+    HIGH("High", 1024),
+    CUSTOM("Custom", null),
+}
+
 enum class SignatureDepth(val label: String, val bytes: Int?) {
     SAFE("Safe", 512),
     BALANCED("Balanced", 4_096),
@@ -237,6 +250,41 @@ data class AppSettings(
     /** Read the capture date and camera from a picture's EXIF. Never its location. */
     val extractExif: Boolean = true,
 
+    /**
+     * How large a decoded preview may be, as a preset over [thumbnailMaxDimension].
+     *
+     * The number is what the decoder uses; this is what a person chooses. Same shape as the
+     * performance mode and the signature depth, and for the same reason.
+     */
+    val thumbnailQuality: ThumbnailQuality = ThumbnailQuality.BALANCED,
+
+    /** The longest edge of a decoded preview, when the quality is Custom. */
+    val thumbnailMaxDimension: Int = 512,
+
+    /**
+     * Whether a file identified **only from its bytes** may show a real preview.
+     *
+     * Those files have no extension to trust and no system index entry, so their tiles fell back to
+     * an icon even when the bytes said they were a picture. Decoding one is exactly as safe as
+     * decoding any other image; the only reason it was not done is that the policy had no branch
+     * for it.
+     */
+    val signatureThumbnails: Boolean = true,
+
+    /**
+     * Whether decoded previews are kept in the memory and disk caches.
+     *
+     * Off means decoding again every time a tile scrolls back into view — a real trade of speed for
+     * storage, which is why it is a choice rather than a fixed behaviour.
+     */
+    val cacheThumbnails: Boolean = true,
+
+    /**
+     * Whether a scan decodes previews for what it finds, instead of leaving them until a tile is
+     * displayed. Bounded, and it obeys the same per-kind policy and the same pause gate.
+     */
+    val generateDuringScan: Boolean = false,
+
     /** Check the copy against the source size before reporting success. */
     val exportVerifyAfterCopy: Boolean = true,
 
@@ -350,6 +398,10 @@ data class AppSettings(
      * shown, and ignored — so every consumer reads these instead.
      */
 
+    /** How large a preview is actually decoded, after the quality has had its say. */
+    val effectiveThumbnailDimension: Int
+        get() = thumbnailQuality.dimension ?: thumbnailMaxDimension
+
     /** How many bytes identification actually reads, after the depth has had its say. */
     val effectiveSignatureBytes: Int
         get() = signatureDepth.bytes ?: signatureReadBytes
@@ -417,6 +469,7 @@ data class AppSettings(
             scanBatchSize = scanBatchSize.coerceIn(100, 5_000),
             exportMaxConcurrentJobs = exportMaxConcurrentJobs.coerceIn(1, 8),
             exportHistoryRetentionDays = exportHistoryRetentionDays.coerceIn(1, 3_650),
+            thumbnailMaxDimension = thumbnailMaxDimension.coerceIn(64, 4_096),
             autoClearLogsAfterDays = autoClearLogsAfterDays.coerceIn(1, 365),
             // Experimental and root-related features stay off unless explicitly
             // enabled by the user; a sanitized copy never turns them on.

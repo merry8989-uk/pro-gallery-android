@@ -27,6 +27,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.43.0]
+Thumbnails: quality, size, the files the rule had no branch for, caching, and building them during a scan.
+
+### Added
+- **Preview quality** as Low / Balanced / High / Custom — a preset over the pixel size, the same
+  shape as the performance mode and the signature depth, because *"Balanced"* is a decision a person
+  can make and *"512"* is not.
+- **A branch for files identified only from their bytes.** `ThumbnailPolicy.allows` answered for
+  those using an extension nobody should trust, so their tiles fell back to an icon even when the
+  bytes said they were pictures. The signature check now comes first, and the recovery grid says
+  which results those are because the engine already records `RecoverySource.SIGNATURE`.
+- **Caching, applied per request.** Coil's loader is a singleton built at startup, so a setting that
+  only took effect after a restart would look like a switch that does nothing. `CachePolicy.DISABLED`
+  is immediate — and both grids honour it, not only the one that was wired first.
+- **Building previews during a scan**, bounded by the same policy that governs display and waiting at
+  the same pause gate. A scan that ignored the battery setting while pre-warming would be worse than
+  one that warmed nothing.
+
+### The checker caught the half-done part
+`tools/check_docs.py` **failed the build** because `generateDuringScan` was stored, exported and
+shown while nothing read it — which is the exact defect v1.37.0 removed five of. The pre-warm was
+the missing reader, and it exists now.
+
 ## [1.42.0]
 The detection block: what is provably wrong with a file, and what it actually is.
 
