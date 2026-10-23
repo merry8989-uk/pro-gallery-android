@@ -119,6 +119,10 @@ class SettingsRepository @Inject constructor(
         val maxRecursionDepth = intPreferencesKey("max_recursion_depth")
         val maxScanResults = intPreferencesKey("max_scan_results")
         val signatureReadBytes = intPreferencesKey("signature_read_bytes")
+        val signatureDepth = stringPreferencesKey("signature_depth")
+        val detectCorruptMedia = booleanPreferencesKey("detect_corrupt")
+        val detectWrongExtensions = booleanPreferencesKey("detect_wrong_ext")
+        val extractExif = booleanPreferencesKey("extract_exif")
         val minFileSize = longPreferencesKey("min_file_size_bytes")
         val maxFileSize = longPreferencesKey("max_file_size_bytes")
         val thumbnailCacheLimit = intPreferencesKey("thumbnail_cache_limit_mb")
@@ -179,6 +183,10 @@ class SettingsRepository @Inject constructor(
             maxRecursionDepth = p[Keys.maxRecursionDepth] ?: d.maxRecursionDepth,
             maxScanResults = p[Keys.maxScanResults] ?: d.maxScanResults,
             signatureReadBytes = p[Keys.signatureReadBytes] ?: d.signatureReadBytes,
+            signatureDepth = enumOrDefault(p[Keys.signatureDepth], SignatureDepth.entries, d.signatureDepth),
+            detectCorruptMedia = p[Keys.detectCorruptMedia] ?: d.detectCorruptMedia,
+            detectWrongExtensions = p[Keys.detectWrongExtensions] ?: d.detectWrongExtensions,
+            extractExif = p[Keys.extractExif] ?: d.extractExif,
             minFileSizeBytes = p[Keys.minFileSize] ?: d.minFileSizeBytes,
             maxFileSizeBytes = p[Keys.maxFileSize] ?: d.maxFileSizeBytes,
             thumbnailCacheLimitMb = p[Keys.thumbnailCacheLimit] ?: d.thumbnailCacheLimitMb,
@@ -234,6 +242,10 @@ class SettingsRepository @Inject constructor(
         p[Keys.maxRecursionDepth] = s.maxRecursionDepth
         p[Keys.maxScanResults] = s.maxScanResults
         p[Keys.signatureReadBytes] = s.signatureReadBytes
+        p[Keys.signatureDepth] = s.signatureDepth.name
+        p[Keys.detectCorruptMedia] = s.detectCorruptMedia
+        p[Keys.detectWrongExtensions] = s.detectWrongExtensions
+        p[Keys.extractExif] = s.extractExif
         p[Keys.minFileSize] = s.minFileSizeBytes
         p[Keys.maxFileSize] = s.maxFileSizeBytes
         p[Keys.thumbnailCacheLimit] = s.thumbnailCacheLimitMb

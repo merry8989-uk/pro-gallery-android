@@ -232,7 +232,7 @@ class DeepScanRepository @Inject constructor(
                         name = name,
                         declaredMime = child.type,
                         readSignature = settings.signatureDetectionEnabled,
-                        maxSignatureBytes = settings.signatureReadBytes,
+                        maxSignatureBytes = settings.effectiveSignatureBytes,
                         openStream = {
                             runCatchingCancellable {
                                 context.contentResolver.openInputStream(uri)

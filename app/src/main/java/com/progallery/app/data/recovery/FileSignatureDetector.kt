@@ -46,7 +46,14 @@ object FileSignatureDetector {
      * NoSuchMethodError, which silently disabled signature detection there. Lint
      * caught it. This loop behaves the same on every supported version.
      */
-    private fun readHeader(stream: InputStream, maxBytes: Int): ByteArray {
+    /**
+     * Reads at most [maxBytes] from the start of a stream.
+     *
+     * `internal` rather than private: the integrity check needs the same bytes to tell a whole file
+     * from a truncated one, and a second reader for the same job would be a second thing to get
+     * wrong. Still bounded, still the same buffer.
+     */
+    internal fun readHeader(stream: InputStream, maxBytes: Int): ByteArray {
         val buffer = ByteArray(maxBytes)
         var total = 0
         while (total < maxBytes) {

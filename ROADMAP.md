@@ -5,7 +5,7 @@ Recovery master prompt, the Advanced Settings master prompt, your audit, and the
 UltData feature list used as a reference. Nothing here is invented — each item was
 checked against the current code, not remembered.
 
-**Current release:** v1.41.0 · `versionCode 57` · CI green (unit tests, lint and an emulator
+**Current release:** v1.42.0 · `versionCode 58` · CI green (unit tests, lint and an emulator
 job) · signed with the project key.
 
 **Phases 1, 2A, 2B, 4 and 5 complete. Phase 3 is not** — the honest state is in §5, which is the
@@ -120,7 +120,12 @@ Of the 59 items in the Advanced Settings master prompt's settings list: **~25 do
 3 present under another name, 4 partial.** Every verdict below was checked at file and symbol, not
 remembered.
 
-**Done since the audit**: **the export workflow** (v1.40.0) — confirm before exporting, ask for the
+**Done since the audit**: **the detection block** (v1.42.0) — truncated and empty files, names that
+disagree with their contents, the capture date and camera (never the location), and signature depth
+as Safe/Balanced/Extended/Custom. It flags only what the bytes can prove: a format with no end
+marker is never called truncated, because a complete one and a short one cannot be told apart.
+
+**Also done since the audit**: **the export workflow** (v1.40.0) — confirm before exporting, ask for the
 folder or reuse the last one, keep the original name or say where the file came from, the history
 retention that was a hard-coded 90 days, and **"Ask me each time"** as a duplicate-name policy. Two
 parts of that item are deliberately **not** done and said so rather than faked: preserving original
@@ -145,8 +150,6 @@ the background pause** (all four were stored, shown and ignored).
 
 **Missing**:
 
-- **Detection** — corrupt-media detection · detecting files whose extension is wrong · EXIF
-  extraction · signature scan depth as Safe/Balanced/Extended (only a byte-count slider exists).
 - **Thumbnails** — quality (Low/Balanced/High) · a maximum dimension · thumbnails for
   signature-detected files · caching generated thumbnails · generating them during a scan.
 - **Performance** — pause on low battery or thermal pressure (only the background pause exists, and
