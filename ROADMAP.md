@@ -5,7 +5,7 @@ Recovery master prompt, the Advanced Settings master prompt, your audit, and the
 UltData feature list used as a reference. Nothing here is invented — each item was
 checked against the current code, not remembered.
 
-**Current release:** v1.42.0 · `versionCode 58` · CI green (unit tests, lint and an emulator
+**Current release:** v1.43.0 · `versionCode 59` · CI green (unit tests, lint and an emulator
 job) · signed with the project key.
 
 **Phases 1, 2A, 2B, 4 and 5 complete. Phase 3 is not** — the honest state is in §5, which is the
@@ -120,7 +120,11 @@ Of the 59 items in the Advanced Settings master prompt's settings list: **~25 do
 3 present under another name, 4 partial.** Every verdict below was checked at file and symbol, not
 remembered.
 
-**Done since the audit**: **the detection block** (v1.42.0) — truncated and empty files, names that
+**Done since the audit**: **the thumbnails** (v1.43.0) — preview quality as a preset over the pixel
+size, a branch in the policy for files identified only from their bytes, caching applied per
+request, and building previews during a scan.
+
+**Also done since the audit**: **the detection block** (v1.42.0) — truncated and empty files, names that
 disagree with their contents, the capture date and camera (never the location), and signature depth
 as Safe/Balanced/Extended/Custom. It flags only what the bytes can prove: a format with no end
 marker is never called truncated, because a complete one and a short one cannot be told apart.
@@ -150,8 +154,6 @@ the background pause** (all four were stored, shown and ignored).
 
 **Missing**:
 
-- **Thumbnails** — quality (Low/Balanced/High) · a maximum dimension · thumbnails for
-  signature-detected files · caching generated thumbnails · generating them during a scan.
 - **Performance** — pause on low battery or thermal pressure (only the background pause exists, and
   only since v1.37.0) · incremental rescan.
 - **Privacy** — "clear temporary scan data"; only the log and the thumbnail cache can be cleared.
