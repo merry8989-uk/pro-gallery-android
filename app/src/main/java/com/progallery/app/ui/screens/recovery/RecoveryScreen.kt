@@ -676,12 +676,16 @@ private fun PreviewDialog(
                     result = result,
                     modifier = Modifier.size(160.dp),
                 )
-                Text("Source: ${result.source.label}", style = MaterialTheme.typography.bodySmall)
+                if (state.showSource) {
+                    Text("Source: ${result.source.label}", style = MaterialTheme.typography.bodySmall)
+                }
                 Text("Found in: ${result.originLabel}", style = MaterialTheme.typography.bodySmall)
-                Text(
-                    "Confidence: ${result.confidence.label} — ${result.evidence}",
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                if (state.showConfidence) {
+                    Text(
+                        "Confidence: ${result.confidence.label} — ${result.evidence}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 Text("Status: ${result.status.label}", style = MaterialTheme.typography.bodySmall)
 
                 // What is provably wrong with it, and what proved it. Null means the check was

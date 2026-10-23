@@ -33,6 +33,7 @@ import com.progallery.app.data.update.UpdateDownloader
 import com.progallery.app.data.update.UpdateInstaller
 import com.progallery.app.data.usage.UsageDigest
 import com.progallery.app.data.usage.UsageStore
+import com.progallery.app.data.index.IndexedMediaRepository
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -45,6 +46,7 @@ class SettingsViewModel @Inject constructor(
     private val updateDownloader: UpdateDownloader,
     private val updateInstaller: UpdateInstaller,
     private val usageStore: UsageStore,
+    private val indexedMedia: IndexedMediaRepository,
 ) : ViewModel() {
 
     private val _cacheSizeBytes = MutableStateFlow(0L)
@@ -70,6 +72,44 @@ class SettingsViewModel @Inject constructor(
 
     fun consumeCacheMessage() {
         _cacheMessage.value = null
+    }
+
+    /**
+     * Removes what the app's own scanning left behind.
+     *
+     * Deliberately narrow, and the message says what it did **and what it did not touch** — a
+     * "clear data" button that leaves a person guessing whether their files are still there is a
+     * button they are right not to press. It removes the app's private index, the decoded-preview
+     * caches and any half-written export left by a failure. It does **not** touch the trash, the
+     * favourites, the hidden list, the albums, the settings, or a single one of the user's files.
+     */
+    fun clearTemporaryScanData() {
+        viewModelScope.launch {
+            val freed = runCatching { thumbnailCache.clear() }.getOrDefault(0L)
+            runCatching { indexedMedia.clear() }
+            val partials = runCatching { deletePartialExports() }.getOrDefault(0)
+            _cacheSizeBytes.value = runCatching { thumbnailCache.sizeBytes() }.getOrDefault(0L)
+            _cacheMessage.value = buildString {
+                append("Cleared the app's own index and freed ${MediaFormatUtils.formatBytes(freed)} ")
+                append("of previews")
+                if (partials > 0) append(", plus $partials half-written export file(s)")
+                append(". Your files, the trash, favourites and albums were not touched.")
+            }
+        }
+    }
+
+    /**
+     * Removes the `*.partial-*` files a failed export can leave.
+     *
+     * They are named for what they are, so finding them is a name match rather than a guess — and
+     * they only ever exist inside the app's own cache, never in a folder the person chose.
+     */
+    private fun deletePartialExports(): Int {
+        val dir = java.io.File(context.cacheDir, "image_cache")
+        if (!dir.isDirectory) return 0
+        return dir.listFiles()?.count { file ->
+            file.name.contains(".partial-") && file.delete()
+        } ?: 0
     }
 
     /**

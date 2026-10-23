@@ -326,6 +326,17 @@ data class AppSettings(
      */
     val pauseOnThermalPressure: Boolean = false,
 
+    /**
+     * Whether a result card says where the file came from.
+     *
+     * On by default — a recovered file that does not say how it was found is asking to be trusted
+     * blindly — but a person who has read it once may not want it on every card.
+     */
+    val showRecoverySource: Boolean = true,
+
+    /** Whether a result card says how sure the app is, and what made it sure. */
+    val showRecoveryConfidence: Boolean = true,
+
     /** Check the copy against the source size before reporting success. */
     val exportVerifyAfterCopy: Boolean = true,
 
