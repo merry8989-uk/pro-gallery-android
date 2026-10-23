@@ -207,6 +207,47 @@ def main() -> int:
                     f"{os.path.basename(entry['path'])}: calls {fname}() (from {home_pkg}) with no import"
                 )
 
+    # ---- A type named in a declaration that is neither imported nor known ----
+    #
+    # The rule above only knows **project** types, so a missing platform import slips past it — and
+    # one did: `DevicePressureState(@ApplicationContext private val context: Context)` compiled all
+    # the way to KSP with `Context` unresolved, because `android.content.Context` was not imported
+    # and the type rule had never heard of it. KSP reported it as `error.NonExistentClass`, which is
+    # a slow way to find out.
+    #
+    # This looks only at **declaration positions** — `name: Type` — so it does not wander into
+    # expressions, generic arguments or enum entries, where a capitalised word is usually not a type
+    # at all.
+    KNOWN = {
+        "String", "Int", "Long", "Short", "Byte", "Boolean", "Char", "Float", "Double", "Unit",
+        "Any", "Nothing", "Number", "Result", "List", "Set", "Map", "Array", "Pair", "Triple",
+        "Sequence", "Flow", "StateFlow", "MutableStateFlow", "SharedFlow", "Deferred", "Job",
+        "CoroutineScope", "CoroutineDispatcher", "Duration", "ByteArray", "IntArray", "LongArray",
+        "BooleanArray", "CharArray", "FloatArray", "DoubleArray", "ArrayDeque", "Throwable",
+        "Exception", "Runnable", "Comparator", "Function", "Regex", "StringBuilder", "Comparable",
+        "IntRange", "LongRange", "CharRange", "CharSequence", "Iterable", "Collection", "Lazy",
+        "ClosedRange", "Map.Entry", "MutableList", "MutableMap", "MutableSet", "ArrayList",
+        "HashMap", "HashSet", "LinkedHashMap", "LinkedHashSet",
+    }
+    for entry in parsed:
+        imported = set(entry["imports"])
+        own = set(re.findall(r"\b(?:class|interface|object|enum class|typealias)\s+(\w+)", entry["raw"]))
+        params = set(re.findall(r"<\s*([A-Z]\w*)\s*(?:,|>|:)", entry["raw"]))
+        for match in re.finditer(
+            r"^[ \t]+(?:@\w+(?:\([^)]*\))?\s+)*(?:private |public |internal |protected )?"
+            r"(?:val|var)\s+\w+\s*:\s*([A-Z]\w*)",
+            entry["raw"],
+            re.M,
+        ):
+            name = match.group(1)
+            if name in imported or name in own or name in KNOWN or name in params:
+                continue
+            if name in declarations or name.startswith("Media") or name.startswith("Recovery"):
+                continue
+            problems.append(
+                f"{os.path.basename(entry['path'])}: uses {name} as a type with no import"
+            )
+
     # ---- An event the app declares but never emits ----
     #
     # The vocabulary is a promise about what is collected. An event in it with no call site is a
