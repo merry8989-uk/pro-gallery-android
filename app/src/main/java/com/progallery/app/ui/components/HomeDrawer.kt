@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.ui.res.stringResource
+import com.progallery.app.R
 
 /**
  * The sidebar.
@@ -72,7 +74,7 @@ private fun DrawerContents(onNavigate: (String) -> Unit) {
     ModalDrawerSheet(modifier = Modifier.fillMaxWidth(0.86f)) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             Text(
-                text = "ProGallery",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 4.dp),
             )

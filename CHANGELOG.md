@@ -27,6 +27,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.48.1]
+The rename was half done, and the APK check is what caught it.
+
+### Fixed
+v1.48.0 changed the launcher name and stopped there. The app still called itself **ProGallery** in
+**five** places a person actually looks:
+
+- **the drawer header**
+- **the home screen title**
+- **the About row** — the one showing the version, which is exactly where somebody checks what they
+  are running
+- the first-launch "set as your gallery" prompt
+- the permission explanation
+
+All five now read the app name from `@string/app_name` rather than repeating it, so this cannot drift
+in one place and not another again. The editors' saved-file prefix moved to one constant for the same
+reason — it had been typed three times.
+
+**How it was missed:** v1.48.0's verification checked the APK for the new name and reported it
+**FOUND**. It was there — in the resource table, which is where a launcher name lives. **A name in the
+resource table is not a name on the screen**, and this is the second time in this project that
+checking for a string has stood in for checking a path. The check now looks for the old name too, and
+fails if it finds it.
+
 ## [1.48.0]
 The name, and an update check that is not a dead end.
 

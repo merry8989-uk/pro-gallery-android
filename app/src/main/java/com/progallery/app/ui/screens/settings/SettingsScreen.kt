@@ -67,6 +67,8 @@ import com.progallery.app.data.usage.UsageDigest
 import com.progallery.app.data.settings.SignatureDepth
 import com.progallery.app.data.settings.ThumbnailQuality
 import com.progallery.app.data.recovery.RecoveryTab
+import androidx.compose.ui.res.stringResource
+import com.progallery.app.R
 
 /** One renderable settings row. */
 private sealed interface SettingsRow {
@@ -1174,7 +1176,7 @@ private fun buildRows(
     // different sections read as two unrelated features, and take two lines to say one thing.
     add(
         SettingsRow.Action(
-            title = "ProGallery ${BuildConfig.VERSION_NAME}",
+            title = "${stringResource(R.string.app_name)} ${BuildConfig.VERSION_NAME}",
             subtitle = "Build ${BuildConfig.VERSION_CODE}. Asks the project's releases feed " +
                 "whether a newer version exists. Nothing about this device is sent.",
             section = "About",

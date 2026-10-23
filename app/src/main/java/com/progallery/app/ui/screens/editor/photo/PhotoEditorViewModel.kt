@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.progallery.app.util.runCatchingCancellable
+import com.progallery.app.util.ExportNaming
 
 data class PhotoEditorUiState(
     val source: Bitmap? = null,
@@ -248,7 +249,7 @@ class PhotoEditorViewModel @Inject constructor(
             val wanted = _state.value.resolution.maxDimension
             val full = decodeForExport(sourceUri, wanted) ?: source
             val rendered = bitmapEditor.render(full, _state.value.params)
-            val name = "ProGallery_${System.currentTimeMillis()}"
+            val name = "${ExportNaming.PREFIX}_${System.currentTimeMillis()}"
             val uri = exporter.export(
                 bitmap = rendered,
                 displayName = name,
