@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.progallery.app.util.runCatchingCancellable
+import com.progallery.app.util.ExportNaming
 
 data class VideoEditorUiState(
     val uri: Uri? = null,
@@ -93,7 +94,7 @@ class VideoEditorViewModel @Inject constructor(
             trimmer.export(
                 source = uri,
                 edit = normalized,
-                outputName = "ProGallery_${System.currentTimeMillis()}",
+                outputName = "${ExportNaming.PREFIX}_${System.currentTimeMillis()}",
                 kind = TrimKind.VIDEO,
             ).collect { exportState ->
                 when (exportState) {

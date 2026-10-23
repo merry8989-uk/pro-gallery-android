@@ -6,6 +6,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import com.progallery.app.util.DefaultApps
+import androidx.compose.ui.res.stringResource
+import com.progallery.app.R
 
 /**
  * Shown once, on first launch, offering to make ProGallery the default gallery.
@@ -21,10 +23,10 @@ fun DefaultGalleryPrompt(
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Set ProGallery as your gallery?") },
+        title = { Text("Set ${stringResource(R.string.app_name)} as your gallery?") },
         text = {
             Text(
-                "ProGallery can open your photos and videos by default. " +
+                "${stringResource(R.string.app_name)} can open your photos and videos by default. " +
                     "Android only lets you choose this yourself, so the next screen is where you pick it.\n\n" +
                     "You can change this any time in Settings → Default app.",
             )

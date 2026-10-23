@@ -35,6 +35,8 @@ import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.progallery.app.util.PermissionUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.res.stringResource
+import com.progallery.app.R
 
 /**
  * Gates media content behind the runtime permissions for the running Android
@@ -107,7 +109,7 @@ fun MediaPermissionGate(content: @Composable () -> Unit) {
                 modifier = Modifier.padding(top = 16.dp),
             )
             Text(
-                text = "ProGallery needs permission to read your photos, videos and audio so it can show them here. Nothing ever leaves your device.",
+                text = "${stringResource(R.string.app_name)} needs permission to read your photos, videos and audio so it can show them here. Nothing ever leaves your device.",
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

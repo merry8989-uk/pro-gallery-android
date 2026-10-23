@@ -66,6 +66,7 @@ import javax.inject.Inject
 import com.progallery.app.util.runCatchingCancellable
 import androidx.media3.common.MediaItem
 import com.progallery.app.data.playback.PlaybackEngine
+import com.progallery.app.util.ExportNaming
 
 data class AudioEditorUiState(
     val uri: Uri? = null,
@@ -182,7 +183,7 @@ class AudioEditorViewModel @Inject constructor(
             trimmer.export(
                 source = uri,
                 edit = normalized,
-                outputName = "ProGallery_${System.currentTimeMillis()}",
+                outputName = "${ExportNaming.PREFIX}_${System.currentTimeMillis()}",
                 kind = TrimKind.AUDIO,
             ).collect { exportState ->
                 when (exportState) {

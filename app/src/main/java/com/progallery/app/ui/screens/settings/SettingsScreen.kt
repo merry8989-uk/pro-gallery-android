@@ -67,6 +67,8 @@ import com.progallery.app.data.usage.UsageDigest
 import com.progallery.app.data.settings.SignatureDepth
 import com.progallery.app.data.settings.ThumbnailQuality
 import com.progallery.app.data.recovery.RecoveryTab
+import androidx.compose.ui.res.stringResource
+import com.progallery.app.R
 
 /** One renderable settings row. */
 private sealed interface SettingsRow {
@@ -248,6 +250,7 @@ fun SettingsScreen(
         onRunScan = onRunScan,
         // The screen owns the view model, so this one comes from there rather than through the nav.
         onClearTemporaryScanData = viewModel::clearTemporaryScanData,
+        appName = stringResource(R.string.app_name),
     )
 
     val visible = rows.filter { row ->
@@ -405,6 +408,9 @@ private fun buildRows(
     onExportUsage: () -> Unit,
     onDeleteUsage: () -> Unit,
     onClearTemporaryScanData: () -> Unit,
+    // Resolved by the caller, because `stringResource` is a composable call and `buildRows` is not
+    // one — it builds a list of rows rather than drawing them.
+    appName: String,
     onRunScan: () -> Unit,
 ): List<SettingsRow> = buildList {
     // ---- Scanning -----------------------------------------------------
@@ -1174,7 +1180,7 @@ private fun buildRows(
     // different sections read as two unrelated features, and take two lines to say one thing.
     add(
         SettingsRow.Action(
-            title = "ProGallery ${BuildConfig.VERSION_NAME}",
+            title = "$appName ${BuildConfig.VERSION_NAME}",
             subtitle = "Build ${BuildConfig.VERSION_CODE}. Asks the project's releases feed " +
                 "whether a newer version exists. Nothing about this device is sent.",
             section = "About",
