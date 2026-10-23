@@ -5,7 +5,7 @@ Recovery master prompt, the Advanced Settings master prompt, your audit, and the
 UltData feature list used as a reference. Nothing here is invented — each item was
 checked against the current code, not remembered.
 
-**Current release:** v1.39.0 · `versionCode 55` · CI green (unit tests, lint and an emulator
+**Current release:** v1.40.0 · `versionCode 56` · CI green (unit tests, lint and an emulator
 job) · signed with the project key.
 
 **Phases 1, 2A, 2B, 4 and 5 complete. Phase 3 is not** — the honest state is in §5, which is the
@@ -120,7 +120,14 @@ Of the 59 items in the Advanced Settings master prompt's settings list: **~25 do
 3 present under another name, 4 partial.** Every verdict below was checked at file and symbol, not
 remembered.
 
-**Done since the audit**: **a scan you can run, and a scope that says what it will do first**
+**Done since the audit**: **the export workflow** (v1.40.0) — confirm before exporting, ask for the
+folder or reuse the last one, keep the original name or say where the file came from, the history
+retention that was a hard-coded 90 days, and **"Ask me each time"** as a duplicate-name policy. Two
+parts of that item are deliberately **not** done and said so rather than faked: preserving original
+timestamps (SAF gives no way to set a document's modified time) and a default export format (it
+would mean transcoding, which is not implemented).
+
+**Also done since the audit**: **a scan you can run, and a scope that says what it will do first**
 (v1.39.0) — `ScanScopeBuilder` builds it from the settings *and* the device (the folders actually
 granted, whether `Android/media` is reachable, whether All files access is held), the screen draws
 what will be scanned and what will not, and the button runs the engine those settings mean.
@@ -138,10 +145,6 @@ the background pause** (all four were stored, shown and ignored).
 
 **Missing**:
 
-- **Export workflow** — confirm before export · ask for the destination each time · remember the
-  last destination · preserve original names and timestamps · a default export format · "Ask" as a
-  duplicate-name policy (only Rename and Skip exist) · history retention as a setting (it is a
-  hard-coded 90 days).
 - **Detection** — corrupt-media detection · detecting files whose extension is wrong · EXIF
   extraction · signature scan depth as Safe/Balanced/Extended (only a byte-count slider exists).
 - **Thumbnails** — quality (Low/Balanced/High) · a maximum dimension · thumbnails for
