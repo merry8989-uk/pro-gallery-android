@@ -27,6 +27,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.44.0]
+UI customisation: the default tab, compact cards, and haptics that are off until asked for.
+
+### Added
+- **The Recovery screen opens on the tab you chose**, and tapping a tab during a visit sticks for
+  that visit. The default is a starting point, not something that overwrites a choice made a moment
+  ago.
+- **Compact result cards** — more columns, and the size line goes. The name stays, because that is
+  how a file is recognised at all.
+- **Haptics, off by default.** There was **no haptic feedback anywhere in the app** before this.
+  Every call site goes through one `Haptics` helper rather than reaching for the platform, so a new
+  screen cannot buzz regardless of the setting — a phone that buzzes without being asked is a phone
+  people turn things off on.
+
+### The docs checker needed fixing, and that is the interesting part
+It flagged `compactResultCards` and `hapticsEnabled` as read by nothing, when both were wired. The
+rule treated **every** file under `ui/` as rendering, and a view model is not: it reads a setting and
+decides what the screen should be.
+
+It now counts every read in a `*ViewModel.kt`, and still requires a read that **drives a decision**
+in a screen — because `checked = settings.x` is exactly how a decorative switch looks, which is the
+defect the rule exists for. Verified both ways: it passes the real tree, and it still catches a
+simulated switch that is rendered and never read.
+
+### Fixed
+The haptics helper was created in the top-level composable and used inside `CompletedPane`, which
+cannot see it. CI caught it; made where it is used.
+
 ## [1.43.0]
 Thumbnails: quality, size, the files the rule had no branch for, caching, and building them during a scan.
 
