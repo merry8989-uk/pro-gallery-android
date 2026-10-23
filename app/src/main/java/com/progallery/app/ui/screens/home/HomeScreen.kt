@@ -222,7 +222,7 @@ fun HomeScreen(
                         icon = Icons.Filled.Restore,
                         title = "Recovery",
                         subtitle = "Quick Scan: what the app can actually reach, and from where",
-                        onClick = { onOpen(Routes.RECOVERY) },
+                        onClick = { onOpen(Routes.recovery()) },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     DashboardTile(
@@ -244,7 +244,7 @@ fun HomeScreen(
                             icon = Icons.Filled.TravelExplore,
                             title = "Deep Scan",
                             subtitle = "Find any file type",
-                            onClick = { onOpen(Routes.DEEP_SCAN) },
+                            onClick = { onOpen(Routes.deepScan()) },
                             modifier = Modifier.weight(1f),
                         )
                     }

@@ -55,6 +55,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.launch
+import com.progallery.app.data.scan.ScanTarget
+import com.progallery.app.ui.screens.scan.ScanScopeScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -265,11 +267,39 @@ fun ProGalleryNavHost(
         composable(Routes.TRASH) {
             TrashScreen(onBack = { navController.popBackStack() })
         }
-        composable(Routes.DEEP_SCAN) {
-            DeepScanScreen(onBack = { navController.popBackStack() })
+        composable(
+            Routes.DEEP_SCAN,
+            arguments = listOf(navArgument("start") { type = NavType.BoolType; defaultValue = false }),
+        ) { entry ->
+            DeepScanScreen(
+                onBack = { navController.popBackStack() },
+                autoStart = entry.arguments?.getBoolean("start") == true,
+            )
         }
-        composable(Routes.RECOVERY) {
-            RecoveryScreen(onBack = { navController.popBackStack() })
+        composable(
+            Routes.RECOVERY,
+            arguments = listOf(navArgument("start") { type = NavType.BoolType; defaultValue = false }),
+        ) { entry ->
+            RecoveryScreen(
+                onBack = { navController.popBackStack() },
+                autoStart = entry.arguments?.getBoolean("start") == true,
+            )
+        }
+        composable(Routes.SCAN_SCOPE) {
+            ScanScopeScreen(
+                onBack = { navController.popBackStack() },
+                onStart = { target ->
+                    // The scope has already decided which engine its settings mean, so the button
+                    // runs that one rather than asking again.
+                    val route = when (target) {
+                        ScanTarget.RECOVERY -> Routes.recovery(start = true)
+                        ScanTarget.DEEP_SCAN -> Routes.deepScan(start = true)
+                        // Unreachable: the button is disabled when there is nowhere to go.
+                        ScanTarget.NONE -> Unit
+                    }
+                    navController.navigate(route)
+                },
+            )
         }
         composable(Routes.ANDROID_FOLDERS) {
             AndroidFoldersScreen(
@@ -284,6 +314,7 @@ fun ProGalleryNavHost(
                 onOpenPermissionDiagnostics = {
                     navController.navigate(Routes.PERMISSION_DIAGNOSTICS)
                 },
+                onRunScan = { navController.navigate(Routes.SCAN_SCOPE) },
             )
         }
         composable(Routes.PERMISSION_DIAGNOSTICS) {
@@ -291,7 +322,7 @@ fun ProGalleryNavHost(
                 onBack = { navController.popBackStack() },
                 // Adding a folder is where the folder picker already lives, so the fix
                 // takes the user to the real thing rather than a second copy of it.
-                onPickFolder = { navController.navigate(Routes.DEEP_SCAN) },
+                onPickFolder = { navController.navigate(Routes.deepScan()) },
             )
         }
         composable(

@@ -42,6 +42,20 @@ SETTINGS_PLUMBING = {
 DECISION = re.compile(r"\b(if|when|else|return)\b|&&|\|\||\?:|!\s*settings\.")
 
 
+# What each document must call itself. Added because one of them was **overwritten with another**:
+# a script bound its output path to the wrong variable (`p` where `c` was meant) and wrote the
+# contributing guide over the roadmap, destroying it. Nothing noticed for two releases — the version
+# in the file still matched, because the file was a different document entirely. This is the cheapest
+# possible check for the most destructive possible mistake.
+EXPECTED_TITLES = {
+    "README.md": "# ProGallery — Android Gallery App",
+    "ROADMAP.md": "# ProGallery — Pending Work Plan",
+    "PLAYER-AND-READERS-PLAN.md": "# The player and reader plan",
+    "CONTRIBUTING.md": "# Contributing to ProGallery",
+    "CHANGELOG.md": "# Changelog",
+}
+
+
 def gradle_truth() -> dict[str, str]:
     """The version, the code and the SDK levels, read from the build file."""
     text = (ROOT / "app" / "build.gradle.kts").read_text()
@@ -161,6 +175,19 @@ def log_vocabulary() -> dict[str, int]:
 def main() -> int:
     problems: list[str] = []
     truth = gradle_truth()
+
+    # ---- 0. every document is the document it claims to be ----
+    for doc, expected in EXPECTED_TITLES.items():
+        path = ROOT / doc
+        if not path.exists():
+            problems.append(f"{doc} is missing")
+            continue
+        first = path.read_text().split("\n", 1)[0].strip()
+        if first != expected:
+            problems.append(
+                f"{doc} starts with {first!r} but should start with {expected!r} — "
+                "it may have been overwritten with another document"
+            )
 
     # ---- 1. every version claim in a document must be the current version ----
     for doc in DOCS:
