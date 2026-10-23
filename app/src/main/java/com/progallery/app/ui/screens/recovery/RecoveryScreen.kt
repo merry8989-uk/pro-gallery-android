@@ -119,6 +119,24 @@ fun RecoveryScreen(
     // here belongs to this screen being on display.
     val scope = rememberCoroutineScope()
 
+    val folderPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri -> uri?.let { viewModel.addFolder(it) } }
+
+    val destinationPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        uri?.let {
+            exportDestination = it
+            viewModel.exportSelection(it)
+            // The grant is taken so the folder is still openable next time; the name is stored
+            // beside it only to show the person where they are sending things.
+            scope.launch {
+                viewModel.rememberDestination(it, it.lastPathSegment?.substringAfterLast(':') ?: "chosen folder")
+            }
+        }
+    }
+
     // Where the export goes. Asking every time is the default; reusing the last folder is what the
     // person asked for when they turned that off, and there is nothing to reuse on a first run.
     fun chooseDestination() {
@@ -137,25 +155,6 @@ fun RecoveryScreen(
     fun startExport() {
         if (state.exportConfirmBeforeExport) confirmingExport = true else chooseDestination()
     }
-
-    // The destination is always chosen by the user, through the official picker.
-    val destinationPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree(),
-    ) { uri ->
-        uri?.let {
-            exportDestination = it
-            viewModel.exportSelection(it)
-            // The grant is taken so the folder is still openable next time; the name is stored
-            // beside it only to show the person where they are sending things.
-            scope.launch {
-                viewModel.rememberDestination(it, it.lastPathSegment?.substringAfterLast(':') ?: "chosen folder")
-            }
-        }
-    }
-
-    val folderPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree(),
-    ) { uri -> uri?.let { viewModel.addFolder(it) } }
 
     LaunchedEffect(state.message) {
         state.message?.let { snackbarHostState.showSnackbar(it); viewModel.consumeMessage() }
