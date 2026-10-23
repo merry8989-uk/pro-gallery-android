@@ -207,10 +207,14 @@ class ScanPauseGate @Inject constructor(
      * say why nothing is happening, and `pauseReason()` would be a function nobody calls, which is
      * what it had been.
      */
+    // Three pairs and then a combine of three, because Kotlin's `combine` stops at five flows and
+    // six silently resolves to the vararg overload — which hands the lambda an Array and fails to
+    // infer anything.
     val reason: StateFlow<String?> = combine(
-        pausesWhenBackgrounded, foreground.isForeground, pausesOnLowBattery,
-        pressure.lowBattery, pausesOnThermal, pressure.throttled,
-    ) { backgroundOn, isForeground, batteryOn, isLow, thermalOn, isThrottled ->
+        combine(pausesWhenBackgrounded, foreground.isForeground) { on, fg -> on to fg },
+        combine(pausesOnLowBattery, pressure.lowBattery) { on, low -> on to low },
+        combine(pausesOnThermal, pressure.throttled) { on, hot -> on to hot },
+    ) { (backgroundOn, isForeground), (batteryOn, isLow), (thermalOn, isThrottled) ->
         when {
             backgroundOn && !isForeground -> "Paused while the app is in the background."
             batteryOn && isLow -> "Paused while the battery is low."
