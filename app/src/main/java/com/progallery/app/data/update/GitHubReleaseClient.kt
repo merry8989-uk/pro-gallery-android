@@ -41,7 +41,7 @@ class GitHubReleaseClient @Inject constructor() {
         const val READ_TIMEOUT_MS = 15_000
 
         /** GitHub refuses a request with no user agent. */
-        const val USER_AGENT = "ProGallery-UpdateCheck"
+        const val USER_AGENT = "AdvancedFileManager-UpdateCheck"
     }
 
     suspend fun latestRelease(): Result<UpdateRelease> = withContext(Dispatchers.IO) {
