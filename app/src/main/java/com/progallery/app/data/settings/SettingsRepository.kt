@@ -139,6 +139,8 @@ class SettingsRepository @Inject constructor(
         val defaultRecoveryTab = stringPreferencesKey("default_recovery_tab")
         val hapticsEnabled = booleanPreferencesKey("haptics")
         val compactResultCards = booleanPreferencesKey("compact_cards")
+        val pauseOnLowBattery = booleanPreferencesKey("pause_low_battery")
+        val pauseOnThermal = booleanPreferencesKey("pause_thermal")
         val showResolution = booleanPreferencesKey("show_resolution")
         val recoveryQuickScanEnabled = booleanPreferencesKey("recovery_quick_scan")
         val recoveryThumbnailCacheEnabled = booleanPreferencesKey("recovery_thumbnail_cache")
@@ -211,6 +213,8 @@ class SettingsRepository @Inject constructor(
             defaultRecoveryTab = enumOrDefault(p[Keys.defaultRecoveryTab], RecoveryTab.entries, d.defaultRecoveryTab),
             hapticsEnabled = p[Keys.hapticsEnabled] ?: d.hapticsEnabled,
             compactResultCards = p[Keys.compactResultCards] ?: d.compactResultCards,
+            pauseOnLowBattery = p[Keys.pauseOnLowBattery] ?: d.pauseOnLowBattery,
+            pauseOnThermalPressure = p[Keys.pauseOnThermal] ?: d.pauseOnThermalPressure,
             showResolution = p[Keys.showResolution] ?: d.showResolution,
             recoveryQuickScanEnabled = p[Keys.recoveryQuickScanEnabled] ?: d.recoveryQuickScanEnabled,
             recoveryThumbnailCacheEnabled = p[Keys.recoveryThumbnailCacheEnabled] ?: d.recoveryThumbnailCacheEnabled,
@@ -278,6 +282,8 @@ class SettingsRepository @Inject constructor(
         p[Keys.defaultRecoveryTab] = s.defaultRecoveryTab.name
         p[Keys.hapticsEnabled] = s.hapticsEnabled
         p[Keys.compactResultCards] = s.compactResultCards
+        p[Keys.pauseOnLowBattery] = s.pauseOnLowBattery
+        p[Keys.pauseOnThermal] = s.pauseOnThermalPressure
         p[Keys.showResolution] = s.showResolution
         p[Keys.recoveryQuickScanEnabled] = s.recoveryQuickScanEnabled
         p[Keys.recoveryThumbnailCacheEnabled] = s.recoveryThumbnailCacheEnabled

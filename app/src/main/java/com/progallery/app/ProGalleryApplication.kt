@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import coil.decode.SvgDecoder
+import com.progallery.app.data.scan.DevicePressureState
 
 /**
  * Application entry point. Configures Hilt and a shared Coil [ImageLoader] tuned
@@ -43,6 +44,7 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
     @Inject lateinit var usageStore: UsageStore
     @Inject lateinit var eventLog: EventLogStore
     @Inject lateinit var foregroundState: AppForegroundState
+    @Inject lateinit var devicePressure: DevicePressureState
     @Inject lateinit var trashPurgeScheduler: TrashPurgeScheduler
 
     /** For recording that must never hold up startup. */
@@ -126,6 +128,7 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
         // Whether the app is in front, so a scan that was asked to pause in the background has
         // something true to ask. Registered before anything can start scanning.
         foregroundState.attach(this)
+        devicePressure.attach()
 
         // The retention the trash promises, kept without anyone opening the Trash screen.
         runCatching { trashPurgeScheduler.ensureScheduled() }

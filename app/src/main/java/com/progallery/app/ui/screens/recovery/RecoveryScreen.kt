@@ -402,8 +402,24 @@ private fun CompletedPane(
     // parameter threaded through two callers for one boolean would be plumbing for its own sake.
     val haptics = rememberHaptics(state.hapticsEnabled)
     val summary = (state.scanState as? RecoveryScanState.Completed)?.summary
+    // Why nothing is happening, said on the screen. A scan that is waiting and does not say so is
+    // indistinguishable from a scan that has hung.
+    val pauseReason by viewModel.pauseReason.collectAsStateWithLifecycle()
 
     Column(modifier = Modifier.fillMaxSize()) {
+        pauseReason?.let { reason ->
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+        }
         if (summary != null) {
             Surface(tonalElevation = 1.dp) {
                 Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
