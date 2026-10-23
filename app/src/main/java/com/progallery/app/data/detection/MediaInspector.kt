@@ -128,7 +128,10 @@ class MediaInspector @Inject constructor(
                     if (skipped <= 0) break
                     remaining -= skipped
                 }
-                stream.readBytes().take(TRAILER_BYTES.toInt())
+                // `take` on a ByteArray returns a List<Byte>, not the bytes; copy the range
+                // instead.
+                val tail = stream.readBytes()
+                tail.copyOf(tail.size.coerceAtMost(TRAILER_BYTES))
             }
         }.getOrNull()
     }
