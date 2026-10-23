@@ -138,11 +138,12 @@ class MediaStoreDataSource @Inject constructor(
     ): Flow<List<MediaItem>> = flow {
         val effectiveBatch = batchSize.coerceAtLeast(1)
         val batch = ArrayList<MediaItem>(effectiveBatch)
+        // Counted across the whole query, so the single marker below can say how much work it took.
+        var batches = 0
         runCatchingCancellable {
             openCursor(selection = null, args = null, orderBy = MediaQuery.orderBy(SortOrder.DATE_NEWEST))
                 ?.use { cursor ->
                     val reader = RowReader(cursor)
-                    var batches = 0
                     while (cursor.moveToNext()) {
                         val item = reader.read(cursor) ?: continue
                         if (item.mediaType !in kinds) continue
