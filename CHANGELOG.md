@@ -27,6 +27,64 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.38.0]
+The plans are corrected, and a check now keeps them corrected.
+
+### Why this release exists
+The audit that found the five decorative switches found a second thing: **the documents described a
+different project**. `ROADMAP.md` said "Phase 3 is complete" while roughly half of it had never been
+built. Its header said v1.5.1 and targetSdk 35 while the build was v1.36.0 and 36. `README.md` said
+35 in one place and 36 in another, in the same file. `PLAYER-AND-READERS-PLAN.md` still marked Parts
+B, C, E and F as unstarted after all four had shipped.
+
+None of that was a coding mistake. It was the **root cause** of the first one: §5 of the roadmap had
+listed *"confirm each mode really changes behaviour"* as an open item, the item was never done, and a
+later section of the same document declared the phase complete. Nothing was checking, so the claim
+became the record.
+
+### The plans, corrected against the code
+- **`ROADMAP.md`** — the header and §1 now state v1.38.0, targetSdk 36, 63 settings and the current
+  quality bar. **§5 is rewritten** with the verified counts: of the 59 items in the settings master
+  prompt, ~24 done, ~27 missing, 3 present under another name, 4 partial — and every verdict checked
+  at file and symbol. The false "Phase 3 is complete" is struck out where it was written, with a note
+  saying it was not true. §6k's "still pending from Part E" (shipped three releases later, per §6n)
+  is corrected. §6g's Supabase entry now records that it was **removed** in v1.36.0 and why. §6's
+  "still open: instrumented tests need an emulator" is corrected — that job exists. §8 marks the
+  decisions that were answered and lists the three that are genuinely open. §9's release table, which
+  stopped at v1.9.0 and had been wrong for twenty-eight releases, is replaced by a pointer to this
+  file. Three headings that were each used twice are now unique.
+- **`PLAYER-AND-READERS-PLAN.md`** — Parts B, C, E and F are marked shipped. Two dangling references
+  to parts that do not exist ("planned, Part 5", "planned (Part 7)") now name the releases that built
+  them. The contradiction about presentations is resolved: PPTX **is** read since v1.33.0, and the old
+  binary `.ppt` is still handed off — a different format, not a different container. Part D is left
+  marked as the open decision it is.
+- **`README.md`** — the SDK line said 35 in a file whose other line said 36. And the sentence *"every
+  switch changes real behaviour — there are no decorative toggles"* now says that it **was false for a
+  while**, names the five, and points at the check that keeps it true.
+
+### `tools/check_docs.py`, and it runs in CI
+A check that the documentation's factual claims still match the code:
+- the version and versionCode in the docs are the build's;
+- `compileSdk` / `targetSdk` in the docs are the build's, in every document;
+- **no setting that the Settings screen renders is read by nothing** — the audit's own check, automated;
+- the log counts the docs quote (categories, levels, events) are the vocabulary's.
+
+**It was wrong three times before it was right, and each time was found by testing it against a
+deliberately introduced fault** rather than by reading it:
+1. it counted **computed properties** as settings, so it called `enabledKinds` and `acceptsSize` dead;
+2. it counted a setting's **own declaration line** as a read of itself, so a deliberately decorative
+   setting **passed** — the check was blind to the exact bug it was written for;
+3. it flagged `hasSeenDefaultGalleryPrompt`, which is app state rather than a setting, because a
+   negated read in a plain assignment did not look like a decision.
+
+The rule is now narrow and written down in the file: a **control the screen shows that nothing acts
+on**. It fires on a rendered decorative setting, on a stale version and on a stale SDK, and it is
+quiet on the clean tree.
+
+**`tools/check_kotlin.py` had never run in CI either** — it only ran when someone remembered. Both
+checkers now run as a step before the build, which is where a check that has caught real bugs (a
+missing import, two companion objects in one class, an event declared with no call site) belongs.
+
 ## [1.37.0]
 The five switches that changed nothing now change something.
 

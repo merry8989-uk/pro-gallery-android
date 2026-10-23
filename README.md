@@ -62,7 +62,11 @@ Open Settings from the home screen's top bar.
 - **Advanced mode** (a switch at the top) reveals detection options, scan limits,
   performance controls and diagnostics.
 
-Every switch changes real behaviour — there are no decorative toggles. A few
+Every switch changes real behaviour — there are no decorative toggles. **That sentence was false
+for a while**: an audit on 23 October 2026 found five settings that were stored, exported and shown
+while nothing read them (the theme, the performance mode, the concurrency, the batch size and the
+background pause). All five were wired in v1.37.0, and `tools/check_docs.py` now checks the claim in
+CI so it cannot quietly stop being true again. A few
 examples: turning **Videos** off stops video discovery *and* video thumbnail
 generation; turning **Thumbnails** off shows file-type icons instead of blank
 tiles; turning **Duplicate detection** off skips the hashing pass entirely;
@@ -255,7 +259,7 @@ _Add screenshots here after your first local build_ (e.g. `docs/screenshots/home
 
 - **Android Studio** Ladybug (2024.2) or newer, or a command-line Android SDK.
 - **JDK 17**.
-- **Android SDK**: compileSdk 35, targetSdk 35, **minSdk 26** (Android 8.0).
+- **Android SDK**: compileSdk 36, targetSdk 36, **minSdk 26** (Android 8.0).
 - Gradle 8.11.1 (via the included wrapper).
 
 ## Tech stack
