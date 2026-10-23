@@ -27,6 +27,62 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.39.0]
+A scan you can run, and a screen that says what it will do first.
+
+### The problem
+Settings described a scan and offered no way to start one. The two questions worth asking before a
+scan — **what will it look at**, and **what will it miss** — could only be answered by reading the
+code. The master prompt asked for both: a button that runs a scan with the current configuration,
+and a scope shown before it starts.
+
+### Added
+- **`ScanScopeBuilder`** — the honest core, and pure so it is tested rather than trusted. The scope
+  is built from the settings **and the device**: the folders actually granted, whether this Android
+  version will open `Android/media`, and whether All files access is held. A scope built from the
+  settings alone would promise to walk folders nobody granted.
+- **`ScanScopeScreen`** — the methods, the file kinds, the granted folders, the limits, and then
+  **what it will not do**, as notes: no method switched on, no category switched on, folder scanning
+  with nothing granted, `Android/media` out of reach, no All files access, signature detection off.
+  **The lines that are not included are drawn as deliberately as the ones that are** — a scope that
+  only listed what it would scan would be a sales page.
+- **The button runs it.** Quick scan wins when both methods are on, because it is the cheap one — a
+  documented order, tested, rather than a guess. The scan screens take a `start` argument so the
+  button runs the scan rather than describing one, and the route pattern is built by a function so a
+  bare string cannot drift from it.
+
+### Fixed on the way
+- **The test that claimed to check every route against the feature map used a hardcoded list**, so
+  adding a route left it silently unchecked — the exact failure it was written to prevent. It now
+  reads the routes from `Routes` itself, by reflection, and asserts there are more than twenty so a
+  broken reflection cannot pass it.
+- The scope passes the `ScanTarget` enum rather than its name, so the caller cannot compare the
+  wrong string.
+
+### Two mistakes in my own tests
+Both mine, not the code's, both found by CI rather than by reading: a test expected one file kind
+while the other categories were still switched on; and it expected an exact set from something that
+is a set, so it asserted an order nothing promises. A third was named "twice for two different
+reasons" and asserted one thing. Renamed.
+
+### A document was destroyed, and it is worth writing down
+While correcting the plans in v1.38.0, one of my scripts bound its output path to the wrong variable
+— `p` where `c` was meant — and wrote the **contributing guide over the roadmap**, replacing it
+entirely. Nothing noticed for two releases, and the docs check of the time did not catch it because
+the version in the file still matched: the file was a *different document*, not a stale one.
+
+It was recovered from the `v1.37.0` tag and every correction re-applied by a script that asserts
+what it is writing to before it writes.
+
+**`tools/check_docs.py` now checks that each document is the document it claims to be**, by its
+title. It is the cheapest possible check for the most destructive possible mistake, and it fires on
+a simulated overwrite.
+
+### The docs check earned its place twice more
+It **failed the build when the version was bumped without updating `ROADMAP.md`'s header** — exactly
+the drift it was written for; the fix was one line. And in this release it also caught the
+destroyed roadmap.
+
 ## [1.38.0]
 The plans are corrected, and a check now keeps them corrected.
 
