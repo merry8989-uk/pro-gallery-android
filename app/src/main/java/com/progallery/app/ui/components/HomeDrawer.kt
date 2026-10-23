@@ -115,8 +115,8 @@ private fun DrawerContents(onNavigate: (String) -> Unit) {
 
             DrawerSection("TOOLS")
             DrawerItem(Icons.Filled.PlayArrow, "Stream from a link", Routes.STREAM, onNavigate)
-            DrawerItem(Icons.Filled.Search, "Deep scan", Routes.DEEP_SCAN, onNavigate)
-            DrawerItem(Icons.Filled.Restore, "Recovery", Routes.RECOVERY, onNavigate)
+            DrawerItem(Icons.Filled.Search, "Deep scan", Routes.deepScan(), onNavigate)
+            DrawerItem(Icons.Filled.Restore, "Recovery", Routes.recovery(), onNavigate)
             DrawerItem(Icons.Filled.Folder, "Android folders", Routes.ANDROID_FOLDERS, onNavigate)
             DrawerItem(Icons.Filled.Search, "Search", Routes.SEARCH, onNavigate)
             DrawerItem(Icons.Filled.Settings, "Settings", Routes.SETTINGS, onNavigate)

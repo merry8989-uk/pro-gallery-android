@@ -11,13 +11,22 @@ object Routes {
     const val SETTINGS = "settings"
     const val PERMISSION_DIAGNOSTICS = "permission_diagnostics"
     const val ANDROID_FOLDERS = "android_folders"
-    const val RECOVERY = "recovery"
+    /**
+     * The scan screens take a `start` argument so the scope screen can run a scan rather than
+     * merely describe one. The pattern is declared here and every caller builds it with the
+     * function below, so a bare string can never drift from the pattern.
+     */
+    const val RECOVERY = "recovery?start={start}"
+    const val DEEP_SCAN = "deep_scan?start={start}"
+    const val SCAN_SCOPE = "scan_scope"
+
+    fun recovery(start: Boolean = false) = "recovery?start=$start"
+    fun deepScan(start: Boolean = false) = "deep_scan?start=$start"
     const val PDF_VIEWER = "pdf_viewer"
     const val AUDIO_EDITOR = "audio_editor"
     const val VIDEOS = "videos"
     const val FAVOURITES = "favourites"
     const val TRASH = "trash"
-    const val DEEP_SCAN = "deep_scan"
     const val SEARCH = "search"
     const val STREAM = "stream"
     const val STREAM_PLAYER = "stream_player"

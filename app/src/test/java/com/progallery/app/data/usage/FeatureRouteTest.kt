@@ -3,6 +3,8 @@ package com.progallery.app.data.usage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import com.progallery.app.ui.navigation.Routes
+import org.junit.Assert.assertTrue
 
 /**
  * A screen recorded under the wrong feature would make the whole seven-day review wrong without
@@ -51,17 +53,20 @@ class FeatureRouteTest {
 
     @Test
     fun everyRouteTheAppHasEitherMapsOrIsDeliberatelyNotAPlace() {
-        // Every value in Routes must be accounted for, so a new screen cannot silently go
-        // unrecorded or, worse, be mapped to the wrong feature by accident.
-        val routes = listOf(
-            "home", "photos", "albums", "audio", "documents", "all_files", "settings",
-            "permission_diagnostics", "android_folders", "recovery", "pdf_viewer", "media_player",
-            "audio_editor", "videos", "favourites", "trash", "deep_scan", "search", "stream",
-            "stream_player", "memories", "app_media", "text_viewer", "cloud", "cloud_viewer",
-            "webdav", "webdav_player", "viewer", "media_player", "photo_editor", "video_editor",
-            "album_detail", "custom_album", "stickers", "capability",
-        )
-        val unmapped = routes.filter { featureForRoute(it) == null }
+        // Read from `Routes` rather than from a list kept here. The list that used to be in this
+        // test claimed to cover "every value in Routes" and could not: adding a route to the app
+        // left it silently unchecked, which is the failure it was written to prevent.
+        val declared = Routes::class.java.declaredFields
+            .filter { java.lang.reflect.Modifier.isStatic(it.modifiers) }
+            .mapNotNull { field ->
+                field.isAccessible = true
+                (field.get(null) as? String)?.substringBefore('?')
+            }
+            .distinct()
+
+        assertTrue("no routes were found at all — the reflection is wrong", declared.size > 20)
+
+        val unmapped = declared.filter { featureForRoute(it) == null }
         assertEquals("these routes are not accounted for: $unmapped", emptyList<String>(), unmapped)
     }
 }

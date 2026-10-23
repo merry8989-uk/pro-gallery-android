@@ -154,6 +154,8 @@ private val MAX_SIZE_OPTIONS = listOf(
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenPermissionDiagnostics: () -> Unit,
+    /** Opens the scope screen, which shows what a scan would do and then runs it. */
+    onRunScan: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -240,6 +242,7 @@ fun SettingsScreen(
         onExportUsage = { usagePicker.launch("progallery-usage.txt") },
         onDeleteUsage = viewModel::clearUsage,
         onOpenDefaultApps = { DefaultApps.openDefaultAppsSettings(context) },
+        onRunScan = onRunScan,
     )
 
     val visible = rows.filter { row ->
@@ -396,7 +399,20 @@ private fun buildRows(
     onReviewUsage: () -> Unit,
     onExportUsage: () -> Unit,
     onDeleteUsage: () -> Unit,
+    onRunScan: () -> Unit,
 ): List<SettingsRow> = buildList {
+    // ---- Scanning -----------------------------------------------------
+    // First in the section, because it is the answer to "so what does all this actually do?" —
+    // and until now the screen described a scan and offered no way to run one.
+    add(
+        SettingsRow.Action(
+            title = "Run a scan with the current configuration",
+            subtitle = "See exactly what will be scanned — and what it will miss — before it starts.",
+            section = "Scanning",
+            label = "Review",
+            onClick = onRunScan,
+        ),
+    )
     // ---- Scanning -----------------------------------------------------
     add(
         SettingsRow.Switch(

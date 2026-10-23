@@ -92,9 +92,17 @@ import com.progallery.app.util.MediaFormatUtils
 @Composable
 fun RecoveryScreen(
     onBack: () -> Unit,
+    /** Set when the person asked for a scan from the scope screen rather than opening this one. */
+    autoStart: Boolean = false,
     viewModel: RecoveryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Once per visit, and only when the route said so. `LaunchedEffect(Unit)` is deliberate: a
+    // scan that restarted on every recomposition would be worse than no auto-start at all.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (autoStart) viewModel.startScan()
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     var sortMenuOpen by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }

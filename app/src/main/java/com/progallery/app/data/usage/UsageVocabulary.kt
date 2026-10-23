@@ -85,7 +85,7 @@ fun featureForRoute(route: String?): FeatureId? {
         "photo_editor", "video_editor", "audio_editor" -> FeatureId.EDITOR
         "cloud_viewer" -> FeatureId.CLOUD
         "album_detail", "custom_album" -> FeatureId.ALBUMS
-        "permission_diagnostics" -> FeatureId.SETTINGS
+        "permission_diagnostics", "scan_scope" -> FeatureId.SETTINGS
         else -> null
     }
 }
