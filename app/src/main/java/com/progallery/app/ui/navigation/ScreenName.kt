@@ -28,6 +28,11 @@ object ScreenName {
     /**
      * Every screen, by the name it is logged under.
      *
+     * **The keys are bare.** The first version of this file keyed the map by the full route
+     * constant, and `Routes.RECOVERY` is `recovery?start={start}` — so `of` stripped the arguments,
+     * found nothing, and **the Recovery and DeepScan screens were never logged at all.** The test
+     * caught it on its first run, which is the whole reason the test exists.
+     *
      * The names are the ones a person would recognise from the app rather than the route strings:
      * `AccessDiagnostics` rather than `permission_diagnostics`, because this is what appears in a
      * log they might read.
@@ -46,8 +51,10 @@ object ScreenName {
         Routes.SETTINGS to "Settings",
         Routes.PERMISSION_DIAGNOSTICS to "AccessDiagnostics",
         Routes.ANDROID_FOLDERS to "AndroidFolders",
-        Routes.RECOVERY to "Recovery",
-        Routes.DEEP_SCAN to "DeepScan",
+        // These two carry arguments in their route constant, so the key is written out rather than
+        // taken from `Routes`: `recovery?start={start}` would never match the stripped form.
+        "recovery" to "Recovery",
+        "deep_scan" to "DeepScan",
         Routes.SCAN_SCOPE to "ScanScope",
         Routes.PDF_VIEWER to "PdfViewer",
         Routes.AUDIO_EDITOR to "AudioEditor",
