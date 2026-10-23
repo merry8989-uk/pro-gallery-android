@@ -43,6 +43,7 @@ import com.progallery.app.data.eventlog.LogFormat
 import com.progallery.app.data.eventlog.LogLevel
 import com.progallery.app.data.eventlog.LogLine
 import com.progallery.app.util.LogMail
+import androidx.compose.material3.Switch
 
 /**
  * The log, live, on the screen where access problems are diagnosed.
@@ -61,6 +62,8 @@ fun LogSection(
     onClear: () -> Unit,
     onSave: (android.net.Uri, LogFormat) -> Unit,
     onFile: (LogFormat, (java.io.File) -> Unit, (String) -> Unit) -> Unit,
+    /** Grants or withdraws the consent to record, from here rather than from Settings. */
+    onSetUsageConsent: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     var exportMenu by remember { mutableStateOf(false) }
@@ -96,11 +99,31 @@ fun LogSection(
                 }
             }
 
+            // The consent, where the data it governs is on display. It used to be a sentence
+            // telling the person to go and find this in Settings.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Record usage data", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "Counts, timings, device model and Android version. Never a file " +
+                            "name, a path, a search term, or anything from your photos. Nothing is " +
+                            "uploaded — this stays on the device.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = state.loggingEnabled, onCheckedChange = onSetUsageConsent)
+            }
+
             if (!state.loggingEnabled) {
                 Text(
                     // Said plainly rather than showing an empty list, which looks broken.
-                    text = "Logging is off. Turn on \u201cAnonymised usage data\u201d in Settings " +
-                        "\u2192 Diagnostics to record anything. Nothing is recorded while it is off.",
+                    text = "Recording is off, so nothing new is written. What was recorded before " +
+                        "is still here, and clearing it is up to you.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -215,7 +238,7 @@ private fun LevelChip(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun LogRow(entry: LogEntry) {
     val colour = when (entry.level) {
-        LogLevel.ERROR -> MaterialTheme.colorScheme.error
+        LogLevel.FATAL, LogLevel.ERROR -> MaterialTheme.colorScheme.error
         LogLevel.WARN -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }

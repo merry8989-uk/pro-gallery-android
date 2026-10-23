@@ -5,7 +5,7 @@ Recovery master prompt, the Advanced Settings master prompt, your audit, and the
 UltData feature list used as a reference. Nothing here is invented — each item was
 checked against the current code, not remembered.
 
-**Current release:** v1.40.0 · `versionCode 56` · CI green (unit tests, lint and an emulator
+**Current release:** v1.41.0 · `versionCode 57` · CI green (unit tests, lint and an emulator
 job) · signed with the project key.
 
 **Phases 1, 2A, 2B, 4 and 5 complete. Phase 3 is not** — the honest state is in §5, which is the
@@ -370,15 +370,23 @@ suggestion ("load from the cursor in batches") is what was implemented instead.
 4. ~~Recovery priorities — photos, WhatsApp media, video or documents?~~ **Answered by coverage**:
    all four, plus the app-media index (§6n).
 
-**Still open, and these are yours to make:**
+**Settled in v1.41.0:**
 
-1. **Part D — `.mpg`, `.mpeg`, `.mpe`, `.mpv`, `.mp2`, `.wmv`, `.swf`.** Media3 has no extractor or
-   decoder for any of them. Either bundle FFmpeg (and accept the LGPL/GPL obligations and the build
-   cost) or keep handing those files to another app. Open since the player plan was written.
-2. **Trash retention** — the 30-day purge runs only when the Trash screen is opened. A WorkManager
-   job would make it automatic.
-3. **"Usage permission"** on the Access screen — asked once and never answered. The app currently
-   reads it as a consent row rather than Android `PACKAGE_USAGE_STATS`.
+- ~~Trash retention~~ — a daily WorkManager job now purges it; the screen still purges on open.
+- ~~"Usage permission"~~ — implemented as the reading I believed was meant: the consent to record,
+  offered **on the Access screen** where the data is displayed, rather than a sentence telling the
+  person to go and find it in Settings. It is the same setting, not a second one. **If Android's
+  `PACKAGE_USAGE_STATS` was meant instead, that is a different thing and it has not been touched.**
+- ~~Part D, the hand-off half~~ — tapping a format the app cannot open now says **why** before
+  handing it over, which was the one path that still did it silently.
+
+**Still open, and this one is genuinely yours:**
+
+1. **Part D, the FFmpeg half.** `.mpg`, `.mpeg`, `.mpe`, `.mpv`, `.mp2`, `.wmv`, `.swf` are handed
+   to another app. Bundling FFmpeg would play them here, and it means accepting **LGPL/GPL
+   obligations** and a build cost — a decision with a licence attached to it, not a default I should
+   take on your behalf. The hand-off is implemented and documented; say the word and I will do the
+   other half.
 
 ---
 

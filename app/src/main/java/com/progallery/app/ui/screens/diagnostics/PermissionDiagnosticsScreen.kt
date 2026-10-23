@@ -174,6 +174,7 @@ fun PermissionDiagnosticsScreen(
                     onFile = { format, onReady, onFailed ->
                         viewModel.logFileFor(format, onReady, onFailed)
                     },
+                    onSetUsageConsent = { viewModel.setUsageConsent(it) },
                 )
             }
         }
