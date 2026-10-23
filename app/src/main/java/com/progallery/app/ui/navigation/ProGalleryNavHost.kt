@@ -81,8 +81,10 @@ fun ProGalleryNavHost(
         }
         // The screen view, as its own event. The usage store above counts features for the
         // weekly review; this is the line that says which screen, and when.
-        route?.destination?.route?.let { current ->
-            eventLog.log(EventName.SCREEN_VIEW, screen = current)
+        // The canonical name, not the route: logging the route is what split every screen into two
+        // names in the log, and halved every count the weekly review is built from.
+        ScreenName.of(route?.destination?.route)?.let { name ->
+            eventLog.log(EventName.SCREEN_VIEW, screen = name)
         }
     }
 

@@ -34,6 +34,8 @@ import com.progallery.app.data.update.UpdateInstaller
 import com.progallery.app.data.usage.UsageDigest
 import com.progallery.app.data.usage.UsageStore
 import com.progallery.app.data.index.IndexedMediaRepository
+import com.progallery.app.ui.navigation.ScreenName
+import com.progallery.app.ui.navigation.Routes
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -384,7 +386,7 @@ class SettingsViewModel @Inject constructor(
                 runCatching {
                     eventLog.log(
                         EventName.SETTINGS_CHANGED,
-                        screen = "Settings",
+                        screen = ScreenName.of(Routes.SETTINGS).orEmpty(),
                         details = SettingsAudit.changed(before, after),
                     )
                 }
@@ -397,7 +399,7 @@ class SettingsViewModel @Inject constructor(
                 runCatching {
                     eventLog.log(
                         EventName.CONSENT_CHANGED,
-                        screen = "Settings",
+                        screen = ScreenName.of(Routes.SETTINGS).orEmpty(),
                         details = mapOf(
                             "consent" to "usage_data",
                             "granted" to after.usageDataEnabled.toString(),

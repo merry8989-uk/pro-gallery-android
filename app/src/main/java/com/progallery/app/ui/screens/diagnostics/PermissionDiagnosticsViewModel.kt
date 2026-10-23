@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.progallery.app.data.settings.SettingsRepository
+import com.progallery.app.ui.navigation.ScreenName
+import com.progallery.app.ui.navigation.Routes
 
 data class PermissionDiagnosticsUiState(
     val loading: Boolean = true,
@@ -62,6 +64,8 @@ class PermissionDiagnosticsViewModel @Inject constructor(
 
     /** How many times a fix has been asked for this session. Three is a loop; two is trying again. */
     private var fixAttempts = 0
+    /** So the loop is recorded once per visit rather than on every attempt past the threshold. */
+    private var loopRecorded = false
 
     init {
         // The log is shown from the store's own flow, so an event appears on the screen as it is
@@ -142,7 +146,12 @@ class PermissionDiagnosticsViewModel @Inject constructor(
             // The same permission being asked for again and again is what being stuck looks like,
             // and it is the one signal that says the fix on offer is not the fix that is needed.
             fixAttempts++
-            if (fixAttempts == LOOP_THRESHOLD) {
+            // `>=`, not `==`. The device's log showed five fix requests inside one second and no
+            // loop event at all, which this does not by itself explain — but `==` means the event
+            // is missed for good the moment the count steps over the threshold, and that is a
+            // fragility with no upside.
+            if (fixAttempts >= LOOP_THRESHOLD && !loopRecorded) {
+                loopRecorded = true
                 record(
                     event = EventName.PERMISSION_LOOP,
                     details = mapOf("permission" to row.id.name.lowercase(), "attempts" to fixAttempts.toString()),
@@ -276,7 +285,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
                 userCode = eventLog.code(),
                 sessionId = eventLog.session(),
                 attemptId = attemptId,
-                screen = "AccessDiagnostics",
+                screen = ScreenName.of(Routes.PERMISSION_DIAGNOSTICS).orEmpty(),
                 details = details,
             ),
         )
