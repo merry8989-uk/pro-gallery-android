@@ -130,6 +130,11 @@ class SettingsRepository @Inject constructor(
         val videoThumbnails = booleanPreferencesKey("video_thumbnails")
         val audioArtwork = booleanPreferencesKey("audio_artwork")
         val documentPreviews = booleanPreferencesKey("document_previews")
+        val thumbnailQuality = stringPreferencesKey("thumbnail_quality")
+        val thumbnailMaxDimension = intPreferencesKey("thumbnail_max_dimension")
+        val signatureThumbnails = booleanPreferencesKey("signature_thumbnails")
+        val cacheThumbnails = booleanPreferencesKey("cache_thumbnails")
+        val generateDuringScan = booleanPreferencesKey("generate_during_scan")
         val showResolution = booleanPreferencesKey("show_resolution")
         val recoveryQuickScanEnabled = booleanPreferencesKey("recovery_quick_scan")
         val recoveryThumbnailCacheEnabled = booleanPreferencesKey("recovery_thumbnail_cache")
@@ -194,6 +199,11 @@ class SettingsRepository @Inject constructor(
             videoThumbnails = p[Keys.videoThumbnails] ?: d.videoThumbnails,
             audioArtwork = p[Keys.audioArtwork] ?: d.audioArtwork,
             documentPreviews = p[Keys.documentPreviews] ?: d.documentPreviews,
+            thumbnailQuality = enumOrDefault(p[Keys.thumbnailQuality], ThumbnailQuality.entries, d.thumbnailQuality),
+            thumbnailMaxDimension = p[Keys.thumbnailMaxDimension] ?: d.thumbnailMaxDimension,
+            signatureThumbnails = p[Keys.signatureThumbnails] ?: d.signatureThumbnails,
+            cacheThumbnails = p[Keys.cacheThumbnails] ?: d.cacheThumbnails,
+            generateDuringScan = p[Keys.generateDuringScan] ?: d.generateDuringScan,
             showResolution = p[Keys.showResolution] ?: d.showResolution,
             recoveryQuickScanEnabled = p[Keys.recoveryQuickScanEnabled] ?: d.recoveryQuickScanEnabled,
             recoveryThumbnailCacheEnabled = p[Keys.recoveryThumbnailCacheEnabled] ?: d.recoveryThumbnailCacheEnabled,
@@ -253,6 +263,11 @@ class SettingsRepository @Inject constructor(
         p[Keys.videoThumbnails] = s.videoThumbnails
         p[Keys.audioArtwork] = s.audioArtwork
         p[Keys.documentPreviews] = s.documentPreviews
+        p[Keys.thumbnailQuality] = s.thumbnailQuality.name
+        p[Keys.thumbnailMaxDimension] = s.thumbnailMaxDimension
+        p[Keys.signatureThumbnails] = s.signatureThumbnails
+        p[Keys.cacheThumbnails] = s.cacheThumbnails
+        p[Keys.generateDuringScan] = s.generateDuringScan
         p[Keys.showResolution] = s.showResolution
         p[Keys.recoveryQuickScanEnabled] = s.recoveryQuickScanEnabled
         p[Keys.recoveryThumbnailCacheEnabled] = s.recoveryThumbnailCacheEnabled

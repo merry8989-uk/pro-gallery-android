@@ -36,6 +36,8 @@ import com.progallery.app.data.recovery.RecoveryResult
 import com.progallery.app.data.recovery.RecoveryStatus
 import com.progallery.app.util.MediaFormatUtils
 import com.progallery.app.data.settings.ThumbnailPolicy
+import coil.request.CachePolicy
+import com.progallery.app.data.recovery.RecoverySource
 
 /**
  * A preview for one recovery result.
@@ -53,6 +55,9 @@ fun RecoveryThumbnail(
     showName: Boolean = false,
     showSize: Boolean = false,
 ) {
+    // Whether this file's kind came from its bytes rather than its name. The recovery engine
+    // records that as the source, so the thumbnail can honour the setting that governs it.
+    val identifiedBySignature = result.source == RecoverySource.SIGNATURE
     val item = result.item
     Box(
         modifier = modifier
@@ -63,12 +68,13 @@ fun RecoveryThumbnail(
         when {
             // Only images and videos have pixels of their own here; audio artwork and
             // document pages are the browsing grid's job, not a recovery result's.
-            item.isPreviewable && policy.allows(item) -> ThumbnailOrFallback(item)
+            item.isPreviewable && policy.allows(item, identifiedBySignature) ->
+                ThumbnailOrFallback(item, policy)
 
             else -> FormatIcon(item)
         }
 
-        if (item.isVideo && item.isPreviewable && policy.allows(item)) {
+        if (item.isVideo && item.isPreviewable && policy.allows(item, identifiedBySignature)) {
             Icon(
                 imageVector = Icons.Filled.PlayCircle,
                 contentDescription = "Video",
@@ -113,7 +119,7 @@ fun RecoveryThumbnail(
 
 /** The real preview, with a placeholder while it loads and on failure. */
 @Composable
-private fun ThumbnailOrFallback(item: MediaItem) {
+private fun ThumbnailOrFallback(item: MediaItem, policy: ThumbnailPolicy) {
     val context = LocalContext.current
     var failed by remember(item.uri) { mutableStateOf(false) }
 
@@ -133,6 +139,11 @@ private fun ThumbnailOrFallback(item: MediaItem) {
     val request = ImageRequest.Builder(context)
         .data(item.uri)
         .apply { if (item.isVideo) videoFrameMillis(1000) }
+        // The quality the person chose, and whether to keep what comes back. Both are per request
+        // because Coil's loader is a singleton built once at startup.
+        .size(policy.maxDimension)
+        .memoryCachePolicy(if (policy.cache) CachePolicy.ENABLED else CachePolicy.DISABLED)
+        .diskCachePolicy(if (policy.cache) CachePolicy.ENABLED else CachePolicy.DISABLED)
         .crossfade(true)
         .build()
 
