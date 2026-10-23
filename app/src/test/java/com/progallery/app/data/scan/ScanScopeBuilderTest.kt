@@ -39,8 +39,21 @@ class ScanScopeBuilderTest {
 
     @Test
     fun theKindsAreTheOnesTheCategoriesAllow() {
-        val s = scope(base.copy(scanVideos = false, scanImages = true, scanAudio = false))
+        // Everything off except images. Leaving the others on and expecting one kind was my
+        // mistake, not the code's: the scope reports every kind the categories allow.
+        val s = scope(
+            base.copy(
+                scanImages = true, scanVideos = false, scanAudio = false,
+                scanDocuments = false, scanArchives = false, scanOtherFiles = false,
+            ),
+        )
         assertEquals(listOf("image"), s.kinds)
+
+        // And it is a set, so the order is not promised — ask what is in it rather than what
+        // order it is in. (The other categories are still on in `base`, so asserting an exact set
+        // here would have been the same mistake twice.)
+        val some = scope(base.copy(scanVideos = true, scanImages = true, scanAudio = true))
+        assertTrue(some.kinds.containsAll(listOf("image", "video", "audio")))
     }
 
     @Test
@@ -165,7 +178,7 @@ class ScanScopeBuilderTest {
     }
 
     @Test
-    fun nothingSwitchedOnIsExplainedTwiceForTwoDifferentReasons() {
+    fun noMethodSwitchedOnIsExplained() {
         val s = scope(base.copy(quickScanEnabled = false, deepScanEnabled = false, safScanEnabled = false))
         assertTrue(s.notes.any { it.contains("No scan method") })
     }
