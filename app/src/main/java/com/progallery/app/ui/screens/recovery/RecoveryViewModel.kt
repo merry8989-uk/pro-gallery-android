@@ -33,6 +33,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.progallery.app.data.diagnostics.DiagnosticLog
+import com.progallery.app.data.settings.ExportDuplicatePolicy
+import com.progallery.app.data.recovery.ExportDestination
+import com.progallery.app.data.recovery.ExportDestinationStore
 
 data class RecoveryUiState(
     val scanState: RecoveryScanState = RecoveryScanState.Idle,
@@ -46,10 +49,15 @@ data class RecoveryUiState(
     val allowedModes: Set<RecoveryScanMode> = RecoveryScanMode.entries.toSet(),
     /** Export can be switched off entirely in Settings. */
     val exportEnabled: Boolean = true,
+    /** Whether to confirm before writing, and whether to ask where each time. */
+    val exportConfirmBeforeExport: Boolean = true,
+    val exportAskForDestination: Boolean = true,
     val mode: RecoveryScanMode = RecoveryScanMode.QUICK,
     val previewing: RecoveryResult? = null,
     val exporting: Boolean = false,
     val message: String? = null,
+    /** Results waiting on an answer, because the duplicate policy is "Ask" and a name clashed. */
+    val pendingDecision: List<RecoveryResult> = emptyList(),
 ) {
     val scanning: Boolean get() = scanState is RecoveryScanState.Scanning
 
@@ -78,6 +86,7 @@ class RecoveryViewModel @Inject constructor(
     private val mediaActions: MediaActions,
     settingsRepository: SettingsRepository,
     private val diagnosticLog: DiagnosticLog,
+    private val destinations: ExportDestinationStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RecoveryUiState())
@@ -89,7 +98,20 @@ class RecoveryViewModel @Inject constructor(
 
     private var scanJob: Job? = null
 
+    /** The folder the last export went to, when there is one. */
+    val rememberedDestination: StateFlow<ExportDestination?> = destinations.remembered
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     init {
+        // The history retention the settings describe, actually applied. `purgeHistory` existed
+        // with a 90-day default and **nothing called it**, so the history grew for ever while a
+        // setting was about to be added to control a purge that never ran.
+        viewModelScope.launch {
+            runCatching {
+                val days = settingsRepository.current().exportHistoryRetentionDays
+                repository.purgeHistory(days)
+            }
+        }
         viewModelScope.launch {
             settingsRepository.settings.collect { settings ->
                 _uiState.update { current ->
@@ -101,6 +123,8 @@ class RecoveryViewModel @Inject constructor(
                         thumbnailPolicy = ThumbnailPolicy.from(settings),
                         allowedModes = allowed,
                         exportEnabled = settings.exportEnabled,
+                        exportConfirmBeforeExport = settings.exportConfirmBeforeExport,
+                        exportAskForDestination = settings.exportAskForDestination,
                         // Never leave the screen pointing at a mode that is no longer
                         // offered, or the scan button would do nothing.
                         mode = if (current.mode in allowed) current.mode else allowed.firstOrNull() ?: current.mode,
@@ -111,6 +135,43 @@ class RecoveryViewModel @Inject constructor(
     }
 
     fun setMode(mode: RecoveryScanMode) = _uiState.update { it.copy(mode = mode) }
+
+    /**
+     * Answers the "a file of that name is already there" question.
+     *
+     * The answer applies to this run only. The person was asked about this folder and these files,
+     * not about how exports should behave from now on — so the setting is left alone rather than
+     * being changed behind their back.
+     */
+    fun answerDecision(policy: ExportDuplicatePolicy, destinationTree: Uri) {
+        val waiting = _uiState.value.pendingDecision
+        if (waiting.isEmpty()) return
+        _uiState.update { it.copy(pendingDecision = emptyList(), selection = waiting.map { r -> r.item.mediaKey }.toSet()) }
+        exportSelection(destinationTree, policyOverride = policy)
+    }
+
+    fun dismissDecision() = _uiState.update { it.copy(pendingDecision = emptyList()) }
+
+    /**
+     * Remembers the folder an export went to.
+     *
+     * The grant is taken here rather than by the picker, because a URI permission that is not taken
+     * is not held after the process ends — remembering it without this would remember a folder the
+     * app could no longer open.
+     */
+    suspend fun rememberDestination(tree: Uri, displayName: String) {
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                tree,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        destinations.remember(ExportDestination(tree.toString(), displayName))
+    }
+
+    /** Called when a remembered folder turns out to be gone or unreadable. */
+    suspend fun forgetDestination() = destinations.forget()
 
     fun startScan() {
         if (scanJob?.isActive == true) return
@@ -186,28 +247,39 @@ class RecoveryViewModel @Inject constructor(
      * Exports the selection into the folder the user chose. Every file is verified
      * before it is reported as exported.
      */
-    fun exportSelection(destinationTree: Uri) {
+    fun exportSelection(destinationTree: Uri, policyOverride: ExportDuplicatePolicy? = null) {
         val targets = _uiState.value.exportableSelection
         if (targets.isEmpty()) {
             _uiState.update { it.copy(message = "Nothing exportable is selected") }
             return
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(exporting = true) }
-            val outcomes = exporter.exportAll(targets, destinationTree)
+            _uiState.update { it.copy(exporting = true, pendingDecision = emptyList()) }
+            // Remembered only once it has worked, so a folder that turned out to be unreadable is
+            // not remembered as the place to go next time.
+            val outcomes = exporter.exportAll(targets, destinationTree, policyOverride)
             diagnosticLog.record("Export run", "${outcomes.size} item(s)")
             val succeeded = outcomes.count { it is RecoveryExportOutcome.Success }
             val skipped = outcomes.count { it is RecoveryExportOutcome.Skipped }
-            val failed = outcomes.size - succeeded - skipped
+            val asked = outcomes.count { it is RecoveryExportOutcome.NeedsDecision }
+            val failed = outcomes.size - succeeded - skipped - asked
             val firstFailure = outcomes.filterIsInstance<RecoveryExportOutcome.Failed>().firstOrNull()
+
+            // The items the exporter was not allowed to decide. They are matched back to their
+            // results by name, because that is what the question is about.
+            val waiting = outcomes.filterIsInstance<RecoveryExportOutcome.NeedsDecision>()
+                .mapNotNull { decision -> targets.firstOrNull { it.item.displayName == decision.displayName } }
+
             _uiState.update {
                 it.copy(
                     exporting = false,
-                    selection = emptySet(),
+                    selection = if (asked > 0) it.selection else emptySet(),
+                    pendingDecision = waiting,
                     message = when {
-                        failed == 0 && skipped == 0 -> "Exported $succeeded file(s)"
+                        failed == 0 && skipped == 0 && asked == 0 -> "Exported $succeeded file(s)"
+                        asked > 0 -> "$asked file(s) already exist in that folder. What should happen?"
                         failed == 0 -> "Exported $succeeded, skipped $skipped already present"
-                        succeeded == 0 && skipped == 0 ->
+                        succeeded == 0 && skipped == 0 && asked == 0 ->
                             "Export failed: ${firstFailure?.message ?: "unknown reason"}"
                         else -> "Exported $succeeded, skipped $skipped, $failed failed"
                     },

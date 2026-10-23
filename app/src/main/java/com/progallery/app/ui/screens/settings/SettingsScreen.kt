@@ -896,6 +896,50 @@ private fun buildRows(
     )
     add(
         SettingsRow.Switch(
+            title = "Ask before exporting",
+            subtitle = "Shows what is about to happen, and where, before anything is written. " +
+                "Off means a tap starts the copy.",
+            section = "Recovery & export",
+            checked = settings.exportConfirmBeforeExport,
+            onCheckedChange = { value -> update { it.copy(exportConfirmBeforeExport = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Ask for the folder each time",
+            subtitle = "Off reuses the last folder you chose, and still asks on the first export. " +
+                "The folder is remembered outside these settings, so its access grant is never " +
+                "written into an exported settings file.",
+            section = "Recovery & export",
+            checked = settings.exportAskForDestination,
+            onCheckedChange = { value -> update { it.copy(exportAskForDestination = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
+            title = "Keep the original file name",
+            subtitle = "On writes the file under its own name. Off prefixes it with " +
+                "\"recovered-\", so the name says where it came from.",
+            section = "Recovery & export",
+            advanced = true,
+            checked = settings.exportPreserveNames,
+            onCheckedChange = { value -> update { it.copy(exportPreserveNames = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Slider(
+            title = "Keep export history for",
+            subtitle = "\"${settings.exportHistoryRetentionDays}\" days. Older entries are removed " +
+                "when the Recovery screen is opened. The exported files themselves are never touched.",
+            section = "Recovery & export",
+            advanced = true,
+            value = settings.exportHistoryRetentionDays,
+            range = 7..365,
+            onChange = { value -> update { it.copy(exportHistoryRetentionDays = value) } },
+        ),
+    )
+    add(
+        SettingsRow.Switch(
             title = "Verify after copying",
             subtitle = "Checks the copy against the source size before reporting success. Off " +
                 "reports success as soon as the write finishes.",

@@ -52,8 +52,18 @@ data class PerformancePolicy(
  * already has is not something a recovery tool should do.
  */
 enum class ExportDuplicatePolicy(val label: String) {
+    ASK("Ask me each time"),
     RENAME("Keep both (add a number)"),
     SKIP("Skip the file"),
+    ;
+
+    /**
+     * Whether the exporter can decide this one on its own.
+     *
+     * `ASK` cannot: it needs an answer from the person, which is why the export path has to stop
+     * and wait rather than choose. Everything else is a rule the exporter applies by itself.
+     */
+    val decidesItself: Boolean get() = this != ASK
 }
 
 enum class ThemeMode(val label: String) {
@@ -200,6 +210,23 @@ data class AppSettings(
 
     /** How many files may be copied at once. */
     val exportMaxConcurrentJobs: Int = 2,
+
+    /** Ask before anything is written, so an accidental tap cannot start a copy. */
+    val exportConfirmBeforeExport: Boolean = true,
+
+    /**
+     * Ask which folder every time, or reuse the last one.
+     *
+     * When this is off the app still asks once — there is no way to export without a destination,
+     * and inventing one would be worse than asking.
+     */
+    val exportAskForDestination: Boolean = true,
+
+    /** Keep the file's own name. Off means the app marks what it writes, as it always did. */
+    val exportPreserveNames: Boolean = true,
+
+    /** How long the export history is kept. Purged when the Recovery screen is opened. */
+    val exportHistoryRetentionDays: Int = 90,
 
     /** Keep a local record of recent scans so they can be reviewed. */
     val keepActivityHistory: Boolean = false,
@@ -350,6 +377,7 @@ data class AppSettings(
             thumbnailCacheLimitMb = thumbnailCacheLimitMb.coerceIn(32, 4096),
             scanBatchSize = scanBatchSize.coerceIn(100, 5_000),
             exportMaxConcurrentJobs = exportMaxConcurrentJobs.coerceIn(1, 8),
+            exportHistoryRetentionDays = exportHistoryRetentionDays.coerceIn(1, 3_650),
             autoClearLogsAfterDays = autoClearLogsAfterDays.coerceIn(1, 365),
             // Experimental and root-related features stay off unless explicitly
             // enabled by the user; a sanitized copy never turns them on.
@@ -398,6 +426,10 @@ data class AppSettings(
             exportVerifyAfterCopy = Defaults.exportVerifyAfterCopy,
             exportDuplicatePolicy = Defaults.exportDuplicatePolicy,
             exportMaxConcurrentJobs = Defaults.exportMaxConcurrentJobs,
+            exportConfirmBeforeExport = Defaults.exportConfirmBeforeExport,
+            exportAskForDestination = Defaults.exportAskForDestination,
+            exportPreserveNames = Defaults.exportPreserveNames,
+            exportHistoryRetentionDays = Defaults.exportHistoryRetentionDays,
         )
         "Appearance" -> copy(
             themeMode = Defaults.themeMode,

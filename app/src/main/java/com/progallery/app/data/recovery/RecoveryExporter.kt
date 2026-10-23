@@ -71,8 +71,18 @@ class RecoveryExporter @Inject constructor(
     suspend fun exportAll(
         results: List<RecoveryResult>,
         destinationTree: Uri,
+        /**
+         * The answer to an `ASK` that the person has just given.
+         *
+         * The policy normally comes from the settings; this is how one export run is told what to
+         * do about a name clash without the person having to change a setting they will then have
+         * to change back.
+         */
+        policyOverride: ExportDuplicatePolicy? = null,
     ): List<RecoveryExportOutcome> {
-        val settings = settingsRepository.current()
+        val settings = policyOverride
+            ?.let { settingsRepository.current().copy(exportDuplicatePolicy = it) }
+            ?: settingsRepository.current()
         if (!settings.exportEnabled) {
             val refused = RecoveryExportOutcome.Failed("Export is switched off in Settings.")
             return results.map { refused }
@@ -117,20 +127,29 @@ class RecoveryExporter @Inject constructor(
         result: RecoveryResult,
         settings: AppSettings,
     ): RecoveryExportOutcome {
-        val wanted = result.item.displayName.ifBlank { "recovered_${System.currentTimeMillis()}" }
+        val original = result.item.displayName.ifBlank { "recovered_${System.currentTimeMillis()}" }
+        // Keeping the file's own name is the default; turning it off says where the file came from
+        // instead, which is the one thing the name cannot otherwise tell you.
+        val wanted = if (settings.exportPreserveNames) original else "recovered-$original"
         // A thumbnail is a real file, so it is exported — but under a name that
         // says so, because it is not the original picture.
         val exportName = if (result.isThumbnail) markAsThumbnail(wanted) else wanted
         val mime = result.item.mimeType.ifBlank { "*/*" }
 
-        // Skipping is checked before anything is created, so a skip leaves no trace.
-        if (settings.exportDuplicatePolicy == ExportDuplicatePolicy.SKIP &&
-            tree.findFile(exportName) != null
-        ) {
-            return RecoveryExportOutcome.Skipped(
-                exportName,
-                "A file of that name is already in the folder, and the setting is to skip.",
-            )
+        // Checked before anything is created, so neither a skip nor a question leaves a trace.
+        val clash = tree.findFile(exportName) != null
+        if (clash) {
+            when (settings.exportDuplicatePolicy) {
+                ExportDuplicatePolicy.SKIP -> return RecoveryExportOutcome.Skipped(
+                    exportName,
+                    "A file of that name is already in the folder, and the setting is to skip.",
+                )
+                ExportDuplicatePolicy.ASK -> return RecoveryExportOutcome.NeedsDecision(
+                    exportName,
+                    "A file of that name is already in the folder.",
+                )
+                ExportDuplicatePolicy.RENAME -> Unit // the unique-name step below handles it
+            }
         }
 
         // Unique, so parallel copies never share a partial file.

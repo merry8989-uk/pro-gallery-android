@@ -27,6 +27,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.40.0]
+The export workflow: confirm, choose, name, and ask when a name clashes.
+
+### The problem
+The exporter worked. The person could not control it: no confirmation before a copy started, no way
+to keep the folder it used, no way to say what a file should be called, and a name clash was
+resolved by a rule the app had picked in advance.
+
+### Added — five settings that do something
+- **Ask before exporting** — a dialog naming what is about to happen and where, so an accidental tap
+  cannot start a copy.
+- **Ask for the folder each time** — off reuses the last folder, and still asks on the first export,
+  because there is no way to export without a destination and inventing one would be worse.
+- **Keep the original file name** — off prefixes `recovered-`, so the name says where the file came
+  from, which is the one thing the name cannot otherwise tell you.
+- **Keep export history for** — the retention the settings describe.
+- **"Ask me each time"** as a duplicate-name policy. This needed a **third outcome**,
+  `NeedsDecision`, which says the exporter is not allowed to choose rather than guessing — and the
+  answer applies to that run only, because the person was asked about *these* files in *this*
+  folder, not about how exports should behave from now on.
+
+### The remembered destination is deliberately not a setting
+A tree URI is not a preference, it is a **permission grant**, and the settings export is a file a
+person can share. Putting it in `AppSettings` would put a grant into that file — the one thing the
+master prompt says must never be exported. It lives in its own store, the grant is taken with
+`takePersistableUriPermission` so it survives a restart, and a test asserts the settings export
+carries no `content://` URI. The constraint and the design agree instead of fighting: the
+settings-export completeness test requires every field of `AppSettings` to be listed, and a field
+that must not be listed would have broken it.
+
+### A dead function found on the way
+**`purgeHistory` existed with a 90-day default and nothing called it**, so the export history grew
+for ever — while a setting was about to be added to control a purge that never ran. It runs now,
+when the Recovery screen is opened, and the retention is clamped so a hand-edited settings file
+cannot make it delete everything or keep it for ever.
+
+### Not done, and said rather than faked
+- **Preserving original timestamps.** SAF gives no way to set a document's modified time, so a
+  setting for it would be a control that does nothing — which is what this project spent two
+  releases removing.
+- **A default export format.** The export writes the original bytes; an "alternative" format would
+  mean transcoding, which is not implemented.
+
+### Fixed
+A Kotlin local function cannot refer to a `val` declared below it, and my export helpers sat above
+the pickers they use. CI caught it; moved below both.
+
 ## [1.39.0]
 A scan you can run, and a screen that says what it will do first.
 

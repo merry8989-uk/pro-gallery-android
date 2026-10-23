@@ -80,6 +80,9 @@ import com.progallery.app.ui.components.ErrorBanner
 import com.progallery.app.ui.components.MediaPermissionGate
 import com.progallery.app.ui.components.RecoveryThumbnail
 import com.progallery.app.util.MediaFormatUtils
+import com.progallery.app.data.settings.ExportDuplicatePolicy
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * Quick Scan, Dumpster-style in layout but honest in content.
@@ -107,14 +110,51 @@ fun RecoveryScreen(
     var sortMenuOpen by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
 
-    // The destination is always chosen by the user, through the official picker.
-    val destinationPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree(),
-    ) { uri -> uri?.let { viewModel.exportSelection(it) } }
+    // The two questions the settings can ask before anything is written, and the folder the
+    // export will go to once they are answered.
+    var confirmingExport by remember { mutableStateOf(false) }
+    var exportDestination by remember { mutableStateOf<android.net.Uri?>(null) }
+    val remembered by viewModel.rememberedDestination.collectAsStateWithLifecycle()
+    // A scope the composition owns, rather than a lifecycle one reached through an owner: the work
+    // here belongs to this screen being on display.
+    val scope = rememberCoroutineScope()
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri -> uri?.let { viewModel.addFolder(it) } }
+
+    val destinationPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        uri?.let {
+            exportDestination = it
+            viewModel.exportSelection(it)
+            // The grant is taken so the folder is still openable next time; the name is stored
+            // beside it only to show the person where they are sending things.
+            scope.launch {
+                viewModel.rememberDestination(it, it.lastPathSegment?.substringAfterLast(':') ?: "chosen folder")
+            }
+        }
+    }
+
+    // Where the export goes. Asking every time is the default; reusing the last folder is what the
+    // person asked for when they turned that off, and there is nothing to reuse on a first run.
+    fun chooseDestination() {
+        val reuse = !state.exportAskForDestination
+        val known = remembered
+        if (reuse && known != null) {
+            exportDestination = android.net.Uri.parse(known.treeUri)
+            viewModel.exportSelection(android.net.Uri.parse(known.treeUri))
+        } else {
+            destinationPicker.launch(known?.treeUri?.let { android.net.Uri.parse(it) })
+        }
+    }
+
+    // Everything that starts an export goes through here, so the confirmation cannot be skipped by
+    // whichever button happened to be tapped.
+    fun startExport() {
+        if (state.exportConfirmBeforeExport) confirmingExport = true else chooseDestination()
+    }
 
     LaunchedEffect(state.message) {
         state.message?.let { snackbarHostState.showSnackbar(it); viewModel.consumeMessage() }
@@ -174,7 +214,7 @@ fun RecoveryScreen(
                         sortMenuOpen = sortMenuOpen,
                         onSortMenuOpen = { sortMenuOpen = it },
                         viewModel = viewModel,
-                        onExport = { destinationPicker.launch(null) },
+                        onExport = { startExport() },
                         onAddFolder = { folderPicker.launch(null) },
                     )
                 }
@@ -191,7 +231,7 @@ fun RecoveryScreen(
                 viewModel.clearSelection()
                 viewModel.toggleSelection(result)
                 viewModel.preview(null)
-                destinationPicker.launch(null)
+                startExport()
             },
             onShare = { viewModel.share(result) },
         )
@@ -203,6 +243,85 @@ fun RecoveryScreen(
             onDismiss = { showHistory = false },
         )
     }
+
+    if (confirmingExport) {
+        ExportConfirmDialog(
+            count = state.selection.size,
+            destinationName = remembered?.displayName,
+            askForDestination = state.exportAskForDestination,
+            onDismiss = { confirmingExport = false },
+            onConfirm = {
+                confirmingExport = false
+                chooseDestination()
+            },
+        )
+    }
+
+    if (state.pendingDecision.isNotEmpty()) {
+        NameClashDialog(
+            count = state.pendingDecision.size,
+            onKeepBoth = {
+                exportDestination?.let { viewModel.answerDecision(ExportDuplicatePolicy.RENAME, it) }
+            },
+            onSkip = {
+                exportDestination?.let { viewModel.answerDecision(ExportDuplicatePolicy.SKIP, it) }
+            },
+            onDismiss = { viewModel.dismissDecision() },
+        )
+    }
+}
+
+/** The confirmation the settings can ask for, so a tap cannot start a copy on its own. */
+@Composable
+private fun ExportConfirmDialog(
+    count: Int,
+    destinationName: String?,
+    askForDestination: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (count == 1) "Export this file?" else "Export $count files?") },
+        text = {
+            Text(
+                buildString {
+                    append("They are copied to a folder you choose")
+                    if (!askForDestination && destinationName != null) {
+                        append(" — last time that was \"$destinationName\"")
+                    }
+                    append(". The originals are never moved or changed.")
+                },
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Choose a folder") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** The question the "Ask me each time" duplicate policy exists to ask. */
+@Composable
+private fun NameClashDialog(
+    count: Int,
+    onKeepBoth: () -> Unit,
+    onSkip: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (count == 1) "A file of that name is already there" else "$count files already have those names") },
+        text = {
+            Text(
+                "Nothing has been copied yet. Keeping both adds a number to the new file's name; " +
+                    "skipping leaves the folder exactly as it is.",
+            )
+        },
+        confirmButton = { TextButton(onClick = onKeepBoth) { Text("Keep both") } },
+        dismissButton = {
+            TextButton(onClick = onSkip) { Text("Skip") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
 }
 
 @Composable
