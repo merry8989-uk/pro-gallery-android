@@ -40,7 +40,7 @@ Not a bare gallery. It has, verified in the code:
 first one's data behind, and never update over it — so the name changes and the identity does not.
 That is the difference between a rename and a new app.
 
-## Part B — the file tree ⬜
+## Part B — the file tree ✅ **done, v1.51.0**
 
 A real hierarchy over what the app can actually reach: the granted roots, the app's own index, and
 `Android/media`. Not a pretend root that shows an empty `/` — every node is something the app was
@@ -64,7 +64,7 @@ here goes through that door or through SAF, and none of them claims to bypass it
   one the app owns.
 - **C5** — a progress and undo path, because a half-moved file is worse than a refused one.
 
-## Part D — one way in, for every format ⬜
+## Part D — one way in, for every format ✅ **done, v1.50.0**
 
 The dispatch the app does not have. Given any file, decide — from `CapabilityMatrix` — which viewer
 opens it, and **say so plainly when none can**.

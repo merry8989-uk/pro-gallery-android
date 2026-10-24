@@ -38,6 +38,7 @@ enum class FeatureId(val id: String) {
     STICKERS("stickers"),
     CAPABILITY("capability"),
     ANDROID_FOLDERS("android_folders"),
+    FILE_TREE("file_tree"),
     CLOUD("cloud"),
     WEBDAV("webdav"),
     STREAM("stream"),
