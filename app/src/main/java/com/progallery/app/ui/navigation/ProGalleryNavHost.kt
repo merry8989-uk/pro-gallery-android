@@ -61,6 +61,7 @@ import com.progallery.app.data.documents.FileDestination
 import com.progallery.app.data.documents.FileOpener
 import com.progallery.app.data.documents.Viewer
 import com.progallery.app.util.rememberMediaActions
+import com.progallery.app.ui.screens.tree.FileTreeScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -229,6 +230,14 @@ fun ProGalleryNavHost(
                     }
                 },
                 onScanAndroidMedia = { navController.navigate(Routes.ANDROID_FOLDERS) },
+            )
+        }
+        composable(Routes.FILE_TREE) {
+            FileTreeScreen(
+                onBack = { navController.popBackStack() },
+                // The same dispatch every other screen uses, so a format that has a viewer here has
+                // one there, and a format that is handed over says why.
+                onOpenFile = openItem,
             )
         }
         composable(Routes.APP_MEDIA) {

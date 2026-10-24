@@ -27,6 +27,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.51.0]
+Part B: the file tree.
+
+### Added
+- **A folder tree**, built from the app's own snapshot of what it can see — the same list every
+  other screen reads. **Not from a filesystem walk**, which would show folders the app was refused as
+  **empty** ones, and an empty folder is a lie about what is in it.
+- **A folder carries everything under it.** "How big is this folder" means the whole of it, not the
+  part that happens to sit directly inside — so counts and sizes roll up.
+- **Folders before files, each alphabetical and case-insensitive**, and an indent that is capped at
+  eight levels, because a file manager that pushes the name off the screen has failed at its one job.
+- **Collapse and expand**, with the closed set kept in the view model so it survives rotation. It
+  stores the **closed** folders rather than the open ones: a folder that appears while the screen is
+  open should be open, because it is new and nobody has seen it.
+- **Every file opens through `FileOpener`** — the same dispatch as everywhere else, so the two parts
+  cannot disagree about what has a viewer.
+
+### The shape, tested as a shape
+Ten cases, chosen by walking the logic before writing them: nesting, roll-up, ordering, a `null`
+path, a blank path, an empty segment (`a//b/c.jpg`), a bare name, deep nesting, an empty list, and
+two files with the same name in different folders. All ten were run against a faithful mirror first.
+
+### Two things the plan got wrong, corrected here
+The plan's **B3** asked for breadcrumbs, which do not apply to a flat indented list — the list **is**
+the hierarchy, and "expand to path" is what that item means now. And the storage summary the plan put
+on this screen is Part **E**, which is still to come; the tree shows its own totals, which is what it
+needs to answer "where did my space go" at a glance.
+
 ## [1.50.0]
 Part D: one way in, for every format — and the tap that did nothing.
 

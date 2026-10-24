@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.ui.res.stringResource
 import com.progallery.app.R
+import androidx.compose.material.icons.filled.AccountTree
 
 /**
  * The sidebar.
@@ -93,6 +94,7 @@ private fun DrawerContents(onNavigate: (String) -> Unit) {
             DrawerItem(Icons.Filled.MusicNote, "Audio", Routes.AUDIO, onNavigate)
             DrawerItem(Icons.Filled.Description, "Documents", Routes.DOCUMENTS, onNavigate)
             DrawerItem(Icons.Filled.Folder, "All files", Routes.ALL_FILES, onNavigate)
+            DrawerItem(Icons.Filled.AccountTree, "File tree", Routes.FILE_TREE, onNavigate)
             DrawerItem(Icons.Filled.Folder, "Albums", Routes.ALBUMS, onNavigate)
             DrawerItem(Icons.Filled.Favorite, "Favourites", Routes.FAVOURITES, onNavigate)
             DrawerItem(Icons.Filled.Restore, "Trash", Routes.TRASH, onNavigate)
