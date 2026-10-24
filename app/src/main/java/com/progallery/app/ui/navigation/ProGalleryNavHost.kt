@@ -57,6 +57,10 @@ import androidx.compose.runtime.remember
 import kotlinx.coroutines.launch
 import com.progallery.app.data.scan.ScanTarget
 import com.progallery.app.ui.screens.scan.ScanScopeScreen
+import com.progallery.app.data.documents.FileDestination
+import com.progallery.app.data.documents.FileOpener
+import com.progallery.app.data.documents.Viewer
+import com.progallery.app.util.rememberMediaActions
 
 @Composable
 fun ProGalleryNavHost(
@@ -69,6 +73,7 @@ fun ProGalleryNavHost(
     val navController = rememberNavController()
     val usageStore = rememberUsageStore()
     val eventLog = rememberEventLog()
+    val mediaActions = rememberMediaActions()
     val currentScope = androidx.compose.runtime.rememberCoroutineScope()
 
     // Which part of the app is being used, recorded once per route. The mapping is pure and
@@ -122,18 +127,40 @@ fun ProGalleryNavHost(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // One place decides where a tapped item goes, by its kind.
+    // One place decides where a tapped item goes. It used to be a `when` here with **no `else`**,
+    // so a document, an archive or an unknown extension had its tap silently ignored — nothing
+    // opened and nothing said why. `FileOpener` answers for every extension the app knows, and a
+    // test walks the whole registry to keep it that way.
     val openItem: (MediaItem) -> Unit = { item ->
-        when {
-            item.isImage -> navController.navigate(Routes.viewer(item.uri.toString(), item.mediaType.name))
-            item.isAudio -> navController.navigate(Routes.mediaPlayer(item.uri.toString()))
-            item.isVideo -> navController.navigate(Routes.mediaPlayer(item.uri.toString()))
-            item.isPdf -> navController.navigate(Routes.pdfViewer(item.uri.toString()))
-            // The app's own reader for text, JSON, CSV and code. Without it these went to
-            // "open with another app", which often found nothing.
-            item.isTextReadable -> navController.navigate(
-                Routes.textViewer(item.uri.toString(), item.displayName),
+        when (val destination = FileOpener.destinationFor(item)) {
+            is FileDestination.Here -> navController.navigate(
+                when (destination.viewer) {
+                    Viewer.IMAGE -> Routes.viewer(item.uri.toString(), item.mediaType.name)
+                    Viewer.PLAYER -> Routes.mediaPlayer(item.uri.toString())
+                    Viewer.PDF -> Routes.pdfViewer(item.uri.toString())
+                    Viewer.TEXT -> Routes.textViewer(item.uri.toString(), item.displayName)
+                },
             )
+
+            // Nothing here can open it. The hand-off is offered, and the reason goes with it rather
+            // than the tap doing nothing at all.
+            is FileDestination.HandOff -> {
+                val opened = mediaActions.launchOpen(item)
+                // `log` is a suspend function and this lambda is not one, so it is launched. The
+                // record matters: a tap that could not open here is exactly the case somebody
+                // reports, and without this the log would not show it happened at all.
+                currentScope.launch {
+                    eventLog.log(
+                        EventName.ERROR_STATE_SHOWN,
+                        screen = ScreenName.of(Routes.ALL_FILES),
+                        details = mapOf(
+                            "where" to "open_item",
+                            "extension" to item.extension,
+                            "handed_over" to opened.toString(),
+                        ),
+                    )
+                }
+            }
         }
     }
 

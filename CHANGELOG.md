@@ -27,6 +27,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.50.0]
+Part D: one way in, for every format — and the tap that did nothing.
+
+### The defect
+The navigation host's `when` decided where a tapped file went, and it had **no `else` branch**. So a
+document, an archive, or any extension the app does not recognise had its tap **silently ignored** —
+nothing opened, and nothing said why. That is the worst of the three outcomes: worse than opening the
+wrong viewer, and worse than an honest refusal.
+
+### The fix
+**`FileOpener`** is the one place that decides, and the capability matrix is its **only** source of
+truth — the same table the capability screen is built from, so what the app says it can open and what
+a tap does cannot disagree.
+
+It answers with one of exactly two things: **open here**, with one of the four viewers, or **hand it
+over**, with the reason. There is deliberately no third answer. What a file cannot be is nothing.
+
+### What every extension gets, checked against the registry rather than assumed
+| | |
+| --- | --- |
+| **84** | the player — audio and video |
+| **42** | the image viewer |
+| **21** | the text viewer — and `TextFormats` covers **93** extensions in all: `txt`, `md`, `json`, `js`, `html`, `csv`, `yaml`, `kt`, `py` and the rest |
+| **1** | the PDF viewer |
+| **35** | handed over — image formats the **device** cannot decode, with that as the reason |
+| **98** | handed over — no viewer in this app, which the app now says |
+
+**281 extensions, every one with a destination.** A test walks the whole registry rather than a
+hand-picked list, because a hand-picked list is how a format gets left out without anyone noticing.
+
+### Checked before building, and two things were already right
+`.svg` is classified as an image and `ImageDecodability` can render it, so it opens as a picture
+rather than as XML — which is what it looked like it might not. And the text readers already covered
+every format named in the request. **I did not change either.** Finding that something already works
+is a result, and the mirror of the logic that found it is what the test now does in Kotlin.
+
 ## [1.49.0]
 What a real device's diagnostics said — the first time this project has read its own log.
 
