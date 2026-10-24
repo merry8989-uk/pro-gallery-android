@@ -41,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import com.progallery.app.ui.components.MediaPermissionGate
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 /**
  * The file tree.
@@ -53,6 +54,7 @@ import com.progallery.app.ui.components.MediaPermissionGate
  * else** (`FileOpener`), so a format that has a viewer here has one there and a format that is
  * handed over says why.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileTreeScreen(
     onBack: () -> Unit,
