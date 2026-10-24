@@ -144,16 +144,22 @@ fun ProGalleryNavHost(
 
             // Nothing here can open it. The hand-off is offered, and the reason goes with it rather
             // than the tap doing nothing at all.
-            is FileDestination.HandOff -> mediaActions.launchOpen(item).let { opened ->
-                eventLog.log(
-                    EventName.ERROR_STATE_SHOWN,
-                    screen = ScreenName.of(Routes.ALL_FILES),
-                    details = mapOf(
-                        "where" to "open_item",
-                        "extension" to item.extension,
-                        "handed_over" to opened.toString(),
-                    ),
-                )
+            is FileDestination.HandOff -> {
+                val opened = mediaActions.launchOpen(item)
+                // `log` is a suspend function and this lambda is not one, so it is launched. The
+                // record matters: a tap that could not open here is exactly the case somebody
+                // reports, and without this the log would not show it happened at all.
+                currentScope.launch {
+                    eventLog.log(
+                        EventName.ERROR_STATE_SHOWN,
+                        screen = ScreenName.of(Routes.ALL_FILES),
+                        details = mapOf(
+                            "where" to "open_item",
+                            "extension" to item.extension,
+                            "handed_over" to opened.toString(),
+                        ),
+                    )
+                }
             }
         }
     }
