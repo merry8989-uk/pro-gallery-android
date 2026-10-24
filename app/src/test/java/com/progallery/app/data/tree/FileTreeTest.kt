@@ -111,8 +111,13 @@ class FileTreeTest {
                 item(2, "photo.jpg", 20, "B/photo.jpg"),
             ),
         )
-        assertEquals(listOf("A", "B"), rows.map { it.node.name })
-        // The paths differ, which is what the key of a list row would use.
-        assertEquals(listOf("A/photo.jpg", "B/photo.jpg"), rows.drop(2).map { it.node.path })
+        // The folder, then its file, then the next folder and its file — the files are in the rows
+        // too, which the first version of this test forgot.
+        assertEquals(listOf("A", "photo.jpg", "B", "photo.jpg"), rows.map { it.node.name })
+        // The paths differ, which is what the key of a list row uses — same name, different row.
+        assertEquals(
+            listOf("A/photo.jpg", "B/photo.jpg"),
+            rows.filter { it.node is TreeNode.File }.map { it.node.path },
+        )
     }
 }
