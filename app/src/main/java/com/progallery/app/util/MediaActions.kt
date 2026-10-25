@@ -11,6 +11,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.progallery.app.util.runCatchingCancellable
+import com.progallery.app.data.transfer.CopyProgress
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.coroutineContext
 
 /**
  * Real, platform-correct media operations: sharing through the Sharesheet,
@@ -21,6 +26,16 @@ import com.progallery.app.util.runCatchingCancellable
 class MediaActions @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
+
+    private companion object {
+        /**
+         * 64 KiB per read.
+         *
+         * Large enough that the per-chunk overhead is nothing, small enough that progress is reported
+         * often enough to look like progress rather than a series of jumps.
+         */
+        const val COPY_BUFFER_BYTES = 64 * 1024
+    }
 
     /** Builds a Sharesheet intent for one or many items. */
     fun shareIntent(items: List<MediaItem>): Intent {
@@ -210,52 +225,88 @@ class MediaActions @Inject constructor(
     }.getOrDefault(false)
 
     /**
-     * Copies a file into another folder by re-publishing its bytes through
-     * MediaStore. Needs Android 10+ for RELATIVE_PATH; for documents created by
-     * other apps it additionally needs All-files access.
+     * Copies a file into another folder by re-publishing its bytes through MediaStore.
      *
-     * A failed copy deletes the pending row it created rather than leaving an
-     * empty entry behind.
+     * Needs Android 10+ for RELATIVE_PATH; for documents created by other apps it additionally needs
+     * All-files access.
+     *
+     * **Suspending, cancellable, and it says how far it has got.** It used to be a blocking
+     * `input.copyTo(output)` with no feedback at all, which meant a large video looked like a frozen
+     * app — and there was no way to stop it. A suspend function is cancellable, so stopping it is
+     * the caller cancelling the job.
+     *
+     * **A cancelled or failed copy leaves nothing behind.** The row is inserted as pending, which
+     * means nothing else can see it, and it is deleted on every exit that is not success — including
+     * cancellation, because `finally` runs for that too. A half-written file that looks like a real
+     * one is worse than a refused copy.
      */
-    fun copyTo(item: MediaItem, targetRelativePath: String): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
-        return runCatchingCancellable {
-            val normalized = if (targetRelativePath.endsWith("/")) {
-                targetRelativePath
-            } else {
-                "$targetRelativePath/"
-            }
-            val values = android.content.ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, item.displayName)
-                put(
-                    MediaStore.MediaColumns.MIME_TYPE,
-                    item.mimeType.ifBlank { "application/octet-stream" },
-                )
-                put(MediaStore.MediaColumns.RELATIVE_PATH, normalized)
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }
-            val uri = context.contentResolver.insert(collectionFor(item), values)
-            if (uri == null) {
-                false
-            } else {
-                val copied = context.contentResolver.openInputStream(item.uri)?.use { input ->
-                    context.contentResolver.openOutputStream(uri)?.use { output ->
-                        input.copyTo(output)
-                    }
-                    true
-                } ?: false
+    suspend fun copyTo(
+        item: MediaItem,
+        targetRelativePath: String,
+        onProgress: (CopyProgress) -> Unit = {},
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return@withContext false
 
-                if (copied) {
-                    values.clear()
-                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                    context.contentResolver.update(uri, values, null, null)
-                } else {
-                    // Don't leave a half-written, pending row behind.
-                    context.contentResolver.delete(uri, null, null)
+        val normalized = if (targetRelativePath.endsWith("/")) {
+            targetRelativePath
+        } else {
+            "$targetRelativePath/"
+        }
+        val values = android.content.ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, item.displayName)
+            put(
+                MediaStore.MediaColumns.MIME_TYPE,
+                item.mimeType.ifBlank { "application/octet-stream" },
+            )
+            put(MediaStore.MediaColumns.RELATIVE_PATH, normalized)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+
+        val uri = runCatchingCancellable { context.contentResolver.insert(collectionFor(item), values) }
+            .getOrNull() ?: return@withContext false
+
+        var finished = false
+        try {
+            onProgress(CopyProgress.Starting)
+            val total = item.sizeBytes
+
+            val copied = runCatchingCancellable {
+                context.contentResolver.openInputStream(item.uri)?.use { input ->
+                    context.contentResolver.openOutputStream(uri)?.use { output ->
+                        val buffer = ByteArray(COPY_BUFFER_BYTES)
+                        var written = 0L
+                        while (true) {
+                            // The suspension point that makes this cancellable: a cancel between
+                            // reads is noticed here rather than after the whole file.
+                            coroutineContext.ensureActive()
+                            val read = input.read(buffer)
+                            if (read <= 0) break
+                            output.write(buffer, 0, read)
+                            written += read
+                            onProgress(CopyProgress.of(written, total))
+                        }
+                        output.flush()
+                        written
+                    }
                 }
-                copied
+            }.getOrNull()
+
+            if (copied != null) {
+                values.clear()
+                values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                runCatchingCancellable { context.contentResolver.update(uri, values, null, null) }
+                finished = true
+                true
+            } else {
+                false
             }
-        }.getOrDefault(false)
+        } finally {
+            // Failure, cancellation, anything: the pending row goes. `finally` is the only place
+            // that runs for all three.
+            if (!finished) {
+                runCatchingCancellable { context.contentResolver.delete(uri, null, null) }
+            }
+        }
     }
 
     /** The MediaStore collection a file of this kind belongs in. */

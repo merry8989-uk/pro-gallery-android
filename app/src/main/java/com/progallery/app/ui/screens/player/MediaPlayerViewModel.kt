@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.progallery.app.ui.components.sameUri
+import com.progallery.app.data.transfer.CopyProgress
 
 /**
  * The state of the one player.
@@ -55,6 +56,13 @@ data class MediaPlayerUiState(
     /** Delete consent awaiting the platform's result. */
     val pendingDelete: PendingIntent? = null,
     val pendingTrashIds: List<Long> = emptyList(),
+    /**
+     * How far a copy has got, or null when none is running.
+     *
+     * Shown while it runs, because a large video used to look like a frozen app: the copy was a
+     * blocking stream with no feedback and no way to stop it.
+     */
+    val copying: CopyProgress? = null,
 ) {
     /** Audio and video are told apart by the file itself, not by which screen opened it. */
     val isAudio: Boolean get() = item?.isAudio == true
@@ -243,14 +251,38 @@ class MediaPlayerViewModel @Inject constructor(
 
     fun requestCopy(target: String) {
         val item = _state.value.item ?: return
-        viewModelScope.launch {
-            val ok = withContext(Dispatchers.IO) { mediaActions.copyTo(item, target) }
+        // Held so `cancelCopy` has something to cancel. Without this the cancel button would call
+        // `cancel()` on null and do nothing at all — which is the shape of a control that appears
+        // to work and does not.
+        copyJob?.cancel()
+        copyJob = viewModelScope.launch {
+            _state.update { it.copy(copying = CopyProgress.Starting) }
+            // The progress is reported from inside the copy, so the bar moves with the bytes rather
+            // than with a timer pretending to.
+            val ok = mediaActions.copyTo(item, target) { progress ->
+                _state.update { it.copy(copying = progress) }
+            }
+            _state.update { it.copy(copying = null) }
+            copyJob = null
             _state.update {
                 it.copy(message = if (ok) "Copied to $target" else "Could not copy to that folder")
             }
             repository.refresh()
         }
     }
+
+    /**
+     * Stops a copy that is running.
+     *
+     * The job is cancelled, and the copy's own `finally` deletes the pending row — so stopping it
+     * leaves nothing behind rather than a half-written file that looks like a real one.
+     */
+    fun cancelCopy() {
+        copyJob?.cancel()
+        copyJob = null
+    }
+
+    private var copyJob: kotlinx.coroutines.Job? = null
 
     fun requestMove(target: String) {
         val item = _state.value.item ?: return

@@ -70,6 +70,10 @@ import com.progallery.app.ui.components.sameUri
 import com.progallery.app.util.ImmersiveSystemBars
 import com.progallery.app.util.MediaFormatUtils
 import kotlinx.coroutines.delay
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
+import com.progallery.app.data.transfer.CopyProgress
 
 /**
  * The one player.
@@ -192,26 +196,38 @@ fun MediaPlayerScreen(
         }
     }
 
-    if (state.isAudio) {
-        AudioSurface(
-            state = state,
-            player = player,
-            folders = folders,
-            snackbarHostState = snackbarHostState,
-            onBack = onBack,
-            onEdit = onEdit,
-            viewModel = viewModel,
-        )
-    } else {
-        VideoSurface(
-            state = state,
-            player = player,
-            engine = engine,
-            snackbarHostState = snackbarHostState,
-            onBack = onBack,
-            onEdit = onEdit,
-            viewModel = viewModel,
-        )
+    // Over whichever surface is showing, so a copy looks the same in both. A large video used to
+    // look like a frozen app: the copy was a blocking stream with no feedback and no way to stop it.
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (state.isAudio) {
+            AudioSurface(
+                state = state,
+                player = player,
+                folders = folders,
+                snackbarHostState = snackbarHostState,
+                onBack = onBack,
+                onEdit = onEdit,
+                viewModel = viewModel,
+            )
+        } else {
+            VideoSurface(
+                state = state,
+                player = player,
+                engine = engine,
+                snackbarHostState = snackbarHostState,
+                onBack = onBack,
+                onEdit = onEdit,
+                viewModel = viewModel,
+            )
+        }
+
+        state.copying?.let { progress ->
+            CopyProgressBar(
+                progress = progress,
+                onCancel = viewModel::cancelCopy,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
     }
 }
 
@@ -498,5 +514,55 @@ private fun AudioSurface(
     }
     if (infoOpen && item != null) {
         FileInfoDialog(item = item, onDismiss = { infoOpen = false })
+    }
+}
+
+/**
+ * How far a copy has got, with a way to stop it.
+ *
+ * Three states rather than two, because a provider does not have to say how big its document is: a
+ * fraction, "no total to compare against", and nothing yet. A bar that guessed would be worse than
+ * no bar — so an unknown total says so and shows the bytes copied.
+ */
+@Composable
+private fun CopyProgressBar(
+    progress: CopyProgress,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        tonalElevation = 4.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = when (progress) {
+                        is CopyProgress.Known ->
+                            "Copying · ${MediaFormatUtils.formatBytes(progress.copied)} of " +
+                                MediaFormatUtils.formatBytes(progress.total)
+                        is CopyProgress.UnknownTotal ->
+                            "Copying · ${MediaFormatUtils.formatBytes(progress.copied)} — this " +
+                                "provider does not say how big it is"
+                        CopyProgress.Starting -> "Copying…"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (progress is CopyProgress.Known) {
+                    LinearProgressIndicator(
+                        progress = { progress.fraction },
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    )
+                } else {
+                    // No fraction to draw, so it says "working" rather than showing a bar that
+                    // means nothing.
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
+                }
+            }
+            TextButton(onClick = onCancel) { Text("Stop") }
+        }
     }
 }

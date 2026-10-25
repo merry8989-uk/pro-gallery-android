@@ -154,7 +154,7 @@ class PdfViewerViewModel @Inject constructor(
 
     fun requestCopy(item: MediaItem, target: String) {
         viewModelScope.launch {
-            val ok = withContext(Dispatchers.IO) { mediaActions.copyTo(item, target) }
+            val ok = mediaActions.copyTo(item, target)
             _state.update {
                 it.copy(
                     message = if (ok) "Copied to $target" else "Could not copy — this needs All files access",
