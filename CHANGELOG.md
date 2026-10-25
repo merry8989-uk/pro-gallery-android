@@ -27,6 +27,76 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.55.0]
+C5: a copy you can watch, and stop.
+
+### The problem
+Copying was a blocking `input.copyTo(output)` with **no feedback at all** and **no way to stop it**.
+A large video looked like a frozen app. That is the same shape as the fake switches v1.37.0 removed:
+the operation worked, and nothing about it was visible or interruptible.
+
+### Added
+- **`copyTo` is suspending, cancellable, and reports progress.** The loop reads in 64 KiB chunks,
+  checks for cancellation between them, and reports after each — so the bar moves with the bytes
+  rather than with a timer pretending to.
+- **A cancelled or failed copy leaves nothing behind.** The row is inserted as pending, so nothing
+  else can see it, and it is deleted on **every** exit that is not success — including cancellation,
+  because `finally` runs for that too. **A half-written file that looks like a real one is worse than
+  a refused copy**, which is what C5 was about.
+- **A progress bar in the player**, over both surfaces, with a **Stop** button.
+
+### Three states, not two
+`CopyProgress` has a fraction, *"no total to compare against"*, and *"nothing yet"*. A provider does
+not have to say how big its document is, and `0` from a content provider means **"I do not know"**,
+not *"this file is empty"* — so an unknown total shows the bytes copied and says the total is unknown
+rather than drawing a bar that sits at nothing while the copy runs. Six test cases, mirrored first.
+
+### One thing I wrote wrong and caught
+`cancelCopy()` cancelled a `copyJob` that **nothing ever assigned** — so the Stop button would have
+called `cancel()` on null and done nothing at all. That is the shape of a control that appears to
+work and does not, which is the exact defect this project keeps finding. Assigned now.
+
+### Still open in this part
+**Undo.** A copy can be undone by deleting the copy, a move by moving back, a rename by renaming
+back — but a **delete through the system dialog cannot be undone at all**, because the file is gone.
+That needs its own piece of work, and it must say plainly which actions can be reversed and which
+cannot rather than offering an undo that fails.
+
+## [1.55.0]
+C5: a copy you can watch, and stop.
+
+### The problem
+Copying was a blocking `input.copyTo(output)` with **no feedback at all** and **no way to stop it**.
+A large video looked like a frozen app. Same shape as the fake switches v1.37.0 removed: the
+operation worked, and nothing about it was visible or interruptible.
+
+### Added
+- **`copyTo` is suspending, cancellable, and reports progress** — 64 KiB chunks, a cancellation check
+  between them, and a report after each, so the bar moves with the bytes rather than with a timer
+  pretending to.
+- **A cancelled or failed copy leaves nothing behind.** The row is inserted as pending, so nothing
+  else can see it, and it is deleted on **every** exit that is not success — including cancellation,
+  because `finally` runs for that too. **A half-written file that looks like a real one is worse than
+  a refused copy**, which is what C5 was about.
+- **A progress bar in the player**, over both surfaces, with a **Stop** button.
+
+### Three states, not two
+`CopyProgress` has a fraction, *"no total to compare against"*, and *"nothing yet"*. A provider does
+not have to say how big its document is, and `0` from a content provider means **"I do not know"**,
+not *"this file is empty"* — so an unknown total shows the bytes copied and says so rather than
+drawing a bar that sits at nothing while the copy runs. Six test cases, mirrored first.
+
+### One thing I wrote wrong and caught
+`cancelCopy()` cancelled a `copyJob` that **nothing ever assigned** — so Stop would have called
+`cancel()` on null and done nothing at all. That is the shape of a control that appears to work and
+does not, which is the exact defect this project keeps finding. Assigned now.
+
+### Still open in this part
+**Undo.** A copy can be undone by deleting the copy, a move by moving back, a rename by renaming back
+— but a **delete through the system dialog cannot be undone at all**, because the file is gone. That
+needs its own piece of work, and it must say plainly which actions can be reversed and which cannot
+rather than offering an undo that fails.
+
 ## [1.54.0]
 Part F: the permission audit — and one the app was asking for without ever using it.
 
