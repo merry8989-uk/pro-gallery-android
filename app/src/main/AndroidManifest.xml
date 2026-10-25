@@ -16,7 +16,19 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28"
         tools:ignore="ScopedStorage" />
-    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
+    <!--
+        ACCESS_MEDIA_LOCATION is deliberately **not** declared.
+
+        It was, and the Access screen offered a row for it that said "Reading where a photo was
+        taken". The app has never read a photo's location: v1.42.0 reads the capture date and the
+        camera from EXIF and never the GPS, on purpose, because a recovery tool has no use for it and
+        it would put where somebody was onto a screen they might share. `setRequireOriginal` — the
+        only call that needs this permission — appears nowhere in the code.
+
+        So the row asked for something the app does not do, offered a button to grant it, and the
+        device's own diagnostics show that button being pressed five times in one second and answered
+        "denied" every time. A permission the app does not use is a permission it does not ask for.
+    -->
 
     <!--
       Needed by three features, and each one fails without it:

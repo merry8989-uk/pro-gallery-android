@@ -17,7 +17,6 @@ class AccessDiagnosticsTest {
         sdkInt: Int = 34,
         visual: AccessState = AccessState.GRANTED,
         audio: AccessState = AccessState.GRANTED,
-        location: AccessState = AccessState.DENIED,
         allFiles: Boolean = false,
         folders: Int = 2,
         rootStatus: String? = null,
@@ -25,7 +24,6 @@ class AccessDiagnosticsTest {
         sdkInt = sdkInt,
         visual = visual,
         audio = audio,
-        location = location,
         allFiles = allFiles,
         grantedFolders = folders,
         rootStatus = rootStatus,
@@ -114,15 +112,14 @@ class AccessDiagnosticsTest {
         // The invariant that keeps the screen honest: no fix for an access that is
         // present, and always a way forward for one that is not.
         //
-        // Only the visual row has a partial state — audio and location are granted or
-        // they are not — so PARTIAL is varied where it is real.
+        // Only the visual row has a partial state — audio is granted or it is not — so
+        // PARTIAL is varied where it is real.
         listOf(AccessState.GRANTED, AccessState.DENIED).forEach { audio ->
             listOf(AccessState.GRANTED, AccessState.PARTIAL, AccessState.DENIED).forEach { visual ->
                 val rows = AccessDiagnostics.rows(
                     snapshot(
                         visual = visual,
                         audio = audio,
-                        location = audio,
                         folders = if (audio == AccessState.GRANTED) 1 else 0,
                     ),
                 )
@@ -142,11 +139,11 @@ class AccessDiagnosticsTest {
 
     @Test
     fun onlyTheVisualAccessHasAPartialState() {
-        // Audio and location are binary: a "partial" audio grant does not exist, so the
-        // rows must not pretend there is a middle state to act on.
+        // Audio is binary: a "partial" audio grant does not exist, so the row must not
+        // pretend there is a middle state to act on.
         listOf(AccessState.GRANTED, AccessState.DENIED).forEach { state ->
-            val rows = AccessDiagnostics.rows(snapshot(audio = state, location = state))
-            listOf(AccessId.MEDIA_AUDIO, AccessId.MEDIA_LOCATION).forEach { id ->
+            val rows = AccessDiagnostics.rows(snapshot(audio = state))
+            listOf(AccessId.MEDIA_AUDIO).forEach { id ->
                 val row = rows.first { it.id == id }
                 assertEquals(
                     "nothing to do for $id when it is $state",

@@ -14,7 +14,7 @@ enum class AccessFix {
 }
 
 /** The accesses worth explaining. */
-enum class AccessId { MEDIA_VISUAL, MEDIA_AUDIO, MEDIA_LOCATION, ALL_FILES, FOLDERS, ROOT }
+enum class AccessId { MEDIA_VISUAL, MEDIA_AUDIO, ALL_FILES, FOLDERS, ROOT }
 
 /**
  * One line of the diagnostics: what it is, what state it is in, what it unlocks, and
@@ -42,7 +42,6 @@ data class AccessSnapshot(
     val sdkInt: Int,
     val visual: AccessState,
     val audio: AccessState,
-    val location: AccessState,
     val allFiles: Boolean,
     val grantedFolders: Int,
     /**
@@ -68,7 +67,6 @@ object AccessDiagnostics {
     fun rows(snapshot: AccessSnapshot): List<AccessRow> = buildList {
         add(visualRow(snapshot))
         add(audioRow(snapshot))
-        add(locationRow(snapshot))
         add(allFilesRow(snapshot))
         add(foldersRow(snapshot))
         snapshot.rootStatus?.let { add(rootRow(it)) }
@@ -128,19 +126,6 @@ object AccessDiagnostics {
         },
         fix = if (snapshot.audio == AccessState.DENIED) AccessFix.REQUEST_PERMISSION else AccessFix.NONE,
         fixLabel = if (snapshot.audio == AccessState.DENIED) "Allow" else null,
-    )
-
-    private fun locationRow(snapshot: AccessSnapshot): AccessRow = AccessRow(
-        id = AccessId.MEDIA_LOCATION,
-        title = "Photo locations",
-        state = snapshot.location,
-        enables = "Reading where a photo was taken, when the photo carries it.",
-        consequence = when (snapshot.location) {
-            AccessState.GRANTED -> "Location data in your photos can be read."
-            else -> "Optional. Without it, the app simply does not read where a photo was taken."
-        },
-        fix = if (snapshot.location == AccessState.DENIED) AccessFix.REQUEST_PERMISSION else AccessFix.NONE,
-        fixLabel = if (snapshot.location == AccessState.DENIED) "Allow" else null,
     )
 
     private fun allFilesRow(snapshot: AccessSnapshot): AccessRow = AccessRow(

@@ -221,6 +221,39 @@ def main() -> int:
                     f"{os.path.basename(entry['path'])}: calls {fname}() (from {home_pkg}) with no import"
                 )
 
+    # ---- A runtime permission asked for but never used ----
+    #
+    # `ACCESS_MEDIA_LOCATION` was declared, offered on the Access screen with a row that said
+    # "Reading where a photo was taken", and **never used** — `setRequireOriginal`, the only call
+    # that needs it, appears nowhere. The device's own diagnostics show the button being pressed five
+    # times in one second and answered "denied" every time.
+    #
+    # A permission the app does not use is a permission it does not ask for. This checks the ones a
+    # person is actually prompted for — the runtime permissions — because the manifest-only ones
+    # (`INTERNET`, `REQUEST_INSTALL_PACKAGES`) are never named in code and are needed regardless.
+    RUNTIME_PERMISSIONS = {
+        "ACCESS_MEDIA_LOCATION", "POST_NOTIFICATIONS", "READ_MEDIA_IMAGES", "READ_MEDIA_VIDEO",
+        "READ_MEDIA_AUDIO", "READ_MEDIA_VISUAL_USER_SELECTED", "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE", "MANAGE_EXTERNAL_STORAGE", "CAMERA", "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "READ_CONTACTS", "READ_CALENDAR",
+    }
+    # `ROOT` here is `app/src/main`, and `parsed` already holds every Kotlin source.
+    manifest_path = os.path.join(ROOT, "AndroidManifest.xml")
+    if os.path.exists(manifest_path):
+        code = "\n".join(entry["raw"] for entry in parsed)
+        for name in re.findall(
+            r'<uses-permission android:name="android\.permission\.(\w+)"',
+            open(manifest_path).read(),
+        ):
+            if name not in RUNTIME_PERMISSIONS:
+                continue
+            uses = re.findall(r"Manifest\.permission\." + name + r"\b", code)
+            if not uses:
+                problems.append(
+                    f"the manifest asks for {name} and no code uses it — a permission the app does "
+                    f"not use is one it should not ask for"
+                )
+
     # ---- A type named in a declaration that is neither imported nor known ----
     #
     # The rule above only knows **project** types, so a missing platform import slips past it — and

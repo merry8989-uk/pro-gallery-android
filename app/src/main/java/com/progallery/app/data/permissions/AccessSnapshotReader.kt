@@ -35,11 +35,6 @@ class AccessSnapshotReader @Inject constructor(
                 PermissionUtils.hasAudioAccess(context) -> AccessState.GRANTED
                 else -> AccessState.DENIED
             },
-            location = if (PermissionUtils.hasLocationAccess(context)) {
-                AccessState.GRANTED
-            } else {
-                AccessState.DENIED
-            },
             allFiles = PermissionUtils.hasAllFilesAccess(context),
             grantedFolders = runCatching { scanDirectoryDao.all().size }.getOrDefault(0),
             mediaItemCount = mediaItemCount(),

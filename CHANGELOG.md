@@ -27,6 +27,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.54.0]
+Part F: the permission audit — and one the app was asking for without ever using it.
+
+### The finding
+**`ACCESS_MEDIA_LOCATION` was declared, offered on the Access screen, and never used.**
+
+- It appears in exactly **two** places: the manifest, and a `granted(...)` check.
+- **`setRequireOriginal` — the only call that needs this permission — appears nowhere in the code.**
+  The app has never read a photo's location: v1.42.0 reads the capture date and the camera from EXIF
+  and **never** the GPS, on purpose.
+- The Access row said *"Reading where a photo was taken, when the photo carries it"* — **a capability
+  the app does not have**, on the one screen built to tell the truth about what the app can reach.
+- And the device's own diagnostics show the button being pressed **five times in one second**,
+  answered `denied` every time.
+
+So it asked for something it does not do, offered a button to grant it, and produced a loop that a
+real user hit. **Removed** — the manifest, the enum value, the row, the snapshot field, the reader
+and the check.
+
+### A rule so it cannot come back
+`tools/check_kotlin.py` now fails if a **runtime** permission is declared and no code uses it —
+because a permission the app does not use is a permission it does not ask for. It looks at the
+runtime ones only: `INTERNET`, `REQUEST_INSTALL_PACKAGES` and `WRITE_EXTERNAL_STORAGE` are needed and
+are **never named in code**, so a name-based check would flag all three wrongly. Tested both ways: it
+passes this tree, and it fires the moment the permission is put back.
+
+### What the audit confirmed is right
+Every other runtime permission is used, and the Access screen already says what the app **cannot**
+have — another app's `Android/data`, deleted internal storage — with the reason. That part of Part F
+was already done.
+
 ## [1.53.0]
 Part E: where the space went.
 
