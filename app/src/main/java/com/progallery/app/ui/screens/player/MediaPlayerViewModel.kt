@@ -186,7 +186,11 @@ class MediaPlayerViewModel @Inject constructor(
      * because a queue of thirty-two files needs to say which one failed.
      */
     fun reportPlaybackFailure(errorCode: Int, fileName: String?) {
-        val explanation = PlaybackFailure.explain(errorCode)
+        // The extension goes with it, because the message for an unreadable container is now read
+        // from the capability matrix — so what the player says and what the capability screen says
+        // cannot disagree.
+        val extension = _state.value.item?.extension.orEmpty()
+        val explanation = PlaybackFailure.explain(errorCode, extension = extension)
         // The reason the app could not play something is the single most useful thing it knows
         // about a failure, and it used to live only in a snackbar that disappeared.
         viewModelScope.launch {

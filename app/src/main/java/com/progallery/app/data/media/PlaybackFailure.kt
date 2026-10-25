@@ -1,5 +1,8 @@
 package com.progallery.app.data.media
 
+import com.progallery.app.data.capability.Capability
+import com.progallery.app.data.capability.CapabilityMatrix
+
 /**
  * Explains why playback failed, in terms of the actual reason.
  *
@@ -60,7 +63,21 @@ object PlaybackFailure {
         val action: Action,
     )
 
-    fun explain(errorCode: Int, isLink: Boolean = false): Explanation = when (errorCode) {
+    /**
+     * What to say about a failure.
+     *
+     * [extension] is the file's, without the dot, when the caller knows it. It is passed because the
+     * message below used to **hardcode** a list of containers Android cannot read — and Part D made
+     * that list wrong: MPEG program streams now go to the device's own parser from Android 11, so the
+     * capability screen says "opens, with a caveat" while the player still said "no support on
+     * Android at all". **The app contradicted itself**, which is the one thing the capability matrix
+     * exists to prevent.
+     */
+    fun explain(
+        errorCode: Int,
+        isLink: Boolean = false,
+        extension: String = "",
+    ): Explanation = when (errorCode) {
         IO_FILE_NOT_FOUND -> Explanation(
             reason = "The file could not be opened",
             detail = "It has been moved or deleted, or it is in a folder Android does not let " +
@@ -121,13 +138,10 @@ object PlaybackFailure {
                 action = Action.ANOTHER_APP,
             )
         } else {
-            Explanation(
-                reason = "This kind of file cannot be played",
-                detail = "The container is not one Android can read. MPEG program streams " +
-                    "(.mpg), Windows Media (.wmv) and Flash (.swf) have no support on Android " +
-                    "at all.",
-                action = Action.ANOTHER_APP,
-            )
+            // Read from the matrix rather than typed here. The matrix is the one table the
+            // capability screen is built from, so the two cannot disagree — and when Part D made
+            // MPEG program streams playable, this message was the thing still saying they were not.
+            containerExplanation(extension)
         }
 
         PARSING_CONTAINER_MALFORMED, PARSING_MANIFEST_MALFORMED -> Explanation(
@@ -188,5 +202,40 @@ object PlaybackFailure {
         val explanation = explain(errorCode, isLink)
         val prefix = fileName?.takeIf { it.isNotBlank() }?.let { "\"$it\" — " } ?: ""
         return "$prefix${explanation.reason}.\n\n${explanation.detail}"
+    }
+
+    /**
+     * Why a container could not be read, told by the capability matrix.
+     *
+     * Two different truths, and the old message only had one of them:
+     *
+     * - **The matrix refuses this format** — then its own reason is the honest answer, and it is the
+     *   same sentence the capability screen shows.
+     * - **The matrix says this format opens here** — then the file failed for a different reason
+     *   altogether: a device whose parser cannot read it, a truncated file, a name that lies. Saying
+     *   "Android has no support for it" would be false, and would send somebody looking for a
+     *   converter they do not need.
+     */
+    private fun containerExplanation(extension: String): Explanation {
+        val clean = extension.removePrefix(".").lowercase()
+        val capability = if (clean.isEmpty()) null else CapabilityMatrix.forExtension(clean)
+
+        if (capability != null && capability.verdict != Capability.NEEDS_ANOTHER_APP) {
+            return Explanation(
+                reason = "This file could not be read",
+                detail = "The container could not be opened, and this format usually works here. " +
+                    "That points at the file itself — it may be incomplete, or its name may not " +
+                    "match what is inside it. Opening it with another app may still work.",
+                action = Action.ANOTHER_APP,
+            )
+        }
+
+        return Explanation(
+            reason = "This kind of file cannot be played",
+            detail = capability?.reason
+                ?: "The container is not one Android can read, and no app on this device can " +
+                "change that.",
+            action = Action.ANOTHER_APP,
+        )
     }
 }

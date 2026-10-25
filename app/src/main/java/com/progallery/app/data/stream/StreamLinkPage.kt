@@ -8,6 +8,11 @@ package com.progallery.app.data.stream
  * MPEG program streams (.mpg), Windows Media (.wmv)…". Every word of that was wrong for the
  * situation. The address was a web page, and no codec pack changes that.
  *
+ * That message has since been rewritten twice: it now comes from the capability matrix rather than
+ * a list typed into the failure, so it cannot drift from what the capability screen says — and it
+ * no longer names MPEG program streams as unplayable, because Part D made them playable on Android
+ * 11 and up.
+ *
  * The distinction is worth making **before** playback is attempted, because the answer is
  * knowable in advance and the user should not have to watch a black screen to find it out.
  *
