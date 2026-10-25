@@ -87,7 +87,7 @@ is informative instead of silent.
 By kind, by folder, and what is recoverable — from the index the app already keeps, not from a walk
 every time the screen opens.
 
-## Part F — permissions, honestly ⬜
+## Part F — permissions, honestly ✅ **audited, v1.54.0**
 
 The request was "give every permission". Here is what that would actually do, and what this part does
 instead.
