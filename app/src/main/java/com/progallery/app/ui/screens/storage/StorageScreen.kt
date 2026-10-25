@@ -34,6 +34,7 @@ import com.progallery.app.data.storage.FolderShare
 import com.progallery.app.data.storage.KindShare
 import com.progallery.app.ui.components.MediaPermissionGate
 import com.progallery.app.util.MediaFormatUtils
+import androidx.compose.foundation.clickable
 
 /**
  * Where the space went.
@@ -64,13 +65,16 @@ fun StorageScreen(
                 )
             },
         ) { padding ->
+            // Read into a local first: `state` is a delegated property, so Kotlin will not
+            // smart-cast `state.summary` and every use of it would need a `!!`.
+            val summary = state.summary
             when {
                 state.loading -> Box(
                     Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center,
                 ) { CircularProgressIndicator() }
 
-                state.summary == null || state.summary.isEmpty -> Box(
+                summary == null || summary.isEmpty -> Box(
                     Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -83,7 +87,6 @@ fun StorageScreen(
                 }
 
                 else -> {
-                    val summary = state.summary
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(padding),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
@@ -112,7 +115,7 @@ fun StorageScreen(
                             SectionHeader("By kind")
                         }
                         items(summary.byKind) { share ->
-                            KindRow(share, summary.totalBytes)
+                            KindRow(share)
                         }
 
                         item {
@@ -120,7 +123,7 @@ fun StorageScreen(
                             SectionHeader("Largest folders")
                         }
                         items(summary.largestFolders) { folder ->
-                            FolderRow(folder, summary.totalBytes)
+                            FolderRow(folder)
                         }
 
                         if (summary.inTrashCount > 0) {
@@ -165,7 +168,7 @@ private fun SectionHeader(text: String) {
 }
 
 @Composable
-private fun KindRow(share: KindShare, total: Long) {
+private fun KindRow(share: KindShare) {
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -188,7 +191,7 @@ private fun KindRow(share: KindShare, total: Long) {
 }
 
 @Composable
-private fun FolderRow(folder: FolderShare, total: Long) {
+private fun FolderRow(folder: FolderShare) {
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -218,5 +221,4 @@ private fun label(kind: MediaType): String = when (kind) {
     MediaType.ALL -> "Everything"
 }
 
-private fun Modifier.clickableText(onClick: () -> Unit): Modifier =
-    this.then(androidx.compose.foundation.clickable(onClick = onClick))
+private fun Modifier.clickableText(onClick: () -> Unit): Modifier = clickable(onClick = onClick)
