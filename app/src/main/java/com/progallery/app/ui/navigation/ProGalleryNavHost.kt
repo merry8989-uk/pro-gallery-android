@@ -62,6 +62,7 @@ import com.progallery.app.data.documents.FileOpener
 import com.progallery.app.data.documents.Viewer
 import com.progallery.app.util.rememberMediaActions
 import com.progallery.app.ui.screens.tree.FileTreeScreen
+import com.progallery.app.ui.screens.storage.StorageScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -238,6 +239,12 @@ fun ProGalleryNavHost(
                 // The same dispatch every other screen uses, so a format that has a viewer here has
                 // one there, and a format that is handed over says why.
                 onOpenFile = openItem,
+            )
+        }
+        composable(Routes.STORAGE) {
+            StorageScreen(
+                onBack = { navController.popBackStack() },
+                onOpenTree = { navController.navigate(Routes.FILE_TREE) },
             )
         }
         composable(Routes.APP_MEDIA) {

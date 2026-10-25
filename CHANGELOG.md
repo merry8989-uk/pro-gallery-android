@@ -27,6 +27,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.53.0]
+Part E: where the space went.
+
+### Added
+- **A storage summary** — by kind, by folder, and what the app is holding in its trash. Built from
+  the app's own index and its own trash, **not** from a walk of the device.
+- **The screen says what the numbers are** — *"This is what the app can read, not the whole device"* —
+  above them rather than in a footnote. A total that looked like the whole phone while being a
+  fraction of it would be worse than no total, because it would look like an answer.
+- **Every row carries its share of the whole**, as a bar, because that is the comparison that answers
+  *"what is using my space"* — not a share of the largest row.
+
+### The invariant the tests hold
+**The rows add up to the total.** A summary whose own rows do not sum to its own total is a summary
+nobody can check — so a file with no recorded path is counted under "Unknown" rather than left out,
+and the test asserts both that the kinds sum to the total and that the folders do too.
+
+Nine test cases, run against a faithful mirror first: the ordinary case, the invariant, a kind with
+nothing in it, folders counted by their **top-level** name (`DCIM`, not `DCIM/Camera`), a bare name
+and a missing path both landing in Unknown, nothing at all not dividing by zero, the shares being
+fractions of the whole, the folder limit keeping the largest, and the trash carried separately
+because it is recoverable for a different reason.
+
+### The checker was wrong, and it took a false positive to see it
+Adding this screen made `check_kotlin.py` report that the diagnostics screen called `label()` with no
+import. It had not: it declares `private fun AccessState.label()`, an **extension function**, and the
+rule only knew `fun name(`. It now knows `private `, `internal `, `override ` and the rest — and it
+was tested **both ways**: it no longer cries wolf on the extension function, and it still catches a
+genuinely missing import.
+
 ## [1.52.0]
 Part C: file operations — and most of them were already there.
 
