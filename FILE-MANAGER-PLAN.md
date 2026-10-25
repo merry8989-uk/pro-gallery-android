@@ -50,7 +50,7 @@ allowed to read, and a folder it cannot open says so rather than appearing empty
 - **B2** — the tree screen, with the storage summary on it (see Part E).
 - **B3** — breadcrumbs, and "go to folder" from a result.
 
-## Part C — file operations ⬜
+## Part C — file operations ✅ **mostly already there; completed, v1.52.0**
 
 Honest about the platform: on Android 11+ an app **cannot** rename, move or delete another app's file
 directly. The system dialog can, and `MediaActions.renameRequest` already uses it. Every operation
