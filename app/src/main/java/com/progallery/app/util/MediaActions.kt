@@ -27,6 +27,16 @@ class MediaActions @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
 
+    private companion object {
+        /**
+         * 64 KiB per read.
+         *
+         * Large enough that the per-chunk overhead is nothing, small enough that progress is reported
+         * often enough to look like progress rather than a series of jumps.
+         */
+        const val COPY_BUFFER_BYTES = 64 * 1024
+    }
+
     /** Builds a Sharesheet intent for one or many items. */
     fun shareIntent(items: List<MediaItem>): Intent {
         val uris = ArrayList(items.map { shareableUri(it.uri) })
