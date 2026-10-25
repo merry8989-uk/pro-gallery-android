@@ -50,9 +50,19 @@ class PlaybackFailureTest {
 
     @Test
     fun anUnsupportedContainerIsDistinguishedFromAnUnsupportedCodec() {
+        // The extension is passed now, because the message is read from the capability matrix rather
+        // than typed here — see `PlaybackFailureMessageTest` for why that mattered.
+        val container = PlaybackFailure.explain(3003, extension = "wmv")
+        assertTrue(container.reason.contains("kind of file"))
+        assertTrue("the format is named from the matrix", container.detail.contains("Windows Media"))
+    }
+
+    @Test
+    fun aContainerFailureWithNoExtensionStillSaysSomethingHonest() {
+        // A caller that does not know the extension cannot name a format, and must not guess at one.
         val container = PlaybackFailure.explain(3003)
         assertTrue(container.reason.contains("kind of file"))
-        assertTrue("the formats Android cannot play should be named", container.detail.contains(".wmv"))
+        assertTrue(container.detail.isNotBlank())
     }
 
     @Test
