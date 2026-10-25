@@ -195,7 +195,21 @@ def main() -> int:
     # project, and calling either without its import is a compile error the type rule cannot see,
     # because that rule only looks at capitalised names. A CI round trip costs minutes.
     for entry in parsed:
-        local_functions = set(re.findall(r"^fun ([a-z]\w*)\s*\(", entry["code"], re.M))
+        # Plain functions **and extension functions**. `private fun AccessState.label()` is a
+        # declaration of `label` in this file just as much as `fun label()` is, and the first
+        # version of this rule only knew the second — so it reported the storage screen's `label`
+        # being called by a diagnostics screen that had declared its own.
+        # `private `, `internal ` and `public ` are all part of a declaration's line, and the first
+        # version of this pattern had no room for them — so `private fun AccessState.label()` was
+        # invisible to it and the storage screen's `label` looked like a call with no import.
+        local_functions = set(
+            re.findall(
+                r"^\s*(?:private |internal |public |protected |open |override |suspend )*"
+                r"fun (?:[\w.<>?]+\.)?([a-z]\w*)\s*\(",
+                entry["code"],
+                re.M,
+            )
+        )
         for fname, (home_pkg, _) in functions.items():
             if home_pkg == entry["pkg"] or fname in local_functions or fname in entry["imports"]:
                 continue

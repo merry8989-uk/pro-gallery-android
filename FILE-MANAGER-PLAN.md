@@ -82,7 +82,7 @@ opens it, and **say so plainly when none can**.
 render. It will not claim the rest, and the matrix's third verdict exists exactly so that a refusal
 is informative instead of silent.
 
-## Part E — storage summary ⬜
+## Part E — storage summary ✅ **done, v1.53.0**
 
 By kind, by folder, and what is recoverable — from the index the app already keeps, not from a walk
 every time the screen opens.

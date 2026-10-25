@@ -12,6 +12,7 @@ object Routes {
     const val PERMISSION_DIAGNOSTICS = "permission_diagnostics"
     const val ANDROID_FOLDERS = "android_folders"
     const val FILE_TREE = "file_tree"
+    const val STORAGE = "storage"
     /**
      * The scan screens take a `start` argument so the scope screen can run a scan rather than
      * merely describe one. The pattern is declared here and every caller builds it with the
