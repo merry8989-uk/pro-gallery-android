@@ -42,6 +42,21 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import com.progallery.app.ui.components.MediaPermissionGate
 import androidx.compose.material3.ExperimentalMaterial3Api
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 
 /**
  * The file tree.
@@ -62,6 +77,41 @@ fun FileTreeScreen(
     viewModel: FileTreeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // The system's own dialogs. The app never deletes or renames a file by itself: on Android 11
+    // and up it *cannot*, and on older versions it should not without being asked.
+    val deleteLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { viewModel.consumeMessage() }
+    val renameLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result -> viewModel.onRenameConsent(result.resultCode == Activity.RESULT_OK) }
+
+    var menuFor by remember { mutableStateOf<MediaItem?>(null) }
+    var pendingRename by remember { mutableStateOf<MediaItem?>(null) }
+    var pendingDelete by remember { mutableStateOf<MediaItem?>(null) }
+
+    LaunchedEffect(pendingDelete) {
+        pendingDelete?.let { item ->
+            viewModel.deleteRequest(item)?.let { request ->
+                deleteLauncher.launch(IntentSenderRequest.Builder(request.intentSender).build())
+            } ?: Toast.makeText(
+                context,
+                "This Android version does not ask before deleting.",
+                Toast.LENGTH_LONG,
+            ).show()
+            pendingDelete = null
+        }
+    }
+    LaunchedEffect(pendingRename) {
+        pendingRename?.let { item ->
+            viewModel.renameRequest(item)?.let { request ->
+                renameLauncher.launch(IntentSenderRequest.Builder(request.intentSender).build())
+            } ?: viewModel.onRenameConsent(granted = true)
+            pendingRename = null
+        }
+    }
 
     MediaPermissionGate {
         Scaffold(
@@ -119,11 +169,60 @@ fun FileTreeScreen(
                                 collapsed = row.node.path in state.collapsed,
                                 onToggle = { viewModel.toggle(row.node.path) },
                                 onOpen = onOpenFile,
+                                onLongPress = { item -> menuFor = item },
                             )
                         }
                         }
                     }
                 }
+        }
+    }
+
+    // The operations, where the files are. They reuse the calls the viewer already uses rather than
+    // a second implementation, because two implementations of "delete a file" is how one of them
+    // ends up wrong.
+    menuFor?.let { item ->
+        DropdownMenu(expanded = true, onDismissRequest = { menuFor = null }) {
+            DropdownMenuItem(
+                text = { Text("Rename") },
+                onClick = {
+                    menuFor = null
+                    viewModel.startRename(item)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Delete") },
+                onClick = {
+                    menuFor = null
+                    pendingDelete = item
+                },
+            )
+        }
+    }
+
+    state.renaming?.let { item ->
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelRename() },
+            title = { Text("Rename") },
+            text = {
+                OutlinedTextField(
+                    value = state.renameText,
+                    onValueChange = viewModel::setRenameText,
+                    singleLine = true,
+                    label = { Text("New name") },
+                )
+            },
+            confirmButton = { TextButton(onClick = { pendingRename = item }) { Text("Rename") } },
+            dismissButton = { TextButton(onClick = { viewModel.cancelRename() }) { Text("Cancel") } },
+        )
+    }
+
+    // Said on the screen rather than silently, because a rename that did not go through and a
+    // rename that did look exactly the same otherwise.
+    state.message?.let { message ->
+        LaunchedEffect(message) {
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.consumeMessage()
         }
     }
 }
@@ -134,6 +233,7 @@ private fun TreeRowItem(
     collapsed: Boolean,
     onToggle: () -> Unit,
     onOpen: (MediaItem) -> Unit,
+    onLongPress: (MediaItem) -> Unit,
 ) {
     val node = row.node
     val isFolder = node is TreeNode.Folder
@@ -144,7 +244,12 @@ private fun TreeRowItem(
             // The indent is the hierarchy. Capped, so a path twenty deep does not push its name off
             // the screen — a file manager that cannot show you the name has failed at its one job.
             .padding(start = (row.depth.coerceAtMost(8) * 16).dp, end = 12.dp, top = 6.dp, bottom = 6.dp)
-            .clickable { if (isFolder) onToggle() else onOpen((node as TreeNode.File).item) },
+            .combinedClickable(
+                onClick = { if (isFolder) onToggle() else onOpen((node as TreeNode.File).item) },
+                // Long-press is where a file manager keeps its operations, and where the gallery
+                // already keeps selection — so the gesture means the same thing here.
+                onLongClick = { if (!isFolder) onLongPress((node as TreeNode.File).item) },
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (isFolder) {

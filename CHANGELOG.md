@@ -27,6 +27,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.52.0]
+Part C: file operations — and most of them were already there.
+
+### What was checked before building
+Every operation was searched for, and **all but one already existed and were reachable**:
+`deleteRequest`/`deleteDirect`, `renameRequest`/`applyRename`, `copyTo`, `applyMove`, `writeRequest`.
+They were wired to the viewer, the player and the PDF screen. So the plan's C2, C3 and C4 were not
+work to do — they were work to **find**.
+
+**`createDocument` did not exist anywhere.** That is the one genuine gap, and it is the first thing a
+file manager is for.
+
+### Added
+- **Making a folder**, in a granted document tree — the only place it can really work, because
+  `MediaStore` has no folders to make one in. `FolderName` validates the name **before** anything is
+  asked of the provider, so a slash or an empty name is answered immediately and in words rather than
+  by a folder that never appears. Seven test cases cover it.
+- **The operations on the file tree**, where a file manager keeps them: long-press a file for
+  **Rename** and **Delete**, both through the system's own dialogs. They reuse the calls the viewer
+  already uses rather than a second implementation — two implementations of "delete a file" is how
+  one of them ends up wrong.
+- **The app never deletes or renames a file by itself.** On Android 11 and up it *cannot*; on older
+  versions there is no request to make, and the screen says so rather than appearing to do nothing.
+
+### Still open in this part
+**C5, a progress and undo path.** A move of a large file has no progress, and nothing can be undone.
+A half-moved file is worse than a refused one, so this is worth doing — but it is its own piece of
+work rather than a line in this one.
+
 ## [1.51.0]
 Part B: the file tree.
 

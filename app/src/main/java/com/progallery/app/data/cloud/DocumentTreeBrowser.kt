@@ -48,6 +48,76 @@ class DocumentTreeBrowser @Inject constructor(
         DocumentsContract.buildDocumentUriUsingTree(Uri.parse(treeUri), documentId)
 
     /**
+     * Makes a folder inside a granted tree.
+     *
+     * This is the one file operation the app did not have anywhere. Renaming, deleting, copying and
+     * moving all existed and were reachable from a viewer; making a folder did not exist at all, so
+     * a file manager could not do the first thing a file manager is for.
+     *
+     * It is only possible **inside a granted tree**, which is why it lives here rather than on the
+     * media tree: `MediaStore` has no folders to make one in, and a button that could not work is
+     * the kind of thing this project keeps removing. The screen offers it where a grant exists and
+     * says so where one does not.
+     */
+    suspend fun createFolder(
+        treeUri: String,
+        parentDocumentId: String?,
+        name: String,
+    ): Result<String> = withContext(Dispatchers.IO) {
+        when (val checked = FolderName.check(name)) {
+            is FolderNameCheck.Invalid -> return@withContext Result.failure(
+                IllegalArgumentException(checked.reason),
+            )
+
+            is FolderNameCheck.Ok -> {
+                val tree = runCatching { Uri.parse(treeUri) }.getOrNull()
+                    ?: return@withContext Result.failure(
+                        IllegalArgumentException("That folder address could not be read."),
+                    )
+                val parent = parentDocumentId
+                    ?: runCatching { DocumentsContract.getTreeDocumentId(tree) }.getOrNull()
+                    ?: return@withContext Result.failure(
+                        IllegalArgumentException("That folder has no identifier."),
+                    )
+                val parentUri = DocumentsContract.buildDocumentUriUsingTree(tree, parent)
+
+                runCatching {
+                    DocumentsContract.createDocument(
+                        context.contentResolver,
+                        parentUri,
+                        DocumentsContract.Document.MIME_TYPE_DIR,
+                        checked.name,
+                    )
+                }.fold(
+                    onSuccess = { created ->
+                        if (created == null) {
+                            // The platform returns null rather than throwing when the provider
+                            // refuses — usually a name that is already taken.
+                            Result.failure(
+                                IllegalArgumentException(
+                                    "The folder could not be made. There may already be one " +
+                                        "called \"${checked.name}\" here, or this provider does " +
+                                        "not allow new folders.",
+                                ),
+                            )
+                        } else {
+                            Result.success(DocumentsContract.getDocumentId(created))
+                        }
+                    },
+                    onFailure = { error ->
+                        Result.failure(
+                            IllegalArgumentException(
+                                "The folder could not be made: ${error.message ?: "the provider refused it"}.",
+                                error,
+                            ),
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    /**
      * Lists a folder. Passing no [parentDocumentId] lists the root the grant was given for.
      */
     suspend fun list(treeUri: String, parentDocumentId: String? = null): Result<List<CloudDocument>> =

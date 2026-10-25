@@ -46,6 +46,11 @@ import com.progallery.app.data.cloud.CloudDocument
 import com.progallery.app.data.cloud.CloudKind
 import com.progallery.app.data.cloud.GrantedCloudTree
 import com.progallery.app.util.MediaFormatUtils
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 /**
  * Cloud folders, browsed inside the app.
@@ -71,6 +76,35 @@ fun CloudScreen(
     val pending by viewModel.open.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    var folderNameOpen by remember { mutableStateOf(false) }
+    var folderName by remember { mutableStateOf("") }
+
+    if (folderNameOpen) {
+        AlertDialog(
+            onDismissRequest = { folderNameOpen = false; folderName = "" },
+            title = { Text("New folder") },
+            text = {
+                OutlinedTextField(
+                    value = folderName,
+                    onValueChange = { folderName = it },
+                    singleLine = true,
+                    label = { Text("Name") },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.createFolder(folderName)
+                        folderNameOpen = false
+                        folderName = ""
+                    },
+                ) { Text("Make it") }
+            },
+            dismissButton = {
+                TextButton(onClick = { folderNameOpen = false; folderName = "" }) { Text("Cancel") }
+            },
+        )
+    }
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
@@ -91,6 +125,12 @@ fun CloudScreen(
         pending?.let { request ->
             onOpen(request.uri, request.kind)
             viewModel.consumeOpen()
+        }
+    }
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeMessage()
         }
     }
     LaunchedEffect(state.error) {
@@ -116,6 +156,13 @@ fun CloudScreen(
                     if (state.title == null) {
                         IconButton(onClick = { folderPicker.launch(null) }) {
                             Icon(Icons.Filled.CreateNewFolder, contentDescription = "Choose a cloud folder")
+                        }
+                    } else {
+                        // Only inside a granted tree, because that is the only place a folder can
+                        // actually be made. A button offered where it cannot work is the kind of
+                        // thing this project keeps removing.
+                        IconButton(onClick = { folderNameOpen = true }) {
+                            Icon(Icons.Filled.CreateNewFolder, contentDescription = "New folder")
                         }
                     }
                 },

@@ -32,6 +32,10 @@ data class CloudUiState(
     val error: String? = null,
     /** True while a newly chosen folder is being named and opened. */
     val opening: Boolean = false,
+    /** True while a folder is being made. */
+    val busy: Boolean = false,
+    /** What the app last did, said on the screen rather than silently. */
+    val message: String? = null,
 )
 
 /**
@@ -143,6 +147,40 @@ class CloudViewModel @Inject constructor(
         }
         load(treeUri, null)
     }
+
+    /**
+     * Makes a folder in the folder being browsed.
+     *
+     * The one file operation the app did not have anywhere. It belongs here rather than on the media
+     * tree because `MediaStore` has no folders to make one in — a granted document tree is the only
+     * place this can really work, and a button that could not work is the kind of thing this project
+     * keeps removing.
+     *
+     * The name is checked before anything is asked of the provider, so a slash or an empty name is
+     * answered immediately and in words rather than by a folder that never appears.
+     */
+    fun createFolder(name: String) {
+        val treeUri = _state.value.treeUri ?: return
+        val parent = _state.value.trail.lastOrNull()?.documentId
+        viewModelScope.launch {
+            _state.update { it.copy(busy = true, error = null) }
+            browser.createFolder(treeUri, parent, name).fold(
+                onSuccess = {
+                    // Re-listed rather than added by hand: what the provider actually made is the
+                    // truth, and a folder shown before it exists is a folder that may not.
+                    load(treeUri, parent)
+                    _state.update { it.copy(busy = false, message = "Made \"${name.trim()}\".") }
+                },
+                onFailure = { failure ->
+                    _state.update {
+                        it.copy(busy = false, error = failure.message ?: "The folder could not be made.")
+                    }
+                },
+            )
+        }
+    }
+
+    fun consumeMessage() = _state.update { it.copy(message = null) }
 
     private fun load(treeUri: String, parentDocumentId: String?) {
         viewModelScope.launch {
