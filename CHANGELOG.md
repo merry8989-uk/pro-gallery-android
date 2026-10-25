@@ -27,6 +27,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.56.0]
+The player contradicted the capability screen, about the same file.
+
+### The bug
+The player's message for an unreadable container was **hardcoded**:
+
+> *"The container is not one Android can read. MPEG program streams (.mpg), Windows Media (.wmv) and
+> Flash (.swf) have no support on Android at all."*
+
+**Part D made that wrong.** MPEG program streams are handed to the device's own parser from Android
+11 and up, so the capability screen says *"opens, with a caveat"* while the player still said *"no
+support on Android at all"*. Two parts of one app, disagreeing about one file, on the one subject the
+capability matrix exists to settle — and this project has had exactly this shape of bug before,
+between the log and the screen.
+
+### The fix
+The message now comes from `CapabilityMatrix`, which is the one table the capability screen is built
+from, so the two cannot drift. It has **two** truths rather than one:
+
+- **The matrix refuses the format** — its own reason is shown, the same sentence the capability
+  screen shows.
+- **The matrix says the format opens here** — then the file failed for another reason entirely: a
+  device whose parser cannot read it, a truncated file, a name that lies. Telling somebody *"Android
+  has no support for it"* would be false, and would send them looking for a converter they do not
+  need.
+
+A test walks **every** extension the app knows and fails if the player calls a format unsupported that
+the matrix accepts — so this cannot come back with the next table change.
+
+### And an audit, because it was asked for
+`AUDIT-what-works.md` reads the code, a screen recording and nine screenshots together. The finding
+that matters is a version one: **the screenshots are from v1.46.0**, and most of what they show as
+broken was fixed in the nine releases since — including the red *"Photo locations"* row, which was
+**removed in v1.54.0** and is the same row the exported diagnostics showed being pressed five times
+in one second.
+
+The sweep found no setting, event, private function, runtime permission or TODO left unwired. **The
+hardcoded list in the player was the only one of its kind**, and it is gone.
+
 ## [1.55.0]
 C5: a copy you can watch, and stop.
 
