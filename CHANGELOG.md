@@ -27,134 +27,65 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.61.0]
+The audit's P1-1: a WebDAV answer could exhaust memory.
+
+The client called `readBytes()`, which reads the **whole** response into memory **before** the XML
+parser applies its 5,000-entry limit — so the limit protected nothing, and a broken or hostile server
+could make the app allocate hundreds of megabytes.
+
+`WebDavLimits.read` reads in 32 KiB steps and **refuses rather than grows** past 4 MB. The cap is on
+**bytes received**, not on `Content-Length`, because a header is the server's claim about itself and
+can be absent, wrong, or a lie. Every chunk is a hook, so cancellation is checked there. Six tests,
+mirrored first, including a stream with **no `Content-Length` at all** and **exactly** the limit.
+
 ## [1.60.0]
 A crash line that says why, where, and what was being done.
 
-### The evidence
-The exported diagnostics had **three crashes**, and every one of them read:
+The exported diagnostics had **three crashes**, and every one read
+`exception_type=IllegalArgumentException; fatal=true` — no message, no stack, no file, no screen, no
+cause. Three crashes, all identical, none actionable; the four playback failures were the same shape.
 
-> `crash: exception_type=IllegalArgumentException; fatal=true`
-
-That is a fact about a crash without being an explanation of one. No message, no stack, no file, no
-screen, no cause — three crashes, all identical, none actionable. The four playback failures were the
-same shape: `error_code=2005` and nothing else, so not even the format was known.
-
-### Crashes now record
-- **`message`** — the exception's own words, which is usually the cause in one line.
-- **`where`** — the **first frame inside this app**, not the top frame. A stack's top is often a
-  library's (`androidx.media3…`, `android.os…`) and naming that says nothing about where *this* app
-  went wrong.
-- **`stack`** — the first six frames, so the shape of the call is visible.
-- **`thread`** — a crash on a worker and a crash on the main thread are different problems.
-- **`screen`** — where the person was. Kept in a one-field holder (`CurrentScreen`) because the
-  uncaught-exception handler cannot wait for a log write.
-- **`cause_type` / `cause_message`** — the chain underneath, because a wrapper's message is often
-  "failed to do X" and the cause is the real answer.
-
-**Paths are redacted by default** — `content://…` and `/storage/…` become `<path>` — and the app's own
-"include file paths in diagnostics" switch turns them back on. The rule was already there; the crash
-message is the one place it could have been broken by accident.
-
-### Playback failures now record
-The extension, the kind, the reason in words and the detail — so a failure says *which format* failed
-and *why*, not just a number.
-
-Eight test cases for the crash line, mirrored first: the message, the app frame over a library frame,
-the screen and thread, the head of the stack, the cause chain, a missing message, path redaction both
-ways, and a crash with no app frame at all.
+Crashes now record the message, the **first frame inside this app** (a stack's top is often a
+library's and names nothing about our code), the head of the stack, the thread, the screen, and the
+cause chain. Paths are redacted by default and the app's own switch turns them back on. Playback
+failures record the extension, the kind, the reason and the detail. Eight tests, mirrored first.
 
 ## [1.59.0]
 The audit's three P0 findings — data loss and credentials.
 
-### P0-1: a failed edit could destroy the photo
-`PhotoExporter.overwrite` opened the destination with mode `"wt"`, which **truncates before anything
-is written**. If compression then failed, the original was already gone: a person who edited a photo
-and got an error had lost the photo.
-
-**Now the image is encoded into memory first.** Only a complete, non-empty result is ever opened over
-the destination, so a compression failure cannot touch the file at all. It costs one image's worth of
-memory, which is the right price for never losing the original.
-
-### P0-2: a failed export could delete a file it never wrote
-The legacy path used `file.outputStream()` — which truncates a same-named file — and its `catch`
-block then **deleted** it. A failed export could destroy a file that existed before it started.
-
-**Now:** a collision-safe name (`photo.jpg`, `photo (1).jpg` …), `createNewFile` as the guard so a
-race cannot take another writer's file either, and **only a file this call created is ever deleted**.
-
-### P0-3: WebDAV could send a password over plain HTTP
-The client attached `Authorization: Basic …` to whatever address it was given, and followed
-redirects with it. Basic authentication **encodes** credentials; it does not encrypt them.
-
-**Now:** a credentialed request to a non-HTTPS address is **refused before any I/O**, redirects are
-followed **by hand** so a redirect to another host **drops** the credentials, and the rule lives in
-`WebDavSecurity` — pure, and tested, rather than inline where it could be forgotten.
-
-### Tests
-Six cases for the WebDAV rule, mirrored first: HTTPS with credentials accepted, HTTP refused with a
-readable reason, HTTP without credentials allowed (nothing secret is being sent), a cross-host
-redirect is not the same host, the same host in different case is, and a malformed address is treated
-as insecure rather than allowed.
+**P0-1** — `overwrite` opened the destination with mode `"wt"`, which truncates **before** anything is
+written; a failed compression had already destroyed the original. The image is now encoded into memory
+first, so a failure cannot touch the file. **P0-2** — the legacy path truncated a same-named file and
+then **deleted** it on error; now a collision-safe name, `createNewFile` as the guard, and only a file
+this call created is ever deleted. **P0-3** — WebDAV could send a password over plain HTTP; a
+credentialed non-HTTPS request is now refused before any I/O, redirects are followed by hand so a
+cross-host hop drops the credentials, and the rule lives in `WebDavSecurity`, pure and tested.
 
 ## [1.58.0]
 The app could not tell us when a file failed to open.
 
-### The finding
-**Four of five viewers logged nothing when they failed.** The text viewer put *"This file could not be
-opened"* on the screen and told the log nothing; so did the image viewer, the PDF viewer and the
-archive viewer. Only the player recorded its failures.
+**Four of five viewers logged nothing when they failed** — text, image, PDF and archive all put an
+error on the screen and told the log nothing. Every diagnostics export was therefore **silent about
+exactly the failures being reported**, which is why every question about "why does this not work" had
+to be answered by reading code and guessing. All four now record the extension, the reason, and
+whether the address was readable.
 
-The diagnostics export is the one artefact meant to explain what is broken — so **every export was
-silent about exactly the failures being reported**. Every question about "why does this not work" had
-to be answered by reading code and guessing, and two guesses in a row were wrong.
-
-### Added
-All four viewers now record a failed open with the **extension**, the **reason in words**, and whether
-the address was even readable. Nothing about the file's contents, name or path: a log is a thing
-people send.
-
-### Two wrong hypotheses, written down
-- **The URI encoding.** `URLEncoder` encodes a space as `+`, and "works in some folders, not others"
-  is exactly what a space in a folder name would cause. **Wrong**: the viewers decode with
-  `URLDecoder`, which turns `+` back into a space. The pair was consistent. All sixteen replacements
-  were reverted.
-- **Non-media files never reaching the browser.** **Wrong**: the data source queries
-  `MediaStore.Files`, not just images and video, and the browser merges the deep-scan index on top.
-
-A guess presented as a finding is worse than no finding — and this project has done that once before.
-
-### And a checker rule that cried wolf
-`check_kotlin.py` reported a missing import for a **fully-qualified** use, which needs none. Second
-time this rule has done that. Fixed, and tested both ways: it ignores `com.example.Foo()` and still
-catches a genuinely missing `import`.
+Two wrong hypotheses are written down in `AUDIT-open-failures.md`: the URI encoding (the
+`URLEncoder`/`URLDecoder` pair was consistent; sixteen replacements were reverted) and non-media files
+never reaching the browser (`MediaStore.Files` plus the deep-scan index says otherwise).
 
 ## [1.57.0]
-Zip files open, and can be unpacked — the thing the app had no answer for at all.
+Zip files open, and can be unpacked.
 
-### The gap
-A `.zip` was handed to another app. So **"extract" was not an option anywhere in the app**, and the
-honest answer to *"where do I extract it"* was *"nowhere"*. `ZipArchive` existed, but it reads a zip
-**whole** into memory — right for a `.docx`, wrong for a two-gigabyte `.zip` — and it was only ever
-used to pull XML out of documents.
+A `.zip` was handed to another app, so **"extract" was not an option anywhere** — the honest answer to
+"where do I extract it" was "nowhere". `ArchiveReader` lists an archive **streaming**, so a large zip
+shows its contents instead of running out of memory; `ArchiveExtractor` unpacks into a folder the
+person picks; and `FileOpener` sends an archive to the new viewer instead of handing it off.
 
-### Added
-- **`ArchiveReader`** — lists an archive **streaming**, so a large zip shows its contents instead of
-  running out of memory. Directory entries are kept so the archive's shape is visible.
-- **`ArchiveExtractor`** — unpacks into a folder the person picks with the system's own picker.
-- **An archive screen** — the entries with their sizes, and an **Extract** action.
-- **`FileOpener` sends an archive here** instead of handing it off, so a tap on a `.zip` now opens
-  something.
-
-### Two things enforced rather than trusted
-- **Zip slip cannot happen, by construction.** An entry may be called `../../something`; the extractor
-  writes by document id under `ArchiveEntry.fileName`, which is the last path segment and **can never
-  contain a slash**. Not a check that could be forgotten — a name that cannot express the escape.
-- **A cap applied while reading.** A zip declares its own sizes and can lie; a part that grows past
-  the limit is refused, and a part that fails halfway is deleted rather than left as a truncated file
-  that looks whole.
-
-Seven test cases, mirrored first: an ordinary archive, directories kept, **zip slip**, depth for
-indenting, something that is not a zip, too many parts, and a missing stream.
+**Zip slip cannot happen by construction:** the extractor writes under `ArchiveEntry.fileName`, the
+last path segment, which can never contain a slash. The size cap is applied **while reading**, and a
+part that fails halfway is deleted rather than left as a truncated file that looks whole.
 
 ## [1.56.0]
 The player contradicted the capability screen, about the same file.

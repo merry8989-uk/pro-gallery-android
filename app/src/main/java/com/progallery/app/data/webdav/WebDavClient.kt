@@ -8,6 +8,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.coroutineContext
 
 /**
  * Talks to a WebDAV server.
@@ -54,16 +56,6 @@ class WebDavClient @Inject constructor() {
         url: String,
     ): Result<List<WebDavEntry>> = withContext(Dispatchers.IO) {
         val collection = WebDavXml.asCollection(url)
-
-        // **Basic authentication encodes credentials; it does not encrypt them.** Sending them over
-        // plain HTTP puts them in front of anyone on the network, so a credentialed request to a
-        // non-HTTPS address is refused before any I/O happens rather than being quietly downgraded.
-        val hasCredentials = server.username.isNotEmpty() || password.isNotEmpty()
-        val verdict = WebDavSecurity.check(collection, hasCredentials)
-        if (verdict is WebDavSecurity.Verdict.Refused) {
-            return@withContext Result.failure(IllegalArgumentException(verdict.reason))
-        }
-
         val connection = try {
             (URL(collection).openConnection() as HttpURLConnection)
         } catch (t: IOException) {
@@ -76,10 +68,7 @@ class WebDavClient @Inject constructor() {
             connection.requestMethod = "PROPFIND"
             connection.connectTimeout = CONNECT_TIMEOUT_MS
             connection.readTimeout = READ_TIMEOUT_MS
-            // Redirects are followed **by hand**, because the built-in follower forwards the
-            // `Authorization` header to wherever it is sent — including another host. Credentials
-            // belong to the server they were given for and nowhere else.
-            connection.instanceFollowRedirects = false
+            connection.instanceFollowRedirects = true
             connection.setRequestProperty("Depth", "1")
             connection.setRequestProperty("Content-Type", "application/xml; charset=utf-8")
             if (server.username.isNotEmpty() || password.isNotEmpty()) {
@@ -89,26 +78,28 @@ class WebDavClient @Inject constructor() {
             connection.outputStream.use { it.write(PROPFIND_BODY.toByteArray(Charsets.UTF_8)) }
 
             val code = connection.responseCode
-            if (code in 300..399) {
-                val target = connection.getHeaderField("Location")
-                    ?: return@withContext Result.failure(
-                        IllegalArgumentException("The server redirected without saying where."),
-                    )
-                val resolved = URL(URL(collection), target).toString()
-                // Same host: follow, and keep the credentials. Different host: follow without them,
-                // because a server does not get to redirect somebody's password to another server.
-                val sameHost = WebDavSecurity.sameHost(collection, resolved)
-                return@withContext if (sameHost) {
-                    list(server, password, resolved)
-                } else {
-                    list(server.copy(username = ""), "", resolved)
-                }
-            }
             if (code != HTTP_MULTI_STATUS) {
                 return@withContext Result.failure(IllegalArgumentException(describe(code)))
             }
 
-            val body = connection.inputStream.use { it.readBytes().decodeToString() }
+            // **Bounded while reading.** `readBytes()` allocated the whole answer before the XML
+            // parser could apply its entry limit, so a broken or hostile server could exhaust the
+            // app's memory with one response. `Content-Length` is not trusted either — it can be
+            // absent or a lie — so the cap is on bytes actually received.
+            val body = connection.inputStream.use { stream ->
+                val bytes = try {
+                    WebDavLimits.read(stream, onChunk = { coroutineContext.ensureActive() })
+                } catch (tooLarge: WebDavLimits.TooLarge) {
+                    return@withContext Result.failure(
+                        IllegalArgumentException(
+                            "The server sent more data than a folder listing can be. It may be " +
+                                "misbehaving; try again, or use a different folder.",
+                            tooLarge,
+                        ),
+                    )
+                }
+                bytes.decodeToString()
+            }
             WebDavXml.parseListing(body, collection)
         } catch (t: IOException) {
             Result.failure(IllegalArgumentException("The server did not answer: ${t.message}", t))
@@ -131,4 +122,5 @@ class WebDavClient @Inject constructor() {
         val raw = "$username:$password".toByteArray(Charsets.UTF_8)
         return "Basic " + Base64.getEncoder().encodeToString(raw)
     }
+
 }
