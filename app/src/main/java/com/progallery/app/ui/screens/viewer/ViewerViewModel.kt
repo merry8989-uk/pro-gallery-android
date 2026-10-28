@@ -55,6 +55,28 @@ class ViewerViewModel @Inject constructor(
     private val eventLog: EventLogStore,
 ) : ViewModel() {
 
+    /**
+     * Records that the picture could not be drawn.
+     *
+     * Coil knows, and the screen shows a card instead of a blank page — but until this existed the
+     * log did not, so a photo that would not render left no trace in a diagnostics export. That is
+     * the whole reason this audit exists.
+     */
+    fun reportOpenFailure(item: MediaItem) {
+        viewModelScope.launch {
+            eventLog.log(
+                EventName.ERROR_STATE_SHOWN,
+                screen = "Viewer",
+                details = OpenFailure.details(
+                    viewer = "image",
+                    extension = item.extension,
+                    reason = "the image could not be drawn",
+                    uriReadable = null,
+                ),
+            )
+        }
+    }
+
     private val _items = MutableStateFlow<List<MediaItem>>(emptyList())
     val items: StateFlow<List<MediaItem>> = _items.asStateFlow()
 

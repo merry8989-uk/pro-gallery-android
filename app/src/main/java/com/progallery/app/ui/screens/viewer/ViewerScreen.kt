@@ -203,7 +203,10 @@ fun ViewerScreen(
                             val painter = rememberAsyncImagePainter(model = item.uri)
                             if (painter.state is AsyncImagePainter.State.Error) {
                                 // A blank screen tells the user nothing. If the picture
-                                // cannot be drawn, say why and offer the way out.
+                                // cannot be drawn, say why and offer the way out — and record it,
+                                // because a photo that will not render used to leave no trace in the
+                                // log at all.
+                                LaunchedEffect(item.uri) { viewModel.reportOpenFailure(item) }
                                 NoPreviewCard(
                                     item = item,
                                     onOpenWith = { viewModel.openWith(item) },
