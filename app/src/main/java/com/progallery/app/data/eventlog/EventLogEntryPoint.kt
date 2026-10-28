@@ -21,6 +21,9 @@ import dagger.hilt.components.SingletonComponent
 interface EventLogEntryPoint {
     fun eventLogStore(): EventLogStore
 
+    /** Which screen is showing, for the crash handler to name. */
+    fun currentScreen(): CurrentScreen
+
     companion object {
         fun from(context: Context): EventLogStore =
             EntryPointAccessors.fromApplication(context, EventLogEntryPoint::class.java)
@@ -32,4 +35,18 @@ interface EventLogEntryPoint {
 fun rememberEventLog(): EventLogStore {
     val context = LocalContext.current
     return remember(context) { EventLogEntryPoint.from(context) }
+}
+
+/**
+ * The screen the navigation host last showed.
+ *
+ * Read by the crash handler through the application, not through this — this is only how the host
+ * writes it.
+ */
+@Composable
+fun rememberCurrentScreen(): CurrentScreen {
+    val context = LocalContext.current
+    return remember(context) {
+        EntryPointAccessors.fromApplication(context, EventLogEntryPoint::class.java).currentScreen()
+    }
 }

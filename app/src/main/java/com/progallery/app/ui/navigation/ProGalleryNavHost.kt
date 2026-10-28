@@ -64,6 +64,7 @@ import com.progallery.app.util.rememberMediaActions
 import com.progallery.app.ui.screens.tree.FileTreeScreen
 import com.progallery.app.ui.screens.storage.StorageScreen
 import com.progallery.app.ui.screens.archive.ArchiveScreen
+import com.progallery.app.data.eventlog.rememberCurrentScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -76,6 +77,7 @@ fun ProGalleryNavHost(
     val navController = rememberNavController()
     val usageStore = rememberUsageStore()
     val eventLog = rememberEventLog()
+    val currentScreen = rememberCurrentScreen()
     val mediaActions = rememberMediaActions()
     val currentScope = androidx.compose.runtime.rememberCoroutineScope()
 
@@ -93,6 +95,9 @@ fun ProGalleryNavHost(
         // names in the log, and halved every count the weekly review is built from.
         ScreenName.of(route?.destination?.route)?.let { name ->
             eventLog.log(EventName.SCREEN_VIEW, screen = name)
+            // Kept for the crash handler, which cannot wait for a log write to say where the person
+            // was when the app died. One field, set as the screen changes.
+            currentScreen.set(name)
         }
     }
 
