@@ -54,6 +54,16 @@ class WebDavClient @Inject constructor() {
         url: String,
     ): Result<List<WebDavEntry>> = withContext(Dispatchers.IO) {
         val collection = WebDavXml.asCollection(url)
+
+        // **Basic authentication encodes credentials; it does not encrypt them.** Sending them over
+        // plain HTTP puts them in front of anyone on the network, so a credentialed request to a
+        // non-HTTPS address is refused before any I/O happens rather than being quietly downgraded.
+        val hasCredentials = server.username.isNotEmpty() || password.isNotEmpty()
+        val verdict = WebDavSecurity.check(collection, hasCredentials)
+        if (verdict is WebDavSecurity.Verdict.Refused) {
+            return@withContext Result.failure(IllegalArgumentException(verdict.reason))
+        }
+
         val connection = try {
             (URL(collection).openConnection() as HttpURLConnection)
         } catch (t: IOException) {
@@ -66,7 +76,10 @@ class WebDavClient @Inject constructor() {
             connection.requestMethod = "PROPFIND"
             connection.connectTimeout = CONNECT_TIMEOUT_MS
             connection.readTimeout = READ_TIMEOUT_MS
-            connection.instanceFollowRedirects = true
+            // Redirects are followed **by hand**, because the built-in follower forwards the
+            // `Authorization` header to wherever it is sent — including another host. Credentials
+            // belong to the server they were given for and nowhere else.
+            connection.instanceFollowRedirects = false
             connection.setRequestProperty("Depth", "1")
             connection.setRequestProperty("Content-Type", "application/xml; charset=utf-8")
             if (server.username.isNotEmpty() || password.isNotEmpty()) {
@@ -76,6 +89,21 @@ class WebDavClient @Inject constructor() {
             connection.outputStream.use { it.write(PROPFIND_BODY.toByteArray(Charsets.UTF_8)) }
 
             val code = connection.responseCode
+            if (code in 300..399) {
+                val target = connection.getHeaderField("Location")
+                    ?: return@withContext Result.failure(
+                        IllegalArgumentException("The server redirected without saying where."),
+                    )
+                val resolved = URL(URL(collection), target).toString()
+                // Same host: follow, and keep the credentials. Different host: follow without them,
+                // because a server does not get to redirect somebody's password to another server.
+                val sameHost = WebDavSecurity.sameHost(collection, resolved)
+                return@withContext if (sameHost) {
+                    list(server, password, resolved)
+                } else {
+                    list(server.copy(username = ""), "", resolved)
+                }
+            }
             if (code != HTTP_MULTI_STATUS) {
                 return@withContext Result.failure(IllegalArgumentException(describe(code)))
             }
@@ -103,5 +131,4 @@ class WebDavClient @Inject constructor() {
         val raw = "$username:$password".toByteArray(Charsets.UTF_8)
         return "Basic " + Base64.getEncoder().encodeToString(raw)
     }
-
 }

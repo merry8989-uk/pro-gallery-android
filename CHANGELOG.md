@@ -27,6 +27,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.59.0]
+The audit's three P0 findings — data loss and credentials.
+
+### P0-1: a failed edit could destroy the photo
+`PhotoExporter.overwrite` opened the destination with mode `"wt"`, which **truncates before anything
+is written**. If compression then failed, the original was already gone: a person who edited a photo
+and got an error had lost the photo.
+
+**Now the image is encoded into memory first.** Only a complete, non-empty result is ever opened over
+the destination, so a compression failure cannot touch the file at all. It costs one image's worth of
+memory, which is the right price for never losing the original.
+
+### P0-2: a failed export could delete a file it never wrote
+The legacy path used `file.outputStream()` — which truncates a same-named file — and its `catch`
+block then **deleted** it. A failed export could destroy a file that existed before it started.
+
+**Now:** a collision-safe name (`photo.jpg`, `photo (1).jpg` …), `createNewFile` as the guard so a
+race cannot take another writer's file either, and **only a file this call created is ever deleted**.
+
+### P0-3: WebDAV could send a password over plain HTTP
+The client attached `Authorization: Basic …` to whatever address it was given, and followed
+redirects with it. Basic authentication **encodes** credentials; it does not encrypt them.
+
+**Now:** a credentialed request to a non-HTTPS address is **refused before any I/O**, redirects are
+followed **by hand** so a redirect to another host **drops** the credentials, and the rule lives in
+`WebDavSecurity` — pure, and tested, rather than inline where it could be forgotten.
+
+### Tests
+Six cases for the WebDAV rule, mirrored first: HTTPS with credentials accepted, HTTP refused with a
+readable reason, HTTP without credentials allowed (nothing secret is being sent), a cross-host
+redirect is not the same host, the same host in different case is, and a malformed address is treated
+as insecure rather than allowed.
+
 ## [1.58.0]
 The app could not tell us when a file failed to open.
 
