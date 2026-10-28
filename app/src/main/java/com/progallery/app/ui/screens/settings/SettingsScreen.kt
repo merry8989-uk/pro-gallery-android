@@ -329,6 +329,8 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            item { ExploreMoreAppsSection() }
         }
     }
 
