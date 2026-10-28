@@ -6,7 +6,7 @@ import com.progallery.app.data.model.ImageDecodability
 import com.progallery.app.data.model.MediaItem
 
 /** Which of the app's viewers opens a file. */
-enum class Viewer { IMAGE, PLAYER, PDF, TEXT }
+enum class Viewer { IMAGE, PLAYER, PDF, TEXT, ARCHIVE }
 
 /**
  * Where a file goes when it is tapped.
@@ -70,6 +70,12 @@ object FileOpener {
 
         if (item.isAudio || item.isVideo) return FileDestination.Here(Viewer.PLAYER)
         if (item.isPdf) return FileDestination.Here(Viewer.PDF)
+
+        // An archive has a viewer of its own now. It used to fall through to the hand-off below,
+        // which meant "extract" was not an option anywhere in the app — the honest answer to "where
+        // do I extract it" was "nowhere". The viewer lists what is inside and unpacks it into a
+        // folder the person picks.
+        if (item.isArchive) return FileDestination.Here(Viewer.ARCHIVE)
 
         // Text, JSON, CSV, code, and the document formats the app reads itself.
         if (item.isTextReadable) return FileDestination.Here(Viewer.TEXT)

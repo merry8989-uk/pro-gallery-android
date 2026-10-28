@@ -53,6 +53,7 @@ object ScreenName {
         Routes.ANDROID_FOLDERS to "AndroidFolders",
         Routes.FILE_TREE to "FileTree",
         Routes.STORAGE to "Storage",
+        Routes.ARCHIVE to "Archive",
         // These two carry arguments in their route constant, so the key is written out rather than
         // taken from `Routes`: `recovery?start={start}` would never match the stripped form.
         "recovery" to "Recovery",
