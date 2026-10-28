@@ -27,6 +27,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import coil.decode.SvgDecoder
 import com.progallery.app.data.scan.DevicePressureState
+import com.progallery.app.data.eventlog.CrashDetail
+import com.progallery.app.data.eventlog.CurrentScreen
 
 /**
  * Application entry point. Configures Hilt and a shared Coil [ImageLoader] tuned
@@ -45,6 +47,7 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
     @Inject lateinit var eventLog: EventLogStore
     @Inject lateinit var foregroundState: AppForegroundState
     @Inject lateinit var devicePressure: DevicePressureState
+    @Inject lateinit var currentScreen: CurrentScreen
     @Inject lateinit var trashPurgeScheduler: TrashPurgeScheduler
 
     /** For recording that must never hold up startup. */
@@ -72,9 +75,15 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
                     withTimeoutOrNull(2_000) {
                         eventLog.log(
                             EventName.CRASH,
-                            details = mapOf(
-                                "exception_type" to (throwable.javaClass.name.substringAfterLast('.')),
-                                "fatal" to "true",
+                            // The type alone was all this used to say, which is a fact about a
+                            // crash and not an explanation of one. Message, the first frame inside
+                            // this app, the head of the stack, the thread and the screen are what
+                            // make it actionable.
+                            details = CrashDetail.of(
+                                throwable = throwable,
+                                screen = currentScreen.get(),
+                                threadName = thread.name,
+                                includePaths = settingsRepository.current().includePathsInLogs,
                             ),
                         )
                     }

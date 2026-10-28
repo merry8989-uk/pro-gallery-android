@@ -27,6 +27,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.60.0]
+A crash line that says why, where, and what was being done.
+
+### The evidence
+The exported diagnostics had **three crashes**, and every one of them read:
+
+> `crash: exception_type=IllegalArgumentException; fatal=true`
+
+That is a fact about a crash without being an explanation of one. No message, no stack, no file, no
+screen, no cause — three crashes, all identical, none actionable. The four playback failures were the
+same shape: `error_code=2005` and nothing else, so not even the format was known.
+
+### Crashes now record
+- **`message`** — the exception's own words, which is usually the cause in one line.
+- **`where`** — the **first frame inside this app**, not the top frame. A stack's top is often a
+  library's (`androidx.media3…`, `android.os…`) and naming that says nothing about where *this* app
+  went wrong.
+- **`stack`** — the first six frames, so the shape of the call is visible.
+- **`thread`** — a crash on a worker and a crash on the main thread are different problems.
+- **`screen`** — where the person was. Kept in a one-field holder (`CurrentScreen`) because the
+  uncaught-exception handler cannot wait for a log write.
+- **`cause_type` / `cause_message`** — the chain underneath, because a wrapper's message is often
+  "failed to do X" and the cause is the real answer.
+
+**Paths are redacted by default** — `content://…` and `/storage/…` become `<path>` — and the app's own
+"include file paths in diagnostics" switch turns them back on. The rule was already there; the crash
+message is the one place it could have been broken by accident.
+
+### Playback failures now record
+The extension, the kind, the reason in words and the detail — so a failure says *which format* failed
+and *why*, not just a number.
+
+Eight test cases for the crash line, mirrored first: the message, the app frame over a library frame,
+the screen and thread, the head of the stack, the cause chain, a missing message, path redaction both
+ways, and a crash with no app frame at all.
+
 ## [1.59.0]
 The audit's three P0 findings — data loss and credentials.
 

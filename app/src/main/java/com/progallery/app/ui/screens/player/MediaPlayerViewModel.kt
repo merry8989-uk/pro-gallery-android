@@ -196,9 +196,16 @@ class MediaPlayerViewModel @Inject constructor(
         viewModelScope.launch {
             eventLog.log(
                 EventName.PLAYBACK_FAILED,
+                // `error_code` alone is a number. The exported log showed four failures, all
+                // `error_code=2005`, and nothing else — no format, no reason, no file. It could not
+                // be acted on, which is the same gap the crash line had.
                 details = mapOf(
                     "error_code" to errorCode.toString(),
                     "reason" to explanation.action.name.lowercase(),
+                    "extension" to _state.value.item?.extension?.lowercase().orEmpty().ifBlank { "unknown" },
+                    "kind" to (_state.value.item?.mediaType?.name ?: "unknown").lowercase(),
+                    "because" to explanation.reason.take(120),
+                    "detail" to explanation.detail.take(200),
                 ),
             )
         }
