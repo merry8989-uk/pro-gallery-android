@@ -7,6 +7,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Least privilege, written down rather than inherited from the repository default. CI reads the
+# code, builds it, and uploads artifacts. It never needs to write to the repository, so it cannot.
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build debug APK & run unit tests
@@ -82,6 +87,7 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
+
       - name: Upload the exported Room schemas
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,6 +102,13 @@ jobs:
           name: pro-gallery-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: warn
+
+      # The keystore is written to $RUNNER_TEMP because Gradle needs a file, not a secret. The runner
+      # is destroyed after the job either way — this removes it from the disk once the build that
+      # needed it has run.
+      - name: Remove the keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/progallery.p12" "$RUNNER_TEMP/signing.properties"
 
   instrumented:
     name: Instrumented tests (emulator)
@@ -169,3 +182,63 @@ jobs:
           name: instrumented-test-report
           path: app/build/reports/androidTests/connected/**
           if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------------------------
+  # Supply-chain checks. Two questions this job answers that nothing else did:
+  #   dependencyCheck      — does anything on the classpath have a known CVE?
+  #   generateLicenseReport — what licences does this app ship, and is any of it copyleft?
+  #
+  # **This job does not block a release yet, and that is deliberate.** A first run against an
+  # existing dependency set almost always finds something, and making it blocking on day one would
+  # mean either an unreviewed suppression file or a permanently red build. It reports; a person
+  # reads; then `failBuildOnCVSS` in app/build.gradle.kts decides.
+  #
+  # It is a separate job rather than a step in `build` so a supply-chain finding never hides a
+  # compile or test failure, and so it can be re-run on its own.
+  # ---------------------------------------------------------------------------------------------
+  dependency-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+
+      # `--continue` so a finding does not stop the run before the report is uploaded: the report is
+      # the useful artefact, and a red step with no report is a red step nobody can act on.
+      - name: OWASP dependency check
+        run: ./gradlew :app:dependencyCheckAnalyze --continue
+
+      - name: Upload dependency check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: app/build/reports/dependency-check-report.*
+          if-no-files-found: warn
+
+      # A licence report that fails should not fail the job: the licences are a decision for a
+      # person, and the report is what they read to make it.
+      - name: Licence report
+        continue-on-error: true
+        run: ./gradlew :app:generateLicenseReport
+
+      - name: Upload licence report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: licence-report
+          path: app/build/reports/licenses/**
+          if-no-files-found: warn
+

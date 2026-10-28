@@ -96,6 +96,7 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 
+
       - name: Collect APK
         run: |
           mkdir -p out
@@ -136,3 +137,10 @@ jobs:
             out/pro-gallery-release.aab
           draft: false
           prerelease: false
+
+      # The keystore is written to $RUNNER_TEMP because Gradle needs a file, not a secret. The runner
+      # is destroyed after the job either way — this removes it from the disk once everything that
+      # needs it has run, so nothing later in the job can read it.
+      - name: Remove the keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/progallery.p12" "$RUNNER_TEMP/signing.properties"
