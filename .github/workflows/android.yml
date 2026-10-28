@@ -207,6 +207,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # The wrapper is not executable in a fresh checkout, which is why the other jobs do this too.
+      # Without it the step exits 126 before Gradle starts — the first run of this job proved it.
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
