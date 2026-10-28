@@ -13,6 +13,11 @@ object Routes {
     const val ANDROID_FOLDERS = "android_folders"
     const val FILE_TREE = "file_tree"
     const val STORAGE = "storage"
+    const val ARCHIVE = "archive"
+
+    fun archive(uri: String, title: String) =
+        "$ARCHIVE?uri=${java.net.URLEncoder.encode(uri, "UTF-8")}" +
+            "&title=${java.net.URLEncoder.encode(title, "UTF-8")}"
     /**
      * The scan screens take a `start` argument so the scope screen can run a scan rather than
      * merely describe one. The pattern is declared here and every caller builds it with the

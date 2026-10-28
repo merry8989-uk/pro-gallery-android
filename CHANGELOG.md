@@ -27,6 +27,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.57.0]
+Zip files open, and can be unpacked — the thing the app had no answer for at all.
+
+### The gap
+A `.zip` was handed to another app. So **"extract" was not an option anywhere in the app**, and the
+honest answer to *"where do I extract it"* was *"nowhere"*. `ZipArchive` existed, but it reads a zip
+**whole** into memory — right for a `.docx`, wrong for a two-gigabyte `.zip` — and it was only ever
+used to pull XML out of documents.
+
+### Added
+- **`ArchiveReader`** — lists an archive **streaming**, so a large zip shows its contents instead of
+  running out of memory. Directory entries are kept so the archive's shape is visible.
+- **`ArchiveExtractor`** — unpacks into a folder the person picks with the system's own picker.
+- **An archive screen** — the entries with their sizes, and an **Extract** action.
+- **`FileOpener` sends an archive here** instead of handing it off, so a tap on a `.zip` now opens
+  something.
+
+### Two things enforced rather than trusted
+- **Zip slip cannot happen, by construction.** An entry may be called `../../something`; the extractor
+  writes by document id under `ArchiveEntry.fileName`, which is the last path segment and **can never
+  contain a slash**. Not a check that could be forgotten — a name that cannot express the escape.
+- **A cap applied while reading.** A zip declares its own sizes and can lie; a part that grows past
+  the limit is refused, and a part that fails halfway is deleted rather than left as a truncated file
+  that looks whole.
+
+Seven test cases, mirrored first: an ordinary archive, directories kept, **zip slip**, depth for
+indenting, something that is not a zip, too many parts, and a missing stream.
+
 ## [1.56.0]
 The player contradicted the capability screen, about the same file.
 

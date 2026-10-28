@@ -40,6 +40,7 @@ enum class FeatureId(val id: String) {
     ANDROID_FOLDERS("android_folders"),
     FILE_TREE("file_tree"),
     STORAGE("storage"),
+    ARCHIVE("archive"),
     CLOUD("cloud"),
     WEBDAV("webdav"),
     STREAM("stream"),

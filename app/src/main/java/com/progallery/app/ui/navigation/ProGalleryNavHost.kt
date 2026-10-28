@@ -63,6 +63,7 @@ import com.progallery.app.data.documents.Viewer
 import com.progallery.app.util.rememberMediaActions
 import com.progallery.app.ui.screens.tree.FileTreeScreen
 import com.progallery.app.ui.screens.storage.StorageScreen
+import com.progallery.app.ui.screens.archive.ArchiveScreen
 
 @Composable
 fun ProGalleryNavHost(
@@ -141,6 +142,7 @@ fun ProGalleryNavHost(
                     Viewer.PLAYER -> Routes.mediaPlayer(item.uri.toString())
                     Viewer.PDF -> Routes.pdfViewer(item.uri.toString())
                     Viewer.TEXT -> Routes.textViewer(item.uri.toString(), item.displayName)
+                    Viewer.ARCHIVE -> Routes.archive(item.uri.toString(), item.displayName)
                 },
             )
 
@@ -240,6 +242,15 @@ fun ProGalleryNavHost(
                 // one there, and a format that is handed over says why.
                 onOpenFile = openItem,
             )
+        }
+        composable(
+            route = "${Routes.ARCHIVE}?uri={uri}&title={title}",
+            arguments = listOf(
+                androidx.navigation.navArgument("uri") { type = androidx.navigation.NavType.StringType },
+                androidx.navigation.navArgument("title") { type = androidx.navigation.NavType.StringType },
+            ),
+        ) {
+            ArchiveScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.STORAGE) {
             StorageScreen(
