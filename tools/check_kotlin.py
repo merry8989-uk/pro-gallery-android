@@ -183,7 +183,13 @@ def main() -> int:
         for decl, (home_pkg, _) in declarations.items():
             if home_pkg == entry["pkg"] or decl in local or decl in entry["imports"]:
                 continue
-            if re.search(r"\b" + re.escape(decl) + r"\b", entry["code"]):
+            # A **fully-qualified** use needs no import: `com.example.Foo()` is already an
+            # address. The first version of this rule did not know that and cried wolf the moment
+            # a file used one — the second time this rule has reported a problem that was not one.
+            if re.search(r"(?<!\w)(?:(?!\b" + re.escape(decl) + r"\b)[\w.])*\b" + re.escape(decl) + r"\b",
+                         entry["code"]) and not re.search(
+                r"(?<![\w.])[\w.]*\." + re.escape(decl) + r"\b", entry["code"]
+            ):
                 problems.append(
                     f"{os.path.basename(entry['path'])}: uses {decl} (from {home_pkg}) with no import"
                 )

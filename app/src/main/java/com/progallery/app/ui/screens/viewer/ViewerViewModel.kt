@@ -20,6 +20,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.progallery.app.ui.components.sameUri
 import com.progallery.app.util.runCatchingCancellable
+import com.progallery.app.data.eventlog.EventLogStore
+import com.progallery.app.data.eventlog.EventName
+import com.progallery.app.data.eventlog.OpenFailure
 
 /** A rename or move that may need the platform's write-consent before it applies. */
 sealed interface WriteAction {
@@ -49,6 +52,7 @@ class ViewerViewModel @Inject constructor(
     private val trashRepository: TrashRepository,
     private val mediaActions: MediaActions,
     private val viewerContext: ViewerContext,
+    private val eventLog: EventLogStore,
 ) : ViewModel() {
 
     private val _items = MutableStateFlow<List<MediaItem>>(emptyList())

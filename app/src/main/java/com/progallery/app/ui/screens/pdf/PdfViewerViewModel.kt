@@ -28,6 +28,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import com.progallery.app.data.eventlog.EventLogStore
+import com.progallery.app.data.eventlog.EventName
+import com.progallery.app.data.eventlog.OpenFailure
 
 data class PdfUiState(
     val item: MediaItem? = null,
@@ -50,6 +53,7 @@ class PdfViewerViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val mediaActions: MediaActions,
     private val repository: MediaRepository,
+    private val eventLog: EventLogStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PdfUiState())
@@ -71,6 +75,18 @@ class PdfViewerViewModel @Inject constructor(
             try {
                 val pfd = context.contentResolver.openFileDescriptor(uri, "r")
                 if (pfd == null) {
+                    viewModelScope.launch {
+                        eventLog.log(
+                            EventName.ERROR_STATE_SHOWN,
+                            screen = "PdfViewer",
+                            details = OpenFailure.details(
+                                viewer = "pdf",
+                                extension = "pdf",
+                                reason = "the document could not be opened",
+                                uriReadable = false,
+                            ),
+                        )
+                    }
                     _state.update { it.copy(loading = false, error = "Could not open this PDF") }
                     return@launch
                 }
