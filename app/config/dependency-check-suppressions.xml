@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Suppressions for the OWASP dependency-check scan.
+
+  Deliberately empty. A suppression is a written claim that a known vulnerability does not affect
+  this app, and every entry here should say **why** — which code never reaches the affected path, or
+  which version is already fixed upstream. A suppression without that reasoning is a finding being
+  hidden, and the point of the scan is to see findings.
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+</suppressions>

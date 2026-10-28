@@ -59,11 +59,14 @@ class TrashPurgeWorker(
                     // it again, because nothing was removed from the database.
                     eventLog.log(
                         EventName.JOB_FAILED,
-                        details = mapOf(
-                            "job" to JOB,
-                            "exception_type" to failure.javaClass.name.substringAfterLast('.'),
-                            "action" to "retry",
-                        ),
+                        // The type alone is a fact about a failure, not an explanation of one —
+                        // the same gap the crash line had. The message, the frame inside this app
+                        // and the cause chain are what make a retry diagnosable.
+                        details = com.progallery.app.data.eventlog.CrashDetail.of(
+                            throwable = failure,
+                            screen = "TrashPurgeWorker",
+                            threadName = "worker",
+                        ) + mapOf("job" to JOB, "action" to "retry"),
                     )
                     Result.retry()
                 },

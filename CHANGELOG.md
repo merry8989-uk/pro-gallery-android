@@ -27,6 +27,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.62.0]
+The audit's remaining code and CI items, done together.
+
+### A — the trash, tested
+The audit's P1-3 asked for trash/restore/purge failure scenarios. The purge worker was already right —
+a failed delete **retries** and **keeps the row**, so nothing is lost — but the **retention arithmetic**
+had no test at all, and that is the part that actually removes files.
+
+`TrashRetention` is now a small pure object: the cutoff, and `isPurgeable` which refuses a row with
+**no timestamp** (an unknown age is not an old one). A retention of zero or less is **clamped to one
+day** rather than read literally, because reading it literally would delete a file the instant it was
+trashed — which is not a trash, and is not recoverable. Eight test cases, mirrored first, including
+the exact boundary: a file is purged once it is **past** its retention, not on the instant it reaches it.
+
+The purge worker's `job_failed` event also recorded only `exception_type` — the same gap the crash line
+had — and now carries the full detail through `CrashDetail`.
+
+### B — supply-chain checks in CI
+A new `dependency-check` job runs the OWASP dependency-check and a licence report, uploading both as
+artifacts. It is **deliberately non-blocking**: a first run against an existing dependency set always
+finds something, and making it blocking on day one means either an unreviewed suppression file or a
+permanently red build. It reports; a person reads; then `failBuildOnCVSS = 9.0f` decides.
+
+The suppression file is committed **empty**, with a comment saying a suppression is a written claim
+that a vulnerability does not affect this app and must say why. A suppression without that reasoning
+is a finding being hidden.
+
+### C — release signing and Actions permissions
+`android.yml` declared **no** permissions, so it ran with whatever the repository default was. It now
+declares `contents: read`. Both workflows decode the keystore into `$RUNNER_TEMP` and nothing removed
+it; a final step now does.
+
+**And one thing I could not fix:** every action is pinned to a **moving tag** (`@v4`, `@v3`, `@v2`),
+not a commit. A tag can be moved, so a compromised upstream would run with the signing secrets
+available. Pinning to a SHA is the fix and I have not done it, because I cannot resolve the SHAs from
+here and a guessed SHA is worse than an honest tag. It is written up in
+`AUDIT-signing-and-actions.md` as the highest-value hardening left.
+
 ## [1.61.0]
 The audit's P1-1: a WebDAV answer could exhaust memory.
 

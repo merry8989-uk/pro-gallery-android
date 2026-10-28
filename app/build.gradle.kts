@@ -2,11 +2,35 @@ import java.io.File
 import java.util.Properties
 
 plugins {
+    id("org.owasp.dependencycheck") version "10.0.4"
+    id("com.github.jk1.dependency-license-report") version "2.9"
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+}
+
+// ---------------------------------------------------------------------------
+// Supply-chain checks (CI job "dependency-check").
+//
+// dependencyCheck  — OWASP dependency-check scans the resolved classpath for
+//                    known CVEs. failBuildOnCVSS = 9.0f means only critical
+//                    findings (CVSS >= 9.0) fail the build; lower severities
+//                    are reported and reviewed.
+// licenseReport    — the jk1 dependency-license-report plugin, run from CI as
+//                    `./gradlew generateLicenseReport`.
+// ---------------------------------------------------------------------------
+dependencyCheck {
+    failBuildOnCVSS = 9.0f
+    suppressionFile = "config/dependency-check-suppressions.xml"
+}
+
+licenseReport {
+    // Acceptable licences for this app: Apache-2.0, MIT, BSD-2-Clause,
+    // BSD-3-Clause, ISC, and the EPL/LGPL family only when dynamically linked
+    // and unmodified. GPL and AGPL must be reviewed manually — this app must
+    // not ship copyleft code without a decision.
 }
 
 // ---------------------------------------------------------------------------
@@ -37,8 +61,8 @@ android {
         applicationId = "com.progallery.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 80
-        versionName = "1.61.0"
+        versionCode = 81
+        versionName = "1.62.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
