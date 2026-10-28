@@ -20,6 +20,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.progallery.app.data.documents.DocumentFormats
 import com.progallery.app.data.documents.DocumentText
+import com.progallery.app.data.eventlog.EventLogStore
+import com.progallery.app.data.eventlog.EventName
+import com.progallery.app.data.eventlog.OpenFailure
 
 data class TextUiState(
     val loading: Boolean = true,
@@ -52,6 +55,7 @@ data class TextUiState(
 @HiltViewModel
 class TextViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val eventLog: EventLogStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TextUiState())
@@ -69,6 +73,20 @@ class TextViewModel @Inject constructor(
             val bytes = withContext(Dispatchers.IO) { readBounded(uri) }
 
             if (bytes == null) {
+                // Said on the screen **and** recorded, because a diagnostics export is the one thing
+                // meant to explain what is broken, and this failure used to leave no trace in it.
+                viewModelScope.launch {
+                    eventLog.log(
+                        EventName.ERROR_STATE_SHOWN,
+                        screen = "TextViewer",
+                        details = OpenFailure.details(
+                            viewer = "text",
+                            extension = extension,
+                            reason = "the file could not be read",
+                            uriReadable = false,
+                        ),
+                    )
+                }
                 _state.update {
                     it.copy(loading = false, kind = kind, error = "This file could not be opened.")
                 }

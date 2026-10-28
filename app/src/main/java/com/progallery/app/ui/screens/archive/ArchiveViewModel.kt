@@ -42,6 +42,7 @@ class ArchiveViewModel @Inject constructor(
     savedState: SavedStateHandle,
     private val extractor: ArchiveExtractor,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
+    private val eventLog: com.progallery.app.data.eventlog.EventLogStore,
 ) : ViewModel() {
 
     private val uriString: String = savedState.get<String>("uri").orEmpty()
@@ -74,6 +75,20 @@ class ArchiveViewModel @Inject constructor(
                 result.fold(
                     onSuccess = { entries -> it.copy(entries = entries, loading = false) },
                     onFailure = { failure ->
+                        // The same reason the screen shows, put where a diagnostics export can find
+                        // it. Four of five viewers used to fail silently in the log.
+                        viewModelScope.launch {
+                            eventLog.log(
+                                com.progallery.app.data.eventlog.EventName.ERROR_STATE_SHOWN,
+                                screen = "Archive",
+                                details = com.progallery.app.data.eventlog.OpenFailure.details(
+                                    viewer = "archive",
+                                    extension = uriString.substringAfterLast('.', ""),
+                                    reason = failure.message,
+                                    uriReadable = null,
+                                ),
+                            )
+                        }
                         it.copy(loading = false, error = failure.message ?: "That archive could not be read.")
                     },
                 )

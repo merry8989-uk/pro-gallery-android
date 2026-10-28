@@ -27,6 +27,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.58.0]
+The app could not tell us when a file failed to open.
+
+### The finding
+**Four of five viewers logged nothing when they failed.** The text viewer put *"This file could not be
+opened"* on the screen and told the log nothing; so did the image viewer, the PDF viewer and the
+archive viewer. Only the player recorded its failures.
+
+The diagnostics export is the one artefact meant to explain what is broken — so **every export was
+silent about exactly the failures being reported**. Every question about "why does this not work" had
+to be answered by reading code and guessing, and two guesses in a row were wrong.
+
+### Added
+All four viewers now record a failed open with the **extension**, the **reason in words**, and whether
+the address was even readable. Nothing about the file's contents, name or path: a log is a thing
+people send.
+
+### Two wrong hypotheses, written down
+- **The URI encoding.** `URLEncoder` encodes a space as `+`, and "works in some folders, not others"
+  is exactly what a space in a folder name would cause. **Wrong**: the viewers decode with
+  `URLDecoder`, which turns `+` back into a space. The pair was consistent. All sixteen replacements
+  were reverted.
+- **Non-media files never reaching the browser.** **Wrong**: the data source queries
+  `MediaStore.Files`, not just images and video, and the browser merges the deep-scan index on top.
+
+A guess presented as a finding is worse than no finding — and this project has done that once before.
+
+### And a checker rule that cried wolf
+`check_kotlin.py` reported a missing import for a **fully-qualified** use, which needs none. Second
+time this rule has done that. Fixed, and tested both ways: it ignores `com.example.Foo()` and still
+catches a genuinely missing `import`.
+
 ## [1.57.0]
 Zip files open, and can be unpacked — the thing the app had no answer for at all.
 
