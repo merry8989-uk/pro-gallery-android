@@ -74,16 +74,36 @@ class PhotoExporter @Inject constructor(
      * Writes into an existing entry. Returns null when compression fails, so the
      * caller does not report a successful overwrite of a file that was not written.
      */
+    /**
+     * Writes over an existing entry — **without being able to destroy it**.
+     *
+     * The old version opened the destination with mode `"wt"`, which **truncates before anything is
+     * written**. If compression then failed, the original was already gone: a person who edited a
+     * photo and got an error had lost the photo. That is the worst failure this app can have, and it
+     * was one line.
+     *
+     * Now the image is encoded **into memory first**. Only a complete, non-empty result is ever
+     * opened over the destination, so a compression failure cannot touch the file at all. It costs
+     * one image's worth of memory, which is the right price for never losing the original.
+     */
     private fun overwrite(
         bitmap: Bitmap,
         compressFormat: Bitmap.CompressFormat,
         quality: Int,
         overwriteUri: Uri,
     ): Uri? {
+        // Encode first. Nothing is opened, truncated or written until this has succeeded.
+        val encoded = java.io.ByteArrayOutputStream()
+        val wrote = runCatching { bitmap.compress(compressFormat, quality, encoded) }.getOrDefault(false)
+        val bytes = encoded.toByteArray()
+        if (!wrote || bytes.isEmpty()) {
+            // The destination has not been touched. The original is intact.
+            error("the image could not be encoded, so the original was left untouched")
+        }
+
         val out = context.contentResolver.openOutputStream(overwriteUri, "wt")
             ?: error("the file could not be opened for writing")
-        val wrote = out.use { bitmap.compress(compressFormat, quality, it) }
-        if (!wrote) error("the image could not be encoded")
+        out.use { it.write(bytes) }
         return overwriteUri
     }
 
@@ -140,16 +160,54 @@ class PhotoExporter @Inject constructor(
     ): Uri? {
         val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "ProGallery")
         if (!dir.exists() && !dir.mkdirs()) return null
-        val file = File(dir, "$displayName.${format.extension}")
+        // A name that does not exist yet, so an export can never overwrite something a person
+        // already had. `file.outputStream()` truncated a same-named file, and the catch below then
+        // **deleted** it — a failed export could destroy a file it had never written.
+        val file = uniqueFile(dir, displayName, format.extension)
+        var created = false
         try {
-            val wrote = file.outputStream().use { bitmap.compress(compressFormat, quality, it) }
-            if (!wrote || file.length() <= 0L) error("the image could not be encoded")
+            // `createNewFile` is the guard: it fails rather than truncating, so a race with another
+            // writer cannot silently take their file either.
+            created = file.createNewFile()
+            if (!created) error("a file with that name already exists")
+
+            val encoded = java.io.ByteArrayOutputStream()
+            val wrote = runCatching { bitmap.compress(compressFormat, quality, encoded) }.getOrDefault(false)
+            val bytes = encoded.toByteArray()
+            if (!wrote || bytes.isEmpty()) error("the image could not be encoded")
+
+            file.outputStream().use { it.write(bytes) }
+            if (file.length() <= 0L) error("nothing was written")
+
             MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf(format.mimeType), null)
             return Uri.fromFile(file)
         } catch (t: Throwable) {
-            file.delete()
+            // **Only a file this call created is ever deleted.** Anything that existed before this
+            // operation is not ours to remove, whatever went wrong.
+            if (created) file.delete()
             if (t is CancellationException) throw t
             return null
         }
+    }
+
+    /**
+     * A name nothing is using: `photo.jpg`, then `photo (1).jpg`, `photo (2).jpg` …
+     *
+     * Bounded, because a folder full of thousands of same-named exports should fail with an answer
+     * rather than spin.
+     */
+    private fun uniqueFile(dir: File, displayName: String, extension: String): File {
+        val first = File(dir, "$displayName.$extension")
+        if (!first.exists()) return first
+        for (index in 1..MAX_NAME_ATTEMPTS) {
+            val candidate = File(dir, "$displayName ($index).$extension")
+            if (!candidate.exists()) return candidate
+        }
+        // Everything taken: fall back to a timestamp, which cannot collide in practice.
+        return File(dir, "$displayName-${System.currentTimeMillis()}.$extension")
+    }
+
+    private companion object {
+        const val MAX_NAME_ATTEMPTS = 500
     }
 }
