@@ -83,7 +83,7 @@ class ProGalleryApplication : Application(), ImageLoaderFactory {
                                 throwable = throwable,
                                 screen = currentScreen.get(),
                                 threadName = thread.name,
-                                includePaths = settingsRepository.current().includeFilePathsInDiagnostics,
+                                includePaths = settingsRepository.current().includePathsInLogs,
                             ),
                         )
                     }
