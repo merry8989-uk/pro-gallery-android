@@ -77,6 +77,15 @@ class ArchiveReaderTest {
     }
 
     @Test
+    fun anEmptyArchiveIsAnArchiveWithNothingInIt() {
+        // `PK\x05\x06` is a real, valid, empty zip. It must not be reported as a broken file — the
+        // signature is what tells the two apart, because `ZipInputStream` returns no entries for both.
+        val empty = zipOf()
+        val entries = listOf(empty)
+        assertTrue("an empty zip is empty, not broken", entries.isEmpty())
+    }
+
+    @Test
     fun aMissingStreamIsAnErrorRatherThanAnEmptyList() {
         val failure = runCatching { ArchiveReader.list { null } }.exceptionOrNull()
         assertTrue(failure is ArchiveReader.Unreadable)

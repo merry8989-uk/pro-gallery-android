@@ -63,7 +63,22 @@ object ArchiveReader {
     fun list(open: () -> InputStream?): List<ArchiveEntry> {
         val stream = open() ?: throw Unreadable("That file could not be opened.")
         return try {
-            ZipInputStream(stream.buffered()).use { zip ->
+            val buffered = java.io.BufferedInputStream(stream)
+            // **The signature is checked before anything else**, because `ZipInputStream` does not
+            // throw on a file that is not a zip — it simply finds no entries and ends. A text file
+            // opened as an archive would then look like an *empty* archive, which is a worse answer
+            // than saying it is not one.
+            buffered.mark(4)
+            val magic = ByteArray(4)
+            val read = buffered.read(magic)
+            buffered.reset()
+            if (read < 4 || !isZipSignature(magic)) {
+                throw Unreadable(
+                    "This is not a zip archive. The app can list and unpack .zip, .jar and .apk; " +
+                        ".rar, .7z and .tar are recognised but cannot be opened here yet.",
+                )
+            }
+            ZipInputStream(buffered).use { zip ->
                 val entries = ArrayList<ArchiveEntry>()
                 var entry = zip.nextEntry
                 while (entry != null) {
@@ -93,4 +108,17 @@ object ArchiveReader {
             )
         }
     }
+
+    /**
+     * Whether these four bytes are the start of a zip.
+     *
+     * `PK\x03\x04` is a normal entry, `PK\x05\x06` an **empty** archive — which is a real archive
+     * with nothing in it, and must not be reported as a broken file — and `PK\x07\x08` a spanned one.
+     */
+    private fun isZipSignature(bytes: ByteArray): Boolean =
+        bytes.size >= 4 &&
+            bytes[0] == 'P'.code.toByte() &&
+            bytes[1] == 'K'.code.toByte() &&
+            bytes[2].toInt() in 1..8 &&
+            bytes[3].toInt() in 3..8
 }
