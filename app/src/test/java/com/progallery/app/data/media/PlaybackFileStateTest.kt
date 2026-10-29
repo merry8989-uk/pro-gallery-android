@@ -14,7 +14,10 @@ import org.junit.Test
  */
 class PlaybackFileStateTest {
 
-    private val notFound = PlaybackFailure.IO_FILE_NOT_FOUND
+    // The code itself is `private` inside `PlaybackFailure` — it mirrors Media3's own constant and
+    // has no business being public. `2005` is `ERROR_CODE_IO_FILE_NOT_FOUND`, and it is the code the
+    // exported diagnostics showed for the video that would not open.
+    private val notFound = 2005
 
     @Test
     fun aFileThatIsThereAndReadableIsAnAddressProblemNotAMissingFile() {
