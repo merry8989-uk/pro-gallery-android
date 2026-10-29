@@ -5,7 +5,7 @@ Recovery master prompt, the Advanced Settings master prompt, your audit, and the
 UltData feature list used as a reference. Nothing here is invented — each item was
 checked against the current code, not remembered.
 
-**Current release:** v1.63.0 · `versionCode 82` · CI green (unit tests, lint and an emulator
+**Current release:** v1.64.0 · `versionCode 83` · CI green (unit tests, lint and an emulator
 job) · signed with the project key.
 
 **Phases 1, 2A, 2B, 4 and 5 complete. Phase 3 is not** — the honest state is in §5, which is the
@@ -34,7 +34,7 @@ file operations and the one dispatch point that opens every format are still to 
 | Settings | DataStore, Basic/Advanced split, search, live summary, 63 settings, **every one with a reader** (five were not, until v1.37.0); **no destructive Room migration** |
 | Quality | CI = unit tests + lint + an emulator job + the two checkers; a signed release AAB; 54 releases verified by dex digest and signature |
 | Recent fixes | Cancellation no longer swallowed · "No installed app can open" (package visibility) · viewer swipes one kind · Home follows file types · size range 1 B–unlimited · pull-to-refresh · **five decorative settings wired** (v1.37.0) |
-| Diagnostics | A local log with 12 categories, 6 levels and 30 events — every one with a call site — a live view, filters, four export formats, and an email hand-off. **Supabase was removed in v1.36.0** |
+| Diagnostics | A local log with 12 categories, 6 levels and 32 events — every one with a call site — a live view, filters, four export formats, and an email hand-off. **Supabase was removed in v1.36.0** |
 
 ---
 

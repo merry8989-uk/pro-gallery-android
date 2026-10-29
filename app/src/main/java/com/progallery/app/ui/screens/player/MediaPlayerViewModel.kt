@@ -31,6 +31,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.progallery.app.ui.components.sameUri
 import com.progallery.app.data.transfer.CopyProgress
+import com.progallery.app.BuildConfig
+import com.progallery.app.data.diagnostics.FileOpenDiagnostics
 
 /**
  * The state of the one player.
@@ -90,6 +92,9 @@ class MediaPlayerViewModel @Inject constructor(
     private val eventLog: EventLogStore,
 ) : ViewModel() {
 
+    /** One id for this open attempt, so a record can be followed across events. */
+    private val openEventId: String = java.util.UUID.randomUUID().toString()
+
     private val _state = MutableStateFlow(MediaPlayerUiState())
     val state: StateFlow<MediaPlayerUiState> = _state.asStateFlow()
 
@@ -148,18 +153,55 @@ class MediaPlayerViewModel @Inject constructor(
     /** The item currently on screen, so the actions act on the right one. */
     fun setCurrent(item: MediaItem?) = _state.update { it.copy(item = item) }
 
+    /** Set once a file has been recorded as opened, so a session records one success, not hundreds. */
+    private var openRecorded = false
+
     fun onPlayingChanged(isPlaying: Boolean) = _state.update { it.copy(playing = isPlaying) }
 
-    fun onProgress(positionMs: Long, durationMs: Long) = _state.update {
-        it.copy(
-            positionMs = positionMs,
-            durationMs = if (durationMs > 0) durationMs else it.durationMs,
-        )
+    fun onProgress(positionMs: Long, durationMs: Long) {
+        // A duration means the container was read and a track was found: the file **did** open. That
+        // is the denominator the failures are meaningless without, and it is recorded once per
+        // attempt rather than on every tick of the progress bar.
+        if (!openRecorded && durationMs > 0) {
+            openRecorded = true
+            recordOpened()
+        }
+        _state.update {
+            it.copy(
+                positionMs = positionMs,
+                durationMs = if (durationMs > 0) durationMs else it.durationMs,
+            )
+        }
     }
 
     // ---- position memory -------------------------------------------------------------------
 
     suspend fun resumeAt(item: MediaItem): Long = playbackPositions.resumeAt(item.mediaKey)
+
+    /** The success record, once per open attempt. */
+    private fun recordOpened() {
+        val item = _state.value.item
+        viewModelScope.launch {
+            eventLog.log(
+                EventName.FILE_OPENED,
+                details = FileOpenDiagnostics.opened(
+                    feature = if (item?.isAudio == true) {
+                        FileOpenDiagnostics.Feature.AUDIO_PLAYER
+                    } else {
+                        FileOpenDiagnostics.Feature.VIDEO_PLAYER
+                    },
+                    extension = item?.extension.orEmpty(),
+                    mimeType = item?.mimeType,
+                    bytes = item?.sizeBytes,
+                    uriScheme = item?.uri?.scheme,
+                    stage = FileOpenDiagnostics.Stage.PLAYBACK,
+                    appVersion = BuildConfig.VERSION_NAME,
+                    eventId = openEventId,
+                ),
+            )
+        }
+    }
+
 
     /**
      * Reads the position off the player and saves it.
@@ -203,6 +245,28 @@ class MediaPlayerViewModel @Inject constructor(
             fileState = fileState,
         )
         viewModelScope.launch {
+            // The structured record the diagnostics spec asks for: which feature, which format,
+            // which stage, and — only when something actually said why — which reason.
+            eventLog.log(
+                EventName.FILE_OPEN_FAILED,
+                details = FileOpenDiagnostics.failed(
+                    feature = if (item?.isAudio == true) {
+                        FileOpenDiagnostics.Feature.AUDIO_PLAYER
+                    } else {
+                        FileOpenDiagnostics.Feature.VIDEO_PLAYER
+                    },
+                    extension = extension,
+                    mimeType = item?.mimeType,
+                    bytes = item?.sizeBytes,
+                    uriScheme = item?.uri?.scheme,
+                    stage = FileOpenDiagnostics.Stage.PLAYBACK,
+                    // Media3 told us the code, so this is evidence rather than a guess.
+                    reason = explanation.action.name.lowercase() + "_" + errorCode,
+                    exception = null,
+                    appVersion = BuildConfig.VERSION_NAME,
+                    eventId = openEventId,
+                ),
+            )
             eventLog.log(
                 EventName.PLAYBACK_FAILED,
                 details = mapOf(

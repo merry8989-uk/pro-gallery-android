@@ -90,6 +90,24 @@ enum class EventName(
     ERROR_STATE_SHOWN("error_state_shown", LogLevel.WARN, LogCategory.ERROR),
     /** A file that would not play, with the reason — the app's most common real failure. */
     PLAYBACK_FAILED("playback_failed", LogLevel.WARN, LogCategory.ERROR),
+    /**
+     * A file was opened and shown.
+     *
+     * **Successes are recorded deliberately.** A log of failures alone has no denominator: twenty
+     * `.webp` failures mean one thing if `.webp` was opened twenty-five times and another if it was
+     * opened five thousand. Without the successes there is no rate, and without a rate a broken
+     * format cannot be told from one unlucky file.
+     */
+    FILE_OPENED("file_opened", LogLevel.INFO, LogCategory.USER_ACTIVITY),
+
+    /**
+     * A file could not be opened, with the stage it stopped at.
+     *
+     * `stage` is the first useful question — opening the address, decoding the bytes, starting
+     * playback, parsing the document — because each has a different fix. The reason is only
+     * classified when something actually said why.
+     */
+    FILE_OPEN_FAILED("file_open_failed", LogLevel.WARN, LogCategory.ERROR),
 
     // ---- Security ---------------------------------------------------------------------------
     PERMISSION_STATE_RESOLVED("permission_state_resolved", LogLevel.INFO, LogCategory.SECURITY),

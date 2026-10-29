@@ -201,12 +201,22 @@ fun ViewerScreen(
                             // slot, because that slot takes a Painter and the point here is
                             // to say something in words.
                             val painter = rememberAsyncImagePainter(model = item.uri)
+                            // Both outcomes are recorded. A log of failures alone has no
+                            // denominator, so a format that fails twice in twenty looks the same as
+                            // one that fails twice in five thousand.
+                            LaunchedEffect(painter.state, item.uri) {
+                                when (val state = painter.state) {
+                                    is AsyncImagePainter.State.Success -> viewModel.reportOpened(item)
+                                    is AsyncImagePainter.State.Error -> viewModel.reportOpenFailure(
+                                        item,
+                                        state.result.throwable.javaClass.name,
+                                    )
+                                    else -> Unit
+                                }
+                            }
                             if (painter.state is AsyncImagePainter.State.Error) {
                                 // A blank screen tells the user nothing. If the picture
-                                // cannot be drawn, say why and offer the way out — and record it,
-                                // because a photo that will not render used to leave no trace in the
-                                // log at all.
-                                LaunchedEffect(item.uri) { viewModel.reportOpenFailure(item) }
+                                // cannot be drawn, say why and offer the way out.
                                 NoPreviewCard(
                                     item = item,
                                     onOpenWith = { viewModel.openWith(item) },
