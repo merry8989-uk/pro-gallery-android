@@ -23,6 +23,8 @@ import com.progallery.app.data.documents.DocumentText
 import com.progallery.app.data.eventlog.EventLogStore
 import com.progallery.app.data.eventlog.EventName
 import com.progallery.app.data.eventlog.OpenFailure
+import com.progallery.app.BuildConfig
+import com.progallery.app.data.diagnostics.FileOpenDiagnostics
 
 data class TextUiState(
     val loading: Boolean = true,
@@ -58,6 +60,9 @@ class TextViewModel @Inject constructor(
     private val eventLog: EventLogStore,
 ) : ViewModel() {
 
+    /** One id per file, so its success and its failure can be told apart. */
+    private val openEventId: String = java.util.UUID.randomUUID().toString()
+
     private val _state = MutableStateFlow(TextUiState())
     val state: StateFlow<TextUiState> = _state.asStateFlow()
 
@@ -76,6 +81,20 @@ class TextViewModel @Inject constructor(
                 // Said on the screen **and** recorded, because a diagnostics export is the one thing
                 // meant to explain what is broken, and this failure used to leave no trace in it.
                 viewModelScope.launch {
+                    eventLog.log(
+                        EventName.FILE_OPEN_FAILED,
+                        details = FileOpenDiagnostics.failed(
+                            feature = FileOpenDiagnostics.Feature.TEXT_READER,
+                            extension = extension,
+                            mimeType = null,
+                            bytes = null,
+                            uriScheme = null,
+                            stage = FileOpenDiagnostics.Stage.OPEN,
+                            reason = "the file could not be read",
+                            appVersion = BuildConfig.VERSION_NAME,
+                            eventId = openEventId,
+                        ),
+                    )
                     eventLog.log(
                         EventName.ERROR_STATE_SHOWN,
                         screen = "TextViewer",
@@ -101,6 +120,22 @@ class TextViewModel @Inject constructor(
                 }
                 document.fold(
                     onSuccess = { text ->
+                        // The file was read and decoded: the denominator for every text failure.
+                        viewModelScope.launch {
+                            eventLog.log(
+                                EventName.FILE_OPENED,
+                                details = FileOpenDiagnostics.opened(
+                                    feature = FileOpenDiagnostics.Feature.TEXT_READER,
+                                    extension = extension,
+                                    mimeType = null,
+                                    bytes = bytes.size.toLong(),
+                                    uriScheme = null,
+                                    stage = FileOpenDiagnostics.Stage.DECODE,
+                                    appVersion = BuildConfig.VERSION_NAME,
+                                    eventId = openEventId,
+                                ),
+                            )
+                        }
                         original = text
                         _state.update {
                             it.copy(

@@ -27,6 +27,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.66.0]
+The PDF, text and archive readers now record both outcomes too.
+
+v1.64.0 wired the player and the image viewer. These three still logged only a failure, under the older
+event, with no success at all — so for PDFs, documents and archives there was still no denominator and
+no stage.
+
+Each now records `file_opened` and `file_open_failed` through `FileOpenDiagnostics`:
+
+| Reader | Success is | Stage on failure |
+| --- | --- | --- |
+| PDF | a page count, which means the document parsed | `parse` |
+| Text / document | the bytes were read and decoded | `open` when the file could not be read at all, `decode` otherwise |
+| Archive | the listing was read | `decode` |
+
+**The failure is recorded twice on purpose** — once as `file_open_failed`, which is what the aggregate
+count reads, and once as `error_state_shown`, which is what the screen-level review reads. They answer
+different questions and neither replaces the other.
+
 ## [1.65.0]
 The permissions the app actually uses, and the scheduled work that survived a reboot.
 
