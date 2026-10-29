@@ -98,7 +98,7 @@ enum class EventName(
      * opened five thousand. Without the successes there is no rate, and without a rate a broken
      * format cannot be told from one unlucky file.
      */
-    FILE_OPENED("file_opened", LogLevel.INFO, LogCategory.MEDIA),
+    FILE_OPENED("file_opened", LogLevel.INFO, LogCategory.USER_ACTIVITY),
 
     /**
      * A file could not be opened, with the stage it stopped at.
