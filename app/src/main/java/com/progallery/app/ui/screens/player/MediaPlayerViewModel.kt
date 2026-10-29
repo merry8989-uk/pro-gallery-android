@@ -224,7 +224,7 @@ class MediaPlayerViewModel @Inject constructor(
             it.copy(
                 playing = false,
                 loading = false,
-                message = PlaybackFailure.message(errorCode, fileName, fileState),
+                message = PlaybackFailure.message(errorCode, fileName, fileState = fileState),
                 failureAction = explanation.action,
             )
         }
