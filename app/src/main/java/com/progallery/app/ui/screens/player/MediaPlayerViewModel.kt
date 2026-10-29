@@ -189,23 +189,34 @@ class MediaPlayerViewModel @Inject constructor(
         // The extension goes with it, because the message for an unreadable container is now read
         // from the capability matrix — so what the player says and what the capability screen says
         // cannot disagree.
-        val extension = _state.value.item?.extension.orEmpty()
-        val explanation = PlaybackFailure.explain(errorCode, extension = extension)
-        // The reason the app could not play something is the single most useful thing it knows
-        // about a failure, and it used to live only in a snackbar that disappeared.
+        val item = _state.value.item
+        val extension = item?.extension.orEmpty()
+
+        // **What the file actually looks like on disk.** Without this the message had to hedge —
+        // "moved or deleted, *or* it is in a folder Android does not let this app read" — because it
+        // genuinely did not know. The three causes have three different fixes, and a person reading
+        // one sentence cannot tell which they have.
+        val fileState = fileStateOf(item?.uri?.toString().orEmpty())
+        val explanation = PlaybackFailure.explain(
+            errorCode = errorCode,
+            extension = extension,
+            fileState = fileState,
+        )
         viewModelScope.launch {
             eventLog.log(
                 EventName.PLAYBACK_FAILED,
-                // `error_code` alone is a number. The exported log showed four failures, all
-                // `error_code=2005`, and nothing else — no format, no reason, no file. It could not
-                // be acted on, which is the same gap the crash line had.
                 details = mapOf(
                     "error_code" to errorCode.toString(),
                     "reason" to explanation.action.name.lowercase(),
-                    "extension" to _state.value.item?.extension?.lowercase().orEmpty().ifBlank { "unknown" },
-                    "kind" to (_state.value.item?.mediaType?.name ?: "unknown").lowercase(),
+                    "extension" to extension.lowercase().ifBlank { "unknown" },
+                    "kind" to (item?.mediaType?.name ?: "unknown").lowercase(),
+                    // The scheme is the difference between an address that works and one that
+                    // cannot: `content://` goes through the system index, `file://` is a raw path
+                    // that scoped storage may refuse. A scan writes `file://`, and that is the first
+                    // thing to look at when a listed video will not open.
+                    "scheme" to (item?.uri?.scheme ?: "unknown"),
+                    "file_state" to fileState.name.lowercase(),
                     "because" to explanation.reason.take(120),
-                    "detail" to explanation.detail.take(200),
                 ),
             )
         }
@@ -213,7 +224,7 @@ class MediaPlayerViewModel @Inject constructor(
             it.copy(
                 playing = false,
                 loading = false,
-                message = PlaybackFailure.message(errorCode, fileName),
+                message = PlaybackFailure.message(errorCode, fileName, fileState = fileState),
                 failureAction = explanation.action,
             )
         }
@@ -374,6 +385,25 @@ class MediaPlayerViewModel @Inject constructor(
                 trashRepository.discard(trashIds)
                 _state.update { it.copy(message = "Deletion cancelled — nothing was changed") }
             }
+        }
+    }
+
+    /**
+     * Whether the file behind an address is there, readable, or gone.
+     *
+     * A `content://` address has no path to check, so it is reported as unknown rather than guessed
+     * at. A `file://` address can be checked directly, and that check is the difference between
+     * "re-scan, the address is stale" and "grant the folder".
+     */
+    private fun fileStateOf(uri: String): PlaybackFailure.FileState {
+        val parsed = runCatching { android.net.Uri.parse(uri) }.getOrNull() ?: return PlaybackFailure.FileState.Unknown
+        if (parsed.scheme != "file") return PlaybackFailure.FileState.Unknown
+        val path = parsed.path ?: return PlaybackFailure.FileState.Unknown
+        val file = java.io.File(path)
+        return when {
+            !file.exists() -> PlaybackFailure.FileState.Missing
+            !file.canRead() -> PlaybackFailure.FileState.Unreadable
+            else -> PlaybackFailure.FileState.Exists
         }
     }
 }

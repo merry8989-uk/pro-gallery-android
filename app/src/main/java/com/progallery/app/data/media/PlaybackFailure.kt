@@ -77,14 +77,39 @@ object PlaybackFailure {
         errorCode: Int,
         isLink: Boolean = false,
         extension: String = "",
+        fileState: FileState = FileState.Unknown,
     ): Explanation = when (errorCode) {
-        IO_FILE_NOT_FOUND -> Explanation(
-            reason = "The file could not be opened",
-            detail = "It has been moved or deleted, or it is in a folder Android does not let " +
-                "this app read. Other apps' folders — WhatsApp's, for example — are hidden " +
-                "unless you grant the folder or allow all files access.",
-            action = Action.RESCAN,
-        )
+        IO_FILE_NOT_FOUND -> when (fileState) {
+            // The file is **there and readable**, so the problem is the address the app is holding,
+            // not the file. That is a different fix from a missing file, and saying "moved or
+            // deleted" for it sent somebody looking in the wrong place.
+            FileState.Exists -> Explanation(
+                reason = "The file is there, but the app could not open it",
+                detail = "The file exists and can be read, so the address the app is holding for " +
+                    "it is out of date. Re-scanning finds it again with a current address.",
+                action = Action.RESCAN,
+            )
+            FileState.Unreadable -> Explanation(
+                reason = "The file is there, but Android will not let this app read it",
+                detail = "The app can see the file and cannot read it. This is the case for another " +
+                    "app's folder — WhatsApp's, for example. Granting that folder, or allowing all " +
+                    "files access, is what changes it.",
+                action = Action.RESCAN,
+            )
+            FileState.Missing -> Explanation(
+                reason = "The file is no longer there",
+                detail = "The address points at a file that has been moved or deleted since the app " +
+                    "last scanned. Re-scanning clears it from the list.",
+                action = Action.RESCAN,
+            )
+            FileState.Unknown -> Explanation(
+                reason = "The file could not be opened",
+                detail = "It has been moved or deleted, or it is in a folder Android does not let " +
+                    "this app read. Other apps' folders — WhatsApp's, for example — are hidden " +
+                    "unless you grant the folder or allow all files access.",
+                action = Action.RESCAN,
+            )
+        }
 
         IO_NO_PERMISSION -> Explanation(
             reason = "Android did not give permission to read this file",
@@ -198,8 +223,13 @@ object PlaybackFailure {
      * The file's name is included when it is known, because "something failed" is not useful
      * when a playlist of thirty-two videos is open.
      */
-    fun message(errorCode: Int, fileName: String? = null, isLink: Boolean = false): String {
-        val explanation = explain(errorCode, isLink)
+    fun message(
+        errorCode: Int,
+        fileName: String? = null,
+        isLink: Boolean = false,
+        fileState: FileState = FileState.Unknown,
+    ): String {
+        val explanation = explain(errorCode, isLink = isLink, fileState = fileState)
         val prefix = fileName?.takeIf { it.isNotBlank() }?.let { "\"$it\" — " } ?: ""
         return "$prefix${explanation.reason}.\n\n${explanation.detail}"
     }
@@ -237,5 +267,27 @@ object PlaybackFailure {
                 "change that.",
             action = Action.ANOTHER_APP,
         )
+    }
+
+    /**
+     * What the file looked like on disk when the player failed.
+     *
+     * Without this the message had to hedge — *"moved or deleted, **or** it is in a folder Android
+     * does not let this app read"* — because it genuinely did not know. A person reading that cannot
+     * tell which of three different problems they have, and the fixes are different.
+     */
+    enum class FileState {
+        /** The file is there and readable, so the address is what is wrong. */
+        Exists,
+
+        /** The file is there and this app may not read it — a permission problem. */
+        Unreadable,
+
+        /** The file is not there at all. */
+        Missing,
+
+        /** Could not be determined — a link, or a `content://` address with no path. */
+        Unknown,
+        ;
     }
 }

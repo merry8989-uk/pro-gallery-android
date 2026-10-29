@@ -27,6 +27,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.63.0]
+"The file could not be opened" now says which of three things happened.
+
+### What the screenshot showed
+A video listed in the app, **1 / 3**, sitting in DCIM — refusing to open with:
+
+> "It has been moved or deleted, **or** it is in a folder Android does not let this app read."
+
+Both halves cannot be true at once, and they have different fixes: re-scan, versus grant the folder.
+The message hedged because **nothing had checked the file**.
+
+### Fixed
+`PlaybackFailure` takes a `FileState` — `Exists`, `Unreadable`, `Missing`, `Unknown` — and the message
+names the actual one:
+
+- **Exists** — *"The file is there, but the app could not open it. The file exists and can be read, so
+  the address the app is holding for it is out of date. Re-scanning finds it again with a current
+  address."*
+- **Unreadable** — *"The file is there, but Android will not let this app read it. This is the case
+  for another app's folder — WhatsApp's, for example."*
+- **Missing** — *"The file is no longer there."*
+- **Unknown** — the old hedge, kept for a `content://` address that has no path to check. Hedging is
+  honest there; claiming one of the three would not be.
+
+The player works it out from the address: a `file://` path is checked with `exists()` and `canRead()`;
+a `content://` address is reported as unknown rather than guessed at.
+
+### And the log
+`playback_failed` now records the **scheme** (`content` or `file`), the **file state**, the extension
+and the kind — the four things that settle "why will this not open" without another round trip.
+
+Six tests, mirrored first, including that the default stays the honest hedge rather than becoming a
+confident claim it has not checked.
+
 ## [1.62.0]
 The audit's remaining code and CI items, done together.
 
