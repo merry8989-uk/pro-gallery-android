@@ -153,8 +153,11 @@ object FileOpenDiagnostics {
         put("stage", stage.label)
         // Device context travels with every event so a report is readable on its own, without the
         // session header a live log has. The model is a string a person already knows they own.
-        put("android_version", Build.VERSION.SDK_INT.toString())
-        put("device_model", (Build.MODEL ?: "unknown").take(40))
+        // `runCatching` because these are Android statics: on a device they are the whole point, and
+        // in a JVM unit test they throw "not mocked". A record that cannot be built in a test cannot
+        // be tested, and this object exists to be tested.
+        put("android_version", runCatching { Build.VERSION.SDK_INT }.getOrDefault(0).toString())
+        put("device_model", runCatching { Build.MODEL ?: "unknown" }.getOrDefault("unknown").take(40))
         put("app_version", appVersion)
         put("event_id", eventId)
     }
