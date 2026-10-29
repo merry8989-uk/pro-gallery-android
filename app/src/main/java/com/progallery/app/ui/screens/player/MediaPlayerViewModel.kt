@@ -174,6 +174,10 @@ class MediaPlayerViewModel @Inject constructor(
         }
     }
 
+    // ---- position memory -------------------------------------------------------------------
+
+    suspend fun resumeAt(item: MediaItem): Long = playbackPositions.resumeAt(item.mediaKey)
+
     /** The success record, once per open attempt. */
     private fun recordOpened() {
         val item = _state.value.item
