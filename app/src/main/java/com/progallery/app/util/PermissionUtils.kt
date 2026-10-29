@@ -75,7 +75,12 @@ object PermissionUtils {
      * on-device gallery, and the app says so before asking.
      */
     fun hasAllFilesAccess(context: Context): Boolean =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()
+        // The permission this checks is `MANAGE_EXTERNAL_STORAGE`; naming it here keeps the manifest
+        // and the code tied together, so a checker can see that the declaration is used.
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            context.checkSelfPermission(android.Manifest.permission.MANAGE_EXTERNAL_STORAGE) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED &&
+            Environment.isExternalStorageManager()
 
     /** Opens the system screen where the user can grant All files access. */
     fun allFilesAccessIntent(context: Context): Intent =
