@@ -19,7 +19,7 @@ class FileOpenDiagnosticsTest {
             feature = FileOpenDiagnostics.Feature.IMAGE_VIEWER,
             extension = "WEBP",
             mimeType = "image/webp",
-            bytes = 2_400_000,
+            bytes = 2_400_000L,
             uriScheme = "content",
             stage = FileOpenDiagnostics.Stage.DECODE,
             reason = reason,
@@ -59,7 +59,7 @@ class FileOpenDiagnosticsTest {
             feature = FileOpenDiagnostics.Feature.VIDEO_PLAYER,
             extension = "mp4",
             mimeType = "video/mp4",
-            bytes = 90_000_000,
+            bytes = 90_000_000L,
             uriScheme = "file",
             appVersion = "1.2.0",
             eventId = "x",
@@ -73,14 +73,14 @@ class FileOpenDiagnosticsTest {
     @Test
     fun theSizeIsABucketNotTheSize() {
         // A report must not be matchable to one particular photo.
-        assertEquals("empty", FileOpenDiagnostics.sizeBucket(0))
-        assertEquals("<100KB", FileOpenDiagnostics.sizeBucket(99_000))
-        assertEquals("100KB-1MB", FileOpenDiagnostics.sizeBucket(500_000))
-        assertEquals("1-10MB", FileOpenDiagnostics.sizeBucket(5_000_000))
-        assertEquals("10-100MB", FileOpenDiagnostics.sizeBucket(50_000_000))
-        assertEquals(">100MB", FileOpenDiagnostics.sizeBucket(500_000_000))
+        assertEquals("empty", FileOpenDiagnostics.sizeBucket(0L))
+        assertEquals("<100KB", FileOpenDiagnostics.sizeBucket(99_000L))
+        assertEquals("100KB-1MB", FileOpenDiagnostics.sizeBucket(500_000L))
+        assertEquals("1-10MB", FileOpenDiagnostics.sizeBucket(5_000_000L))
+        assertEquals("10-100MB", FileOpenDiagnostics.sizeBucket(50_000_000L))
+        assertEquals(">100MB", FileOpenDiagnostics.sizeBucket(500_000_000L))
         assertEquals("unknown", FileOpenDiagnostics.sizeBucket(null))
-        assertEquals("unknown", FileOpenDiagnostics.sizeBucket(-1))
+        assertEquals("unknown", FileOpenDiagnostics.sizeBucket(-1L))
     }
 
     @Test
