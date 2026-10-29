@@ -48,6 +48,9 @@ class ArchiveViewModel @Inject constructor(
     private val uriString: String = savedState.get<String>("uri").orEmpty()
     private val titleArg: String = savedState.get<String>("title").orEmpty()
 
+    /** One id per archive, so its success and its failure can be told apart. */
+    private val openEventId: String = java.util.UUID.randomUUID().toString()
+
     private val _state = MutableStateFlow(ArchiveUiState(title = titleArg.ifBlank { "Archive" }))
     val uiState: StateFlow<ArchiveUiState> = _state.asStateFlow()
 
@@ -73,11 +76,43 @@ class ArchiveViewModel @Inject constructor(
             }
             _state.update {
                 result.fold(
-                    onSuccess = { entries -> it.copy(entries = entries, loading = false) },
+                    onSuccess = { entries ->
+                        // The listing was read: the denominator for every archive failure.
+                        viewModelScope.launch {
+                            eventLog.log(
+                                com.progallery.app.data.eventlog.EventName.FILE_OPENED,
+                                details = com.progallery.app.data.diagnostics.FileOpenDiagnostics.opened(
+                                    feature = com.progallery.app.data.diagnostics.FileOpenDiagnostics.Feature.ARCHIVE_READER,
+                                    extension = uriString.substringAfterLast('.', ""),
+                                    mimeType = null,
+                                    bytes = null,
+                                    uriScheme = null,
+                                    stage = com.progallery.app.data.diagnostics.FileOpenDiagnostics.Stage.DECODE,
+                                    appVersion = com.progallery.app.BuildConfig.VERSION_NAME,
+                                    eventId = openEventId,
+                                ),
+                            )
+                        }
+                        it.copy(entries = entries, loading = false)
+                    },
                     onFailure = { failure ->
                         // The same reason the screen shows, put where a diagnostics export can find
                         // it. Four of five viewers used to fail silently in the log.
                         viewModelScope.launch {
+                            eventLog.log(
+                                com.progallery.app.data.eventlog.EventName.FILE_OPEN_FAILED,
+                                details = com.progallery.app.data.diagnostics.FileOpenDiagnostics.failed(
+                                    feature = com.progallery.app.data.diagnostics.FileOpenDiagnostics.Feature.ARCHIVE_READER,
+                                    extension = uriString.substringAfterLast('.', ""),
+                                    mimeType = null,
+                                    bytes = null,
+                                    uriScheme = null,
+                                    stage = com.progallery.app.data.diagnostics.FileOpenDiagnostics.Stage.DECODE,
+                                    reason = failure.message,
+                                    appVersion = com.progallery.app.BuildConfig.VERSION_NAME,
+                                    eventId = openEventId,
+                                ),
+                            )
                             eventLog.log(
                                 com.progallery.app.data.eventlog.EventName.ERROR_STATE_SHOWN,
                                 screen = "Archive",

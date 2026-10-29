@@ -31,6 +31,8 @@ import kotlinx.coroutines.CancellationException
 import com.progallery.app.data.eventlog.EventLogStore
 import com.progallery.app.data.eventlog.EventName
 import com.progallery.app.data.eventlog.OpenFailure
+import com.progallery.app.BuildConfig
+import com.progallery.app.data.diagnostics.FileOpenDiagnostics
 
 data class PdfUiState(
     val item: MediaItem? = null,
@@ -55,6 +57,9 @@ class PdfViewerViewModel @Inject constructor(
     private val repository: MediaRepository,
     private val eventLog: EventLogStore,
 ) : ViewModel() {
+
+    /** One id per document, so its success and its failure can be told apart. */
+    private val openEventId: String = java.util.UUID.randomUUID().toString()
 
     private val _state = MutableStateFlow(PdfUiState())
     val uiState: StateFlow<PdfUiState> = _state.asStateFlow()
@@ -87,12 +92,16 @@ class PdfViewerViewModel @Inject constructor(
                             ),
                         )
                     }
+                    logFailure(extension = "pdf", reason = "the document could not be opened")
                     _state.update { it.copy(loading = false, error = "Could not open this PDF") }
                     return@launch
                 }
                 descriptor = pfd
                 val pdfRenderer = PdfRenderer(pfd)
                 renderer = pdfRenderer
+                // A page count means the document parsed. That is the success the failure count
+                // needs a denominator for, and it is recorded once, outside the state update.
+                logOpened(extension = "pdf")
                 _state.update {
                     it.copy(
                         pageCount = pdfRenderer.pageCount,
@@ -218,5 +227,44 @@ class PdfViewerViewModel @Inject constructor(
         renderer = null
         descriptor = null
         super.onCleared()
+    }
+
+    /** The PDF was parsed and rendered. */
+    private fun logOpened(extension: String) {
+        viewModelScope.launch {
+            eventLog.log(
+                EventName.FILE_OPENED,
+                details = FileOpenDiagnostics.opened(
+                    feature = FileOpenDiagnostics.Feature.PDF_READER,
+                    extension = extension,
+                    mimeType = "application/pdf",
+                    bytes = _state.value.item?.sizeBytes,
+                    uriScheme = _state.value.item?.uri?.scheme,
+                    stage = FileOpenDiagnostics.Stage.PARSE,
+                    appVersion = BuildConfig.VERSION_NAME,
+                    eventId = openEventId,
+                ),
+            )
+        }
+    }
+
+    /** The PDF could not be parsed, with the stage that failed. */
+    private fun logFailure(extension: String, reason: String) {
+        viewModelScope.launch {
+            eventLog.log(
+                EventName.FILE_OPEN_FAILED,
+                details = FileOpenDiagnostics.failed(
+                    feature = FileOpenDiagnostics.Feature.PDF_READER,
+                    extension = extension,
+                    mimeType = "application/pdf",
+                    bytes = _state.value.item?.sizeBytes,
+                    uriScheme = _state.value.item?.uri?.scheme,
+                    stage = FileOpenDiagnostics.Stage.PARSE,
+                    reason = reason,
+                    appVersion = BuildConfig.VERSION_NAME,
+                    eventId = openEventId,
+                ),
+            )
+        }
     }
 }
