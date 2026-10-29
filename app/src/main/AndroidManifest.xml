@@ -12,10 +12,6 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28"
-        tools:ignore="ScopedStorage" />
     <!--
         ACCESS_MEDIA_LOCATION is deliberately **not** declared.
 
@@ -37,6 +33,37 @@
       It is a normal permission, so there is no runtime prompt.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      Permissions, each with the feature that needs it. Nothing here is declared "just in case": a
+      permission the app does not use is a permission a person was asked to grant for no reason, and
+      a checker in CI now fails the build if a runtime permission is declared and never read.
+    -->
+
+    <!-- Reading the photo, video and audio libraries, per Android version. -->
+    <!-- Android 14's "selected photos" grant: the app can read the pictures a person chose. -->
+    <!--
+      All-files access. The Access screen offers it and the app checks `isExternalStorageManager()`,
+      so it has to be declared or the check can never be true and the prompt can never appear.
+    -->
+
+    <!-- WebDAV, the update check and the stream player all need to know if there is a network. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- A long scan or a playing video must not be killed because the screen went off. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Haptics, which the settings switch turns on and off. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- The memories shortcut and the trash shortcut. -->
+    <uses-permission android:name="android.permission.INSTALL_SHORTCUT" />
+    <!-- The update flow asks the system to delete the old package it is replacing. -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!--
+      Re-registers the morning memories notification and the trash purge after a restart. One-off
+      work is forgotten on reboot, so without this both quietly stop after the phone restarts.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!--
       The daily memories reminder. Requested in context, when Memories is first opened, rather
@@ -83,6 +110,26 @@
         </intent>
         <intent>
             <action android:name="android.intent.action.SEND_MULTIPLE" />
+            <data android:mimeType="*/*" />
+        </intent>
+    </queries>
+
+    <!--
+      Which apps this app may *see*, without `QUERY_ALL_PACKAGES` — that permission is restricted by
+      Play and is refused for an app whose core purpose is not finding other apps. This asks only
+      about apps that can show media, which is what "App media" needs.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="image/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="video/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
             <data android:mimeType="*/*" />
         </intent>
     </queries>
@@ -198,6 +245,16 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

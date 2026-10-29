@@ -27,6 +27,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.65.0]
+The permissions the app actually uses, and the scheduled work that survived a reboot.
+
+### Added — each with the feature that needs it
+| Permission | Why |
+| --- | --- |
+| `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE` | WebDAV, the update check and the stream player all need to know whether there is a network |
+| `WAKE_LOCK` | a long scan or a playing video must not be killed because the screen went off |
+| `VIBRATE` | the haptics switch in settings |
+| `INSTALL_SHORTCUT` | the memories and trash shortcuts |
+| `REQUEST_DELETE_PACKAGES` | the update flow asks the system to remove the package it is replacing |
+| `RECEIVE_BOOT_COMPLETED` | see below |
+
+### The bug that mattered
+Both scheduled jobs — the morning memories notification and the trash purge — are registered as
+**one-off** work with a delay, and Android forgets one-off work when the device reboots. A phone that
+restarted overnight silently stopped showing memories, and the trash stopped expiring. Neither failed;
+they simply never ran again, which is the kind of bug nobody reports because nothing looks broken.
+
+`BootReceiver` re-registers both on `BOOT_COMPLETED` and on `MY_PACKAGE_REPLACED`. Re-registering is
+idempotent — both schedulers use unique work names — so a second call replaces rather than duplicates.
+
+### `<queries>` instead of `QUERY_ALL_PACKAGES`
+"App media" needs to see which apps can show media. `QUERY_ALL_PACKAGES` is restricted by Play and
+refused for an app whose purpose is not finding other apps, so the manifest asks only about apps that
+can **view** or **receive** media.
+
+### Deliberately not added
+`AD_ID`, `ACCESS_ADSERVICES_ATTRIBUTION`, `ACCESS_ADSERVICES_TOPICS` — this app has no advertising.
+`com.android.vending.BILLING` — there is nothing to buy. Shizuku — a third-party app's permission, not
+Android's. `CHANGE_NETWORK_STATE`, `CHANGE_WIFI_STATE` — the app reads the network, it does not change
+it. `ACCESS_MEDIA_LOCATION` — removed in v1.54.0 because nothing used it, and it is the permission the
+diagnostics showed looping five times in one second.
+
+### And one correction
+I first reported that `READ_EXTERNAL_STORAGE`, `READ_MEDIA_VISUAL_USER_SELECTED` and
+`MANAGE_EXTERNAL_STORAGE` were **missing**. They were not: my search only matched single-line
+`<uses-permission>` tags and the manifest writes them across several lines. Three duplicates had to be
+removed. The lesson is the one this project keeps relearning — a search that finds nothing has not
+proved nothing is there.
+
 ## [1.64.0]
 Every file-open attempt is recorded — the failures **and** the successes.
 
