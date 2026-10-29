@@ -27,6 +27,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.64.0]
+Every file-open attempt is recorded — the failures **and** the successes.
+
+### The structure
+`FileOpenDiagnostics` produces one record per attempt with exactly the fields a failure needs to be
+diagnosable without sending the file: `event`, `feature`, `extension`, `mime_type`,
+`file_size_bucket`, `source`, `stage`, `failure_reason`, `exception`, `android_version`,
+`device_model`, `app_version`, `event_id`.
+
+Two rules are enforced rather than left to whoever writes the next call site:
+
+- **Successes are recorded too.** A log of failures alone has no denominator: twenty `.webp` failures
+  mean one thing if `.webp` was opened twenty-five times and another if it was opened five thousand.
+  Without the successes there is no rate, and a broken format cannot be told from one unlucky file.
+- **A reason is never invented.** `stage` says where it stopped — open, decode, playback, parse,
+  handoff — and `failure_reason` is only filled when something actually said why. Otherwise the
+  record says `unclassified`. Guessing a cause is not diagnosis; it is throwing darts and then
+  believing the holes.
+
+The size is a **bucket**, not a size, so a report cannot be matched to a particular photo. Extension
+and MIME type are recorded separately, because they disagree more often than expected.
+
+### Wired
+- **The player** records `file_opened` on the first progress tick with a duration — a duration means
+  the container was read and a track was found — and `file_open_failed` with the Media3 code, the
+  scheme and the file state.
+- **The image viewer** records both from Coil's painter state, with the decoder's exception when it
+  has one.
+
+### And "open supported links"
+The manifest had `VIEW` filters for image, video and audio only. Added: **PDF**, **text**, **JSON**
+and **zip** — the formats the app reads itself — plus a **`SEND`** filter, which is how most people
+arrive from a chat. Deliberately **not** `*/*`: claiming every file would put the app in front of
+files it cannot show, which is worse than not appearing at all.
+
+Six tests, mirrored first.
+
 ## [1.63.0]
 "The file could not be opened" now says which of three things happened.
 

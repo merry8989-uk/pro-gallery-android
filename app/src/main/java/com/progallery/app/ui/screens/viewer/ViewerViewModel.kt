@@ -20,9 +20,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.progallery.app.ui.components.sameUri
 import com.progallery.app.util.runCatchingCancellable
+import com.progallery.app.BuildConfig
+import com.progallery.app.data.diagnostics.FileOpenDiagnostics
 import com.progallery.app.data.eventlog.EventLogStore
 import com.progallery.app.data.eventlog.EventName
-import com.progallery.app.data.eventlog.OpenFailure
 
 /** A rename or move that may need the platform's write-consent before it applies. */
 sealed interface WriteAction {
@@ -55,30 +56,60 @@ class ViewerViewModel @Inject constructor(
     private val eventLog: EventLogStore,
 ) : ViewModel() {
 
+    /** One id per picture shown, so its success and its failure can be told apart. */
+    private var openEventId: String = java.util.UUID.randomUUID().toString()
+
+    private val _items = MutableStateFlow<List<MediaItem>>(emptyList())
+    val items: StateFlow<List<MediaItem>> = _items.asStateFlow()
+
     /**
-     * Records that the picture could not be drawn.
+     * The picture was drawn.
      *
-     * Coil knows, and the screen shows a card instead of a blank page — but until this existed the
-     * log did not, so a photo that would not render left no trace in a diagnostics export. That is
-     * the whole reason this audit exists.
+     * Recorded because failures alone have no denominator: twenty `.webp` failures mean one thing if
+     * `.webp` was opened twenty-five times and another if it was opened five thousand.
      */
-    fun reportOpenFailure(item: MediaItem) {
+    fun reportOpened(item: MediaItem) {
         viewModelScope.launch {
             eventLog.log(
-                EventName.ERROR_STATE_SHOWN,
-                screen = "Viewer",
-                details = OpenFailure.details(
-                    viewer = "image",
+                EventName.FILE_OPENED,
+                details = FileOpenDiagnostics.opened(
+                    feature = FileOpenDiagnostics.Feature.IMAGE_VIEWER,
                     extension = item.extension,
-                    reason = "the image could not be drawn",
-                    uriReadable = null,
+                    mimeType = item.mimeType,
+                    bytes = item.sizeBytes,
+                    uriScheme = item.uri.scheme,
+                    stage = FileOpenDiagnostics.Stage.DECODE,
+                    appVersion = BuildConfig.VERSION_NAME,
+                    eventId = openEventId,
                 ),
             )
         }
     }
 
-    private val _items = MutableStateFlow<List<MediaItem>>(emptyList())
-    val items: StateFlow<List<MediaItem>> = _items.asStateFlow()
+    /**
+     * The picture could not be drawn — with the stage and, where the decoder said anything, the
+     * reason. Coil knows; before this the log did not, so a photo that would not render left no trace
+     * in a diagnostics export at all.
+     */
+    fun reportOpenFailure(item: MediaItem, exception: String? = null) {
+        viewModelScope.launch {
+            eventLog.log(
+                EventName.FILE_OPEN_FAILED,
+                details = FileOpenDiagnostics.failed(
+                    feature = FileOpenDiagnostics.Feature.IMAGE_VIEWER,
+                    extension = item.extension,
+                    mimeType = item.mimeType,
+                    bytes = item.sizeBytes,
+                    uriScheme = item.uri.scheme,
+                    stage = FileOpenDiagnostics.Stage.DECODE,
+                    reason = "decoder_failed",
+                    exception = exception,
+                    appVersion = BuildConfig.VERSION_NAME,
+                    eventId = openEventId,
+                ),
+            )
+        }
+    }
 
     private val _folders = MutableStateFlow<List<String>>(emptyList())
     val folders: StateFlow<List<String>> = _folders.asStateFlow()
