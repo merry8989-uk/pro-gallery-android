@@ -203,6 +203,7 @@ fun MediaPlayerScreen(
             AudioSurface(
                 state = state,
                 player = player,
+                engine = engine,
                 folders = folders,
                 snackbarHostState = snackbarHostState,
                 onBack = onBack,
@@ -359,6 +360,7 @@ private fun VideoSurface(
 private fun AudioSurface(
     state: MediaPlayerUiState,
     player: Player,
+    engine: PlaybackEngine,
     folders: List<String>,
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
@@ -372,6 +374,19 @@ private fun AudioSurface(
     var seekValue by remember { mutableStateOf(0f) }
 
     val item = state.item
+
+    // The video surface loads its media item when the pager selects a page. Audio has no pager,
+    // so it must perform the equivalent setup here. Previously the audio UI rendered controls
+    // around an empty ExoPlayer: tapping Play could never start anything because no media item had
+    // been assigned and prepare() had never been called.
+    LaunchedEffect(item?.mediaKey) {
+        val audio = item ?: return@LaunchedEffect
+        player.setMediaItem(engine.mediaItem(audio.uri, audio.mimeType, audio.displayName))
+        val resumePosition = viewModel.resumeAt(audio)
+        if (resumePosition > 0L) player.seekTo(resumePosition)
+        player.prepare()
+        player.playWhenReady = true
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {

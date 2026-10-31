@@ -27,6 +27,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.68.0]
+Audio never started, because the code that starts it only ran for video.
+
+### The real cause, which my previous guess was not
+v1.67.0 added audio focus and said the silence was probably another app holding focus. That was a
+**guess**, and it was the smaller half of the problem. The larger half is this:
+
+The `LaunchedEffect` that calls `setMediaItem`, `prepare()` and `playWhenReady = true` lived **inside the
+pager branch**, and **audio has no pager** — an audio file is opened on its own, with no grid to swipe
+through. So for every audio file those three calls **never ran at all**. The player was an **empty
+`ExoPlayer`** with controls drawn around it: tapping Play could not start anything, because there was
+nothing to play. No error, no message, no log line — *"nothing is happening"*, exactly.
+
+The audio surface now performs the same setup for itself, keyed on the item, including resuming where
+it was left.
+
+**Audio focus stays** — it is still correct, and without it a background music app would take the
+output back. But it was not the cause, and saying so plainly matters more than looking right.
+
+### And the home screen
+The dashboard is rebuilt: a compact card, a horizontal row of quick actions, and the sections as
+lists rather than a grid of tiles. The drawer still has its 22 entries; collapsing those is still
+outstanding.
+
 ## [1.67.0]
 Audio that produced no sound, and the reason it looked like nothing at all.
 
