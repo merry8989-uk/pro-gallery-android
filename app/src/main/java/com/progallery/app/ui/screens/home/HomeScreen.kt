@@ -106,6 +106,26 @@ fun HomeScreen(
                     onRefresh = { viewModel.refresh() },
                     modifier = Modifier.fillMaxSize().padding(padding),
                 ) {
+                    // **Hoisted out of the `LazyColumn`.** `remember` is a @Composable call and the
+                    // `LazyColumn` body is a `LazyListScope`, which is not composable — declaring this
+                    // inside it was a compile error, so the whole home screen did not build.
+                    val typeTiles = remember(
+                        state.enabledKinds,
+                        state.photos,
+                        state.videos,
+                        state.audio,
+                        state.documents,
+                    ) {
+                        HomeEntries.typeTiles(state.enabledKinds).map { kind ->
+                            when (kind) {
+                                MediaType.IMAGE -> HomeTile(Icons.Filled.PhotoLibrary, "Photos", "${state.photos} items", Routes.PHOTOS)
+                                MediaType.VIDEO -> HomeTile(Icons.Filled.Videocam, "Videos", "${state.videos} items", Routes.VIDEOS)
+                                MediaType.AUDIO -> HomeTile(Icons.Filled.MusicNote, "Audio", "${state.audio} items", Routes.AUDIO)
+                                else -> HomeTile(Icons.Filled.Description, "Documents", "${state.documents} items", Routes.DOCUMENTS)
+                            }
+                        }
+                    }
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
@@ -157,16 +177,6 @@ fun HomeScreen(
 
                         item { SectionHeading("Browse by type") }
 
-                        val typeTiles = remember(state.enabledKinds, state.photos, state.videos, state.audio, state.documents) {
-                            HomeEntries.typeTiles(state.enabledKinds).map { kind ->
-                                when (kind) {
-                                    MediaType.IMAGE -> HomeTile(Icons.Filled.PhotoLibrary, "Photos", "${state.photos} items", Routes.PHOTOS)
-                                    MediaType.VIDEO -> HomeTile(Icons.Filled.Videocam, "Videos", "${state.videos} items", Routes.VIDEOS)
-                                    MediaType.AUDIO -> HomeTile(Icons.Filled.MusicNote, "Audio", "${state.audio} items", Routes.AUDIO)
-                                    else -> HomeTile(Icons.Filled.Description, "Documents", "${state.documents} items", Routes.DOCUMENTS)
-                                }
-                            }
-                        }
                         items(typeTiles.chunked(2)) { pair ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
