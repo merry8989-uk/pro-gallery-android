@@ -33,6 +33,7 @@ import com.progallery.app.ui.components.sameUri
 import com.progallery.app.data.transfer.CopyProgress
 import com.progallery.app.BuildConfig
 import com.progallery.app.data.diagnostics.FileOpenDiagnostics
+import com.progallery.app.data.model.SortOrder
 
 /**
  * The state of the one player.
@@ -116,7 +117,18 @@ class MediaPlayerViewModel @Inject constructor(
         }.getOrNull() ?: uriString
 
         viewModelScope.launch {
+            // **The cache is not the library.** `currentSnapshot()` returns whatever the last screen
+            // loaded, filtered by its kinds — so opening a song from the Audio screen right after
+            // looking at Photos found nothing, and the player said the file was no longer available
+            // for a file that was right there. Falling back to a direct read of the kind fixes it.
             val resolved = repository.currentSnapshot().firstOrNull { it.uri.toString() == decoded }
+                ?: runCatching {
+                    repository.snapshot(
+                        kinds = setOf(MediaType.AUDIO, MediaType.VIDEO),
+                        sort = SortOrder.DATE_NEWEST,
+                        query = "",
+                    ).firstOrNull { it.uri.toString() == decoded }
+                }.getOrNull()
             _folders.value = runCatching { repository.folders() }.getOrDefault(emptyList())
 
             if (resolved == null) {
