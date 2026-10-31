@@ -83,12 +83,7 @@ object PlaybackFailure {
             // The file is **there and readable**, so the problem is the address the app is holding,
             // not the file. That is a different fix from a missing file, and saying "moved or
             // deleted" for it sent somebody looking in the wrong place.
-            FileState.Exists -> Explanation(
-                reason = "The file is there, but the app could not open it",
-                detail = "The file exists and can be read, so the address the app is holding for " +
-                    "it is out of date. Re-scanning finds it again with a current address.",
-                action = Action.RESCAN,
-            )
+
             FileState.Unreadable -> Explanation(
                 reason = "The file is there, but Android will not let this app read it",
                 detail = "The app can see the file and cannot read it. This is the case for another " +
@@ -101,6 +96,17 @@ object PlaybackFailure {
                 detail = "The address points at a file that has been moved or deleted since the app " +
                     "last scanned. Re-scanning clears it from the list.",
                 action = Action.RESCAN,
+            )
+            // A raw `file://` address that the player could not open, for a file that has not moved.
+            // This is the deep-scan case: the file is there, the address is one scoped storage does
+            // not allow. Offering another app is the honest next step — it may have been granted
+            // access this app has not.
+            FileState.Exists -> Explanation(
+                reason = "The file is there, but this app could not open it",
+                detail = "The file exists and can be read, so the address is what the player could " +
+                    "not use. Another app may be able to open it — try \"Open with\", or re-scan to " +
+                    "pick up a current address.",
+                action = Action.ANOTHER_APP,
             )
             FileState.Unknown -> Explanation(
                 reason = "The file could not be opened",

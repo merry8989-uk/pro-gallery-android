@@ -27,6 +27,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.70.0]
+When this app cannot open a file, it offers an app that can.
+
+A `file://` address the player could not use, for a file that **exists and is readable**, now offers
+**Open with** instead of only a re-scan. The file is there; the address is what failed. Another app may
+have been granted access this one has not — and being able to watch the video is worth more than being
+right about whose fault it is.
+
+Re-scanning is still offered in the same message, because a stale address is the other possibility.
+
 ## [1.69.0]
 "The file was moved or deleted" — about a file that had not moved.
 
