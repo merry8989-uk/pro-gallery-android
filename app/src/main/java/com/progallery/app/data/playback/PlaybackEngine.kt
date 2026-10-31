@@ -73,6 +73,26 @@ class PlaybackEngine @Inject constructor(
         // compile error rather than a wrong player — which is how it was caught.
         return ExoPlayer.Builder(context, renderers, withPlatformParser).build().apply {
             playWhenReady = true
+
+            // **Audio focus, which was never asked for.**
+            //
+            // Without this the player starts and produces no sound whenever another app holds the
+            // audio focus — music in the background, a video, a call that just ended. Nothing fails:
+            // no error code, no exception, no message. The screen shows controls, the position does
+            // not move, and "nothing is happening" is exactly what it looks like.
+            //
+            // `handleAudioFocus = true` makes the player request focus and give it back, and duck
+            // when something else needs it.
+            setAudioAttributes(
+                androidx.media3.common.AudioAttributes.Builder()
+                    .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                    .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_UNKNOWN)
+                    .build(),
+                /* handleAudioFocus = */ true,
+            )
+
+            // Headphones pulled out should pause, not keep playing into the room.
+            setHandleAudioBecomingNoisy(true)
         }
     }
 

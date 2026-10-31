@@ -27,6 +27,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.67.0]
+Audio that produced no sound, and the reason it looked like nothing at all.
+
+### The player never asked for audio focus
+`ExoPlayer` was built with `playWhenReady = true` and nothing else. **Without `setAudioAttributes`,
+the player does not request audio focus** — so if any other app held it (music in the background, a
+video, a call that had just ended), this player started, ran, and produced **no sound**.
+
+Nothing failed. No error code, no exception, no message, the controls appeared, the position did not
+move. *"Nothing is happening"* is exactly what that looks like, and it is why nothing in the log could
+explain it.
+
+Now: `setAudioAttributes(USAGE_MEDIA, handleAudioFocus = true)` so the player requests focus and gives
+it back, and `setHandleAudioBecomingNoisy(true)` so unplugging headphones pauses instead of playing
+into the room.
+
+### And the lookup that could not find the file
+`configure` looked for the tapped file **only** in `currentSnapshot()`, which returns whatever the last
+screen loaded, filtered by its kinds. Opening a song from the Audio screen right after looking at
+Photos found nothing, and the player said *"this file is no longer available"* about a file that was
+right there.
+
+It now falls back to a direct read of the audio and video kinds.
+
 ## [1.66.0]
 The PDF, text and archive readers now record both outcomes too.
 
