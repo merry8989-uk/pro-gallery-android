@@ -3,6 +3,7 @@ package com.progallery.app.data.media
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.Assert.assertEquals
 
 /**
  * The message for a file that will not open must say **which** of three problems it is.
