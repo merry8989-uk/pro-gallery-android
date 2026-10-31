@@ -34,6 +34,7 @@ import com.progallery.app.data.transfer.CopyProgress
 import com.progallery.app.BuildConfig
 import com.progallery.app.data.diagnostics.FileOpenDiagnostics
 import com.progallery.app.data.model.SortOrder
+import com.progallery.app.data.playback.PlaybackUri
 
 /**
  * The state of the one player.
@@ -138,11 +139,20 @@ class MediaPlayerViewModel @Inject constructor(
                 return@launch
             }
 
-            _state.update { it.copy(item = resolved, loading = false, error = null) }
+            // **The address the player is handed matters more than the item.**
+            //
+            // A file the deep scan found is stored as `file:///storage/…`, and under scoped storage
+            // Media3 cannot open that: it reports FILE_NOT_FOUND, and the app says the file was moved
+            // or deleted — about a file that has not moved. Asking the system for a `content://`
+            // address for the same path is what makes it playable.
+            val playable = PlaybackUri.resolve(context.contentResolver, resolved.uri)
+            val item = if (playable == resolved.uri) resolved else resolved.copy(uri = playable)
 
-            if (!resolved.isVideo) {
+            _state.update { it.copy(item = item, loading = false, error = null) }
+
+            if (!item.isVideo) {
                 // Audio has no grid to swipe through: it is the file, opened on its own.
-                _state.update { it.copy(items = listOf(resolved)) }
+                _state.update { it.copy(items = listOf(item)) }
                 return@launch
             }
 

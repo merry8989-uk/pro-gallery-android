@@ -27,6 +27,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Instrumented tests are not run in CI; they need a connected device or emulator.
 - Free-form crop and Paging 3 for very large libraries are planned.
 
+## [1.69.0]
+"The file was moved or deleted" — about a file that had not moved.
+
+### The address, not the file
+The deep scan finds files the system index does not list — another app's `Android/media` folder, a
+folder nobody indexed — and stores them as **`file:///storage/emulated/…`**. Media3 was handed that
+address, and under scoped storage **cannot open it**. It reports `ERROR_CODE_IO_FILE_NOT_FOUND`, which
+the app turns into *"it has been moved or deleted"*.
+
+The file has not moved. The address is one the player is not allowed to use. That is why the same
+message appeared for a file sitting in the same place it had always been.
+
+### Fixed
+`PlaybackUri` asks the system for an address it **will** honour: if MediaStore has a row for that path,
+its `content://` uri is used instead, and it opens through the provider. If it does not, the `file://`
+address is kept — it is the only one there is, and it works for the app's own storage.
+
+The player resolves the item once, when it loads it, so the video pager, the audio surface and the
+saved position all work from the same playable address.
+
+The decision (`needsResolving`) is pure and separate from the lookup, so the rule can be tested without
+a device.
+
 ## [1.68.0]
 Audio never started, because the code that starts it only ran for video.
 
