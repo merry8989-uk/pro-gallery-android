@@ -24,7 +24,17 @@ class PlaybackFileStateTest {
         val text = PlaybackFailure.message(notFound, "VID_1.mp4", fileState = PlaybackFailure.FileState.Exists)
         assertTrue(text.contains("The file is there"))
         assertFalse("it must not claim the file is gone", text.contains("no longer there"))
-        assertTrue("and it must say what to do", text.contains("Re-scanning"))
+        assertTrue("and it must say what to do", text.contains("Open with"))
+    }
+
+    @Test
+    fun aFileThatIsThereOffersAnotherAppRatherThanOnlyARescan() {
+        // The file exists; the **address** is what the player could not use. Another app may have
+        // been granted access this one has not, and being able to watch the video matters more than
+        // being right about whose fault it is.
+        val explanation = PlaybackFailure.explain(notFound, fileState = PlaybackFailure.FileState.Exists)
+        assertEquals(PlaybackFailure.Action.ANOTHER_APP, explanation.action)
+        assertTrue("re-scanning is still mentioned", explanation.detail.contains("re-scan"))
     }
 
     @Test
